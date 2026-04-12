@@ -1,0 +1,508 @@
+# File Upload Workflow V2.0
+# Complete file upload process with validation, scanning, deduplication, and processing
+
+name: FileUpload
+description: |
+  Complete file upload workflow including:
+  - Quota validation
+  - File validation
+  - Content deduplication
+  - Virus scanning
+  - Thumbnail generation (images and video)
+  - Document preview generation
+  - CDN URL generation
+  - Quota update
+  - Event emission
+
+version: 2
+
+trigger:
+  event: FileUploadRequestedEvent
+  extract:
+    bucket_id: "event.bucket_id"
+    path: "event.path"
+    content: "event.content"
+    original_name: "event.original_name"
+    mime_type: "event.mime_type"
+    owner_id: "event.owner_id"
+
+config:
+  timeout: 10m
+  persistence: true
+  retry:
+    max_attempts: 3
+    backoff: exponential
+
+context:
+  bucket: null
+  file: null
+  quota: null
+  scan_result: null
+  checksum: null
+  detected_mime: null
+  content_hash: null
+  is_duplicate: false
+  cdn_url: null
+
+steps:
+  - name: load_bucket
+    type: action
+    action: query
+    entity: Bucket
+    params:
+      id: "{{ context.bucket_id }}"
+    on_success:
+      set:
+        bucket: "{{ result }}"
+      next: check_bucket_active
+    on_failure:
+      next: bucket_not_found
+
+  - name: check_bucket_active
+    type: condition
+    conditions:
+      - if: "context.bucket != null && context.bucket.status == 'active'"
+        next: check_deduplication_enabled
+      - else: true
+        next: bucket_not_active
+
+  - name: check_deduplication_enabled
+    type: condition
+    conditions:
+      - if: "context.bucket.enable_deduplication == true"
+        next: calculate_checksum
+      - else: true
+        next: detect_mime_type
+
+  - name: calculate_checksum
+    type: action
+    action: calculate_sha256
+    params:
+      content: "{{ context.content }}"
+    on_success:
+      set:
+        checksum: "{{ result }}"
+      next: check_duplicate_content
+
+  - name: check_duplicate_content
+    type: action
+    action: query
+    entity: ContentHash
+    params:
+      hash: "{{ context.checksum }}"
+    on_success:
+      set:
+        content_hash: "{{ result }}"
+        is_duplicate: true
+      next: use_existing_content
+    on_failure:
+      set:
+        is_duplicate: false
+      next: detect_mime_type
+
+  - name: use_existing_content
+    type: action
+    action: update
+    entity: ContentHash
+    params:
+      id: "{{ context.content_hash.id }}"
+      reference_count: "{{ context.content_hash.reference_count + 1 }}"
+      last_referenced_at: "{{ now() }}"
+    on_success:
+      next: detect_mime_type
+
+  - name: detect_mime_type
+    type: action
+    action: detect_mime
+    params:
+      content: "{{ context.content }}"
+      filename: "{{ context.original_name }}"
+    on_success:
+      set:
+        detected_mime: "{{ result ?? context.mime_type ?? 'application/octet-stream' }}"
+      next: validate_file_type
+
+  - name: validate_file_type
+    type: condition
+    conditions:
+      - if: "context.bucket.allowed_mime_types.length == 0 || context.bucket.allowed_mime_types.contains(context.detected_mime)"
+        next: validate_file_size
+      - else: true
+        next: mime_type_not_allowed
+
+  - name: validate_file_size
+    type: condition
+    conditions:
+      - if: "context.bucket.max_file_size == null || context.content.length <= context.bucket.max_file_size"
+        next: load_quota
+      - else: true
+        next: file_too_large
+
+  - name: load_quota
+    type: action
+    action: query
+    entity: UserQuota
+    params:
+      user_id: "{{ context.owner_id }}"
+    on_success:
+      set:
+        quota: "{{ result }}"
+      next: check_quota
+    on_failure:
+      next: create_default_quota
+
+  - name: create_default_quota
+    type: action
+    action: create
+    entity: UserQuota
+    params:
+      user_id: "{{ context.owner_id }}"
+      tier: free
+    on_success:
+      set:
+        quota: "{{ result }}"
+      next: check_quota
+
+  - name: check_quota
+    type: condition
+    conditions:
+      - if: "context.is_duplicate == true || context.quota.used_bytes + context.content.length <= context.quota.limit_bytes"
+        next: create_file_record
+      - else: true
+        next: quota_exceeded
+
+  - name: create_file_record
+    type: action
+    action: create
+    entity: StoredFile
+    params:
+      bucket_id: "{{ context.bucket_id }}"
+      owner_id: "{{ context.owner_id }}"
+      path: "{{ context.path }}"
+      original_name: "{{ context.original_name }}"
+      size_bytes: "{{ context.content.length }}"
+      mime_type: "{{ context.detected_mime }}"
+      status: uploading
+      storage_key: "{{ context.bucket.root_path }}/{{ context.path }}"
+      content_hash_id: "{{ context.is_duplicate ? context.content_hash.id : null }}"
+      checksum: "{{ context.checksum }}"
+    on_success:
+      set:
+        file: "{{ result }}"
+      next: check_should_store_content
+
+  - name: check_should_store_content
+    type: condition
+    conditions:
+      - if: "context.is_duplicate == false"
+        next: store_content
+      - else: true
+        next: update_file_processing
+
+  - name: store_content
+    type: action
+    action: store_file
+    params:
+      key: "{{ context.file.storage_key }}"
+      content: "{{ context.content }}"
+      backend: "{{ context.bucket.storage_backend }}"
+    on_success:
+      next: create_content_hash
+    on_failure:
+      next: rollback_file_record
+
+  - name: create_content_hash
+    type: action
+    action: create
+    entity: ContentHash
+    params:
+      hash: "{{ context.checksum }}"
+      size_bytes: "{{ context.file.size_bytes }}"
+      storage_key: "{{ context.file.storage_key }}"
+      storage_backend: "{{ context.bucket.storage_backend }}"
+      reference_count: 1
+    on_success:
+      set:
+        content_hash: "{{ result }}"
+      next: link_content_hash
+    on_failure:
+      next: update_file_processing
+
+  - name: link_content_hash
+    type: action
+    action: update
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"
+      content_hash_id: "{{ context.content_hash.id }}"
+    on_success:
+      next: update_file_processing
+
+  - name: update_file_processing
+    type: action
+    action: update
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"
+      status: processing
+      processing_status: processing
+    on_success:
+      next: scan_file
+
+  - name: scan_file
+    type: action
+    action: scan_for_threats
+    params:
+      content: "{{ context.content }}"
+      filename: "{{ context.original_name }}"
+    timeout: 60s
+    on_success:
+      set:
+        scan_result: "{{ result }}"
+      next: check_scan_result
+    on_timeout:
+      set:
+        scan_result: "{ is_safe: null, pending: true }"
+      next: check_cdn_enabled  # Media processing handled by media_processing.workflow.yaml via FileUploadedEvent
+
+  - name: check_scan_result
+    type: condition
+    conditions:
+      - if: "context.scan_result.is_safe == true"
+        next: update_scan_complete
+      - if: "context.scan_result.is_safe == false"
+        next: quarantine_file
+      - else: true
+        next: check_cdn_enabled  # Media processing handled by media_processing.workflow.yaml via FileUploadedEvent
+
+  - name: update_scan_complete
+    type: action
+    action: update
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"
+      is_scanned: true
+      scan_result: "{{ context.scan_result }}"
+      threat_level: safe
+      processing_status: scan_complete
+    on_success:
+      next: check_cdn_enabled  # Media processing handled by media_processing.workflow.yaml via FileUploadedEvent
+
+  # Thumbnail/preview steps removed — handled by media_processing.workflow.yaml
+  # triggered automatically via FileUploadedEvent emitted at emit_uploaded_event step.
+
+  - name: check_cdn_enabled
+    type: condition
+    conditions:
+      - if: "context.bucket.enable_cdn == true"
+        next: generate_cdn_url
+      - else: true
+        next: mark_file_active
+
+  - name: generate_cdn_url
+    type: action
+    action: generate_cdn_url
+    params:
+      file_id: "{{ context.file.id }}"
+      storage_key: "{{ context.file.storage_key }}"
+      backend: "{{ context.bucket.storage_backend }}"
+    on_success:
+      set:
+        cdn_url: "{{ result.url }}"
+        cdn_expires: "{{ result.expires_at }}"
+      next: update_cdn_info
+
+  - name: update_cdn_info
+    type: action
+    action: update
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"
+      cdn_url: "{{ context.cdn_url }}"
+      cdn_url_expires_at: "{{ context.cdn_expires }}"
+    on_success:
+      next: mark_file_active
+
+  - name: mark_file_active
+    type: action
+    action: update
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"
+      status: active
+      is_scanned: "{{ context.scan_result.is_safe ?? false }}"
+      scan_result: "{{ context.scan_result }}"
+      processing_status: complete
+    on_success:
+      next: update_quota
+
+  - name: update_quota
+    type: action
+    action: update
+    entity: UserQuota
+    params:
+      id: "{{ context.quota.id }}"
+      used_bytes: "{{ context.is_duplicate ? context.quota.used_bytes : context.quota.used_bytes + context.file.size_bytes }}"
+      file_count: "{{ context.quota.file_count + 1 }}"
+    on_success:
+      next: update_bucket_stats
+
+  - name: update_bucket_stats
+    type: action
+    action: update
+    entity: Bucket
+    params:
+      id: "{{ context.bucket_id }}"
+      file_count: "{{ context.bucket.file_count + 1 }}"
+      total_size_bytes: "{{ context.is_duplicate ? context.bucket.total_size_bytes : context.bucket.total_size_bytes + context.file.size_bytes }}"
+    on_success:
+      next: emit_uploaded_event
+
+  - name: emit_uploaded_event
+    type: action
+    action: emit_event
+    params:
+      event: FileUploadedEvent
+      data:
+        file_id: "{{ context.file.id }}"
+        bucket_id: "{{ context.bucket_id }}"
+        owner_id: "{{ context.owner_id }}"
+        path: "{{ context.path }}"
+        size_bytes: "{{ context.file.size_bytes }}"
+        mime_type: "{{ context.detected_mime }}"
+        is_duplicate: "{{ context.is_duplicate }}"
+        cdn_url: "{{ context.cdn_url }}"
+    on_success:
+      next: complete
+
+  - name: complete
+    type: terminal
+    status: completed
+    result:
+      file: "{{ context.file }}"
+      is_duplicate: "{{ context.is_duplicate }}"
+      cdn_url: "{{ context.cdn_url }}"
+
+  # Quarantine branch
+  - name: quarantine_file
+    type: action
+    action: update
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"
+      status: quarantined
+      is_scanned: true
+      scan_result: "{{ context.scan_result }}"
+      threat_level: "{{ context.scan_result.threat_level }}"
+      processing_status: failed
+    on_success:
+      next: emit_threat_event
+
+  - name: emit_threat_event
+    type: action
+    action: emit_event
+    params:
+      event: ThreatDetectedEvent
+      data:
+        file_id: "{{ context.file.id }}"
+        owner_id: "{{ context.owner_id }}"
+        threat_level: "{{ context.scan_result.threat_level }}"
+        threats: "{{ context.scan_result.threats_found }}"
+    on_success:
+      next: notify_threat
+
+  - name: notify_threat
+    type: action
+    action: send_notification
+    params:
+      template: threat_detected
+      recipients: "[admin]"
+      data:
+        file_id: "{{ context.file.id }}"
+        filename: "{{ context.original_name }}"
+        owner: "{{ context.owner_id }}"
+        threats: "{{ context.scan_result.threats_found }}"
+    on_success:
+      next: complete_quarantine
+
+  - name: complete_quarantine
+    type: terminal
+    status: completed
+    result:
+      file: "{{ context.file }}"
+      quarantined: true
+      reason: "Security threat detected"
+
+  # Error branches
+  - name: bucket_not_found
+    type: terminal
+    status: failed
+    reason: "Bucket not found"
+
+  - name: bucket_not_active
+    type: terminal
+    status: failed
+    reason: "Bucket is not accepting uploads"
+
+  - name: mime_type_not_allowed
+    type: terminal
+    status: failed
+    reason: "File type not allowed in this bucket"
+
+  - name: file_too_large
+    type: terminal
+    status: failed
+    reason: "File exceeds maximum size for this bucket"
+
+  - name: quota_exceeded
+    type: action
+    action: emit_event
+    params:
+      event: QuotaExceededEvent
+      data:
+        user_id: "{{ context.owner_id }}"
+        limit_bytes: "{{ context.quota.limit_bytes }}"
+        used_bytes: "{{ context.quota.used_bytes }}"
+        attempted_bytes: "{{ context.content.length }}"
+    on_success:
+      next: quota_exceeded_terminal
+
+  - name: quota_exceeded_terminal
+    type: terminal
+    status: failed
+    reason: "Storage quota exceeded"
+
+  - name: rollback_file_record
+    type: action
+    action: delete
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"
+    on_success:
+      next: storage_failed
+
+  - name: storage_failed
+    type: terminal
+    status: failed
+    reason: "Failed to store file content"
+
+compensation:
+  - name: delete_stored_content
+    condition: "steps.store_content.completed == true && context.is_duplicate == false"
+    action: delete_file
+    params:
+      key: "{{ context.file.storage_key }}"
+      backend: "{{ context.bucket.storage_backend }}"
+
+  - name: decrement_content_hash
+    condition: "steps.create_content_hash.completed == true"
+    action: decrement_reference
+    params:
+      id: "{{ context.content_hash.id }}"
+
+  - name: delete_file_record
+    condition: "steps.create_file_record.completed == true"
+    action: delete
+    entity: StoredFile
+    params:
+      id: "{{ context.file.id }}"

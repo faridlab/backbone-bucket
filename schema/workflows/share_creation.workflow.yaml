@@ -1,0 +1,300 @@
+# Share Creation Workflow - File sharing orchestration
+# Handles share creation, notifications, and access setup
+
+name: ShareCreation
+description: |
+  Complete workflow for creating and distributing file shares:
+  - Permission validation
+  - Share record creation
+  - URL generation
+  - Notification delivery (in-app and email)
+
+version: 1
+
+trigger:
+  event: ShareCreationRequestedEvent
+  extract:
+    file_id: "event.file_id"
+    shared_by_id: "event.shared_by_id"
+    permission: "event.permission"
+    access_level: "event.access_level"
+    shared_with_user_id: "event.shared_with_user_id"
+    shared_with_email: "event.shared_with_email"
+    expires_at: "event.expires_at"
+    max_downloads: "event.max_downloads"
+    password: "event.password"
+    requires_login: "event.requires_login"
+    message: "event.message"
+    notify_on_access: "event.notify_on_access"
+
+config:
+  timeout: 5m
+  persistence: true
+
+context:
+  share: null
+  file: null
+  recipient_user: null
+  share_url: null
+
+steps:
+  # Step 1: Validate file exists and user can share
+  - name: validate_file
+    type: action
+    action: find_by_id
+    entity: StoredFile
+    params:
+      id: "{{ context.file_id }}"
+    on_success:
+      set:
+        file: "{{ result }}"
+      next: check_share_permission
+    on_failure:
+      next: file_not_found
+
+  # Step 2: Check user permission to share
+  - name: check_share_permission
+    type: condition
+    conditions:
+      - if: "file.owner_id == shared_by_id"
+        next: check_share_type
+      - else:
+        next: check_manage_permission
+
+  # Step 2b: Check if user has manage permission
+  - name: check_manage_permission
+    type: action
+    action: check_permission
+    params:
+      user_id: "{{ context.shared_by_id }}"
+      file_id: "{{ context.file_id }}"
+      permission: manage
+    on_success:
+      next: check_share_type
+    on_failure:
+      next: permission_denied
+
+  # Step 3: Determine share type and validate
+  - name: check_share_type
+    type: condition
+    conditions:
+      - if: "permission == 'public'"
+        next: validate_public_share
+      - if: "shared_with_user_id != null"
+        next: validate_user_share
+      - if: "shared_with_email != null"
+        next: validate_email_share
+      - else:
+        next: invalid_config
+
+  # Step 4a: Validate public share
+  - name: validate_public_share
+    type: action
+    action: check_public_sharing
+    params:
+      user_id: "{{ context.shared_by_id }}"
+    on_success:
+      next: create_share_record
+    on_failure:
+      next: public_sharing_disabled
+
+  # Step 4b: Validate user share
+  - name: validate_user_share
+    type: action
+    action: find_by_id
+    entity: User
+    params:
+      id: "{{ context.shared_with_user_id }}"
+    on_success:
+      set:
+        recipient_user: "{{ result }}"
+      next: check_existing_share
+    on_failure:
+      next: user_not_found
+
+  # Step 4c: Validate email share
+  - name: validate_email_share
+    type: action
+    action: find_by_email
+    entity: User
+    params:
+      email: "{{ context.shared_with_email }}"
+    on_success:
+      set:
+        recipient_user: "{{ result }}"
+      next: check_existing_share
+    on_failure:
+      next: create_share_record  # User doesn't exist, will send invitation
+
+  # Step 5: Check for existing share
+  - name: check_existing_share
+    type: action
+    action: find_existing_share
+    params:
+      file_id: "{{ context.file_id }}"
+      user_id: "{{ context.recipient_user.id }}"
+    on_success:
+      next: update_existing_share
+    on_failure:
+      next: create_share_record
+
+  # Step 6a: Update existing share
+  - name: update_existing_share
+    type: action
+    action: update
+    entity: FileShare
+    params:
+      id: "{{ result.id }}"
+      access_level: "{{ context.access_level }}"
+      expires_at: "{{ context.expires_at }}"
+      max_downloads: "{{ context.max_downloads }}"
+      is_active: true
+      revoked_at: null
+      revoked_by_id: null
+    on_success:
+      set:
+        share: "{{ result }}"
+      next: generate_share_url
+
+  # Step 6b: Create new share record
+  - name: create_share_record
+    type: action
+    action: create
+    entity: FileShare
+    params:
+      file_id: "{{ context.file_id }}"
+      shared_by_id: "{{ context.shared_by_id }}"
+      permission: "{{ context.permission }}"
+      access_level: "{{ context.access_level }}"
+      shared_with_user_id: "{{ context.recipient_user.id ?? null }}"
+      shared_with_email: "{{ context.shared_with_email }}"
+      expires_at: "{{ context.expires_at }}"
+      max_downloads: "{{ context.max_downloads }}"
+      password_hash: "{{ context.password }}"
+      requires_login: "{{ context.requires_login }}"
+      message: "{{ context.message }}"
+      notify_on_access: "{{ context.notify_on_access }}"
+    on_success:
+      set:
+        share: "{{ result }}"
+      next: generate_share_url
+
+  # Step 7: Generate share URL
+  - name: generate_share_url
+    type: action
+    action: generate_share_url
+    params:
+      token: "{{ context.share.token }}"
+      password_protected: "{{ context.share.password_hash != null }}"
+    on_success:
+      set:
+        share_url: "{{ result.url }}"
+      next: determine_notification
+
+  # Step 8: Determine notification type
+  - name: determine_notification
+    type: condition
+    conditions:
+      - if: "recipient_user != null"
+        next: notify_user
+      - if: "shared_with_email != null"
+        next: send_email_invitation
+      - else:
+        next: log_share
+
+  # Step 9a: Notify existing user
+  - name: notify_user
+    type: action
+    action: send_notification
+    params:
+      user_id: "{{ context.recipient_user.id }}"
+      type: file_shared
+      title: "File shared with you"
+      body: "{{ context.file.name }} was shared with you"
+      data:
+        share_id: "{{ context.share.id }}"
+        file_id: "{{ context.file_id }}"
+        shared_by_id: "{{ context.shared_by_id }}"
+        access_level: "{{ context.access_level }}"
+        share_url: "{{ context.share_url }}"
+        message: "{{ context.message }}"
+    on_success:
+      next: log_share
+    on_failure:
+      next: log_share  # Continue even if notification fails
+
+  # Step 9b: Send email invitation
+  - name: send_email_invitation
+    type: action
+    action: send_email
+    params:
+      template: share_invitation
+      to: "{{ context.shared_with_email }}"
+      subject: "A file was shared with you"
+      data:
+        file_name: "{{ context.file.name }}"
+        share_url: "{{ context.share_url }}"
+        message: "{{ context.message }}"
+        expires_at: "{{ context.expires_at }}"
+        access_level: "{{ context.access_level }}"
+    on_success:
+      next: log_share
+    on_failure:
+      next: log_share  # Continue even if email fails
+
+  # Step 10: Log share action
+  - name: log_share
+    type: action
+    action: create
+    entity: AccessLog
+    params:
+      file_id: "{{ context.file_id }}"
+      share_id: "{{ context.share.id }}"
+      user_id: "{{ context.shared_by_id }}"
+      action: share
+      is_owner: "{{ context.file.owner_id == context.shared_by_id }}"
+      success: true
+    on_success:
+      next: complete
+
+  # Success terminal
+  - name: complete
+    type: terminal
+    status: completed
+
+  # Error handlers
+  - name: file_not_found
+    type: terminal
+    status: failed
+    reason: "File not found"
+
+  - name: permission_denied
+    type: action
+    action: audit_log
+    params:
+      action: share_attempt_denied
+      user_id: "{{ context.shared_by_id }}"
+      file_id: "{{ context.file_id }}"
+      severity: warning
+    on_success:
+      next: failed_permission
+
+  - name: failed_permission
+    type: terminal
+    status: failed
+    reason: "Permission denied"
+
+  - name: public_sharing_disabled
+    type: terminal
+    status: failed
+    reason: "Public sharing is disabled for this user"
+
+  - name: user_not_found
+    type: terminal
+    status: failed
+    reason: "Target user not found"
+
+  - name: invalid_config
+    type: terminal
+    status: failed
+    reason: "Invalid share configuration"

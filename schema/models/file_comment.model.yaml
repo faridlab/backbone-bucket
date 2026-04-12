@@ -1,0 +1,133 @@
+# FileComment Entity - Comments and annotations on files
+# Supports threaded replies and region-specific annotations for images/PDFs
+
+models:
+  - name: FileComment
+    collection: file_comments
+    description: "File comments with threading and annotation support"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Primary key"
+
+      file_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(StoredFile.id)"]
+        description: "Commented file"
+
+      user_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(sapiens.User.id)"]
+        description: "Comment author"
+
+      parent_id:
+        type: uuid?
+        attributes: ["@foreign_key(FileComment.id)"]
+        description: "Parent comment for threaded replies"
+
+      content:
+        type: string
+        attributes: ["@required", "@max(10000)"]
+        description: "Comment text content"
+
+      annotation_region:
+        type: json?
+        description: "Region annotation: {x, y, width, height} in percentages"
+
+      mentions:
+        type: "uuid[]"
+        description: "Mentioned users for notifications"
+
+      resolved:
+        type: bool
+        attributes: ["@default(false)"]
+        description: "Comment resolved status"
+
+      resolved_by:
+        type: uuid?
+        description: "User who resolved the comment"
+
+      resolved_at:
+        type: datetime?
+        description: "When comment was resolved"
+
+      status:
+        type: CommentStatus
+        attributes: ["@default(active)"]
+        description: "Comment status"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: index
+        fields: [file_id]
+        description: "Comments on a file"
+
+      - type: index
+        fields: [parent_id]
+        description: "Reply threading"
+
+      - type: index
+        fields: [user_id]
+        description: "User's comments"
+
+      - type: index
+        fields: [resolved]
+        description: "Find unresolved comments"
+
+enums:
+  - name: CommentStatus
+    description: "Comment status classification"
+    variants:
+      - name: active
+        description: "Active comment"
+        default: true
+      - name: resolved
+        description: "Resolved by owner"
+      - name: deleted
+        description: "Soft-deleted comment"
+      - name: archived
+        description: "Archived comment"
+
+entities:
+  FileComment:
+    model: FileComment
+    description: "File comment with threading and region annotations"
+
+    methods:
+      - name: is_reply
+        returns: bool
+        description: "Check if this is a reply to another comment"
+
+      - name: has_annotations
+        returns: bool
+        description: "Check if comment has region annotations"
+
+      - name: get_replies
+        returns: "Vec<FileComment>"
+        description: "Get reply comments"
+
+      - name: resolve
+        mutates: true
+        params:
+          by_user_id: Uuid
+        returns: "Result<(), CommentError>"
+        description: "Mark comment as resolved"
+
+      - name: unresolve
+        mutates: true
+        returns: "Result<(), CommentError>"
+        description: "Mark comment as unresolved"
+
+      - name: mention_count
+        returns: int
+        description: "Count mentioned users"
+
+    invariants:
+      - "content.length <= 10000"
+      - "parent_id != id (no self-reference)"

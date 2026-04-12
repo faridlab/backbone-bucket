@@ -1,0 +1,139 @@
+# ConversionJob Entity - Format conversion tasks
+# Converts between image, video, and document formats
+
+models:
+  - name: ConversionJob
+    collection: conversion_jobs
+    description: "File format conversion job"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Primary key"
+
+      source_file_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(StoredFile.id)"]
+        description: "Source file to convert"
+
+      target_format:
+        type: string
+        attributes: ["@required", "@max(50)"]
+        description: "Target format (e.g., webp, pdf, mp4)"
+
+      status:
+        type: ConversionStatus
+        attributes: ["@default(pending)"]
+        description: "Conversion status"
+
+      conversion_options:
+        type: json?
+        description: "Conversion parameters (quality, resolution, etc.)"
+
+      result_file_id:
+        type: uuid?
+        attributes: ["@foreign_key(StoredFile.id)"]
+        description: "Converted result file"
+
+      progress:
+        type: int
+        attributes: ["@default(0)", "@range(0,100)"]
+        description: "Conversion progress percentage"
+
+      error_message:
+        type: string?
+        description: "Error message if conversion failed"
+
+      started_at:
+        type: datetime?
+        description: "Conversion start timestamp"
+
+      completed_at:
+        type: datetime?
+        description: "Conversion completion timestamp"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: index
+        fields: [source_file_id, status]
+        description: "Source file conversions by status"
+
+      - type: index
+        fields: [result_file_id]
+        description: "Result file lookup"
+
+      - type: index
+        fields: [status, "(metadata->>'created_at')"]
+        description: "Queue ordering"
+
+enums:
+  - name: ConversionStatus
+    description: "Conversion job status"
+    variants:
+      - name: pending
+        description: "Queued for conversion"
+        default: true
+      - name: processing
+        description: "Converting"
+      - name: completed
+        description: "Conversion successful"
+      - name: failed
+        description: "Conversion failed"
+
+  - name: ConversionType
+    description: "Type of format conversion"
+    variants:
+      - name: image_to_image
+        description: "Convert between image formats"
+        default: true
+      - name: document_to_pdf
+        description: "Convert document to PDF"
+      - name: video_to_video
+        description: "Convert between video formats"
+      - name: audio_to_audio
+        description: "Convert between audio formats"
+
+entities:
+  ConversionJob:
+    model: ConversionJob
+    description: "Format conversion job with progress tracking"
+
+    methods:
+      - name: update_progress
+        mutates: true
+        params:
+          progress: int
+        returns: "Result<(), ConversionError>"
+        description: "Update conversion progress (0-100)"
+
+      - name: complete
+        mutates: true
+        params:
+          result_file_id: Uuid
+        returns: "Result<(), ConversionError>"
+        description: "Mark conversion complete"
+
+      - name: fail
+        mutates: true
+        params:
+          error: string
+        returns: "Result<(), ConversionError>"
+        description: "Mark conversion failed"
+
+      - name: is_complete
+        returns: bool
+        description: "Check if conversion is complete"
+
+      - name: get_progress_percentage
+        returns: int
+        description: "Get progress as percentage"
+
+    invariants:
+      - "progress >= 0 && progress <= 100"
+      - "status == completed implies result_file_id != null"
+      - "status == failed implies error_message != null"

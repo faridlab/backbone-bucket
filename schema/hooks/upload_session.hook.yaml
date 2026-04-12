@@ -1,0 +1,253 @@
+# UploadSession Lifecycle Hook
+# Multipart upload session management with chunking, resume, and progress tracking
+
+name: UploadSession
+model: upload_session.model.yaml
+
+# =============================================================================
+# State Machine - Upload session lifecycle
+# =============================================================================
+states:
+  field: status
+
+  values:
+    initiated:
+      initial: true
+      description: "Session created, waiting for chunks"
+      on_enter:
+        - "log(upload.session_created, { session_id: id, bucket_id: bucket_id, user_id: user_id })"
+
+    uploading:
+      description: "Receiving file chunks"
+      on_enter:
+        - "emit: UploadStartedEvent(session_id: id, bucket_id: bucket_id, file_size: file_size)"
+
+    completing:
+      description: "Assembling final file from parts"
+      on_enter:
+        - "emit: UploadFinalizingEvent(session_id: id)"
+
+    completed:
+      final: true
+      description: "Upload completed successfully"
+      on_enter:
+        - "emit: UploadCompletedEvent(session_id: id, file_id: $context.file_id)"
+        - "log(upload.completed, { session_id: id, file_size: file_size })"
+
+    failed:
+      final: true
+      description: "Upload failed"
+      on_enter:
+        - "emit: UploadFailedEvent(session_id: id, error: $context.error_message)"
+        - "log(upload.failed, { session_id: id, error: $context.error_message })"
+        - "queue: CleanupUploadParts(session_id: id, delay: 24.hours)"
+
+    expired:
+      final: true
+      description: "Session expired"
+      on_enter:
+        - "emit: UploadExpiredEvent(session_id: id)"
+        - "log(upload.expired, { session_id: id })"
+        - "queue: CleanupUploadParts(session_id: id)"
+
+  transitions:
+    start_upload:
+      from: initiated
+      to: uploading
+      roles: [system, user]
+      description: "Begin receiving chunks"
+      condition: "now() - metadata.created_at <= INTERVAL '1 hour'"
+
+    add_part:
+      from: uploading
+      to: uploading
+      roles: [system, user]
+      description: "Add uploaded chunk"
+      condition: "$context.part_number >= 1 && $context.part_number <= total_chunks && !completed_parts.contains($context.part_number)"
+      actions:
+        - action: add_chunk_part
+
+    complete:
+      from: uploading
+      to: completing
+      roles: [system, user]
+      description: "All parts received, assembling file"
+      condition: "uploaded_chunks == total_chunks"
+      actions:
+        - action: finalize_upload
+
+    finish:
+      from: completing
+      to: completed
+      roles: [system]
+      description: "File assembled successfully"
+      actions:
+        - action: finish_upload
+
+    fail:
+      from: [uploading, completing]
+      to: failed
+      roles: [system]
+      description: "Upload failed"
+
+    abort:
+      from: [initiated, uploading]
+      to: failed
+      roles: [user, admin]
+      description: "User aborted upload"
+      condition: "$actor.id == user_id || $actor.has_role('admin')"
+
+    expire:
+      from: [initiated, uploading]
+      to: expired
+      roles: [system]
+      description: "Session expired"
+      condition: "expires_at < now()"
+
+    retry:
+      from: failed
+      to: initiated
+      roles: [user]
+      description: "Create new session to retry"
+      condition: "$actor.id == user_id"
+      actions:
+        - action: create_retry_session
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  bucket_must_exist:
+    when: [create]
+    condition: "bucket_exists(bucket_id)"
+    message: "Target bucket must exist"
+    code: BUCKET_NOT_FOUND
+
+  bucket_must_accept_uploads:
+    when: [create]
+    condition: "get_bucket(bucket_id).status == 'active'"
+    message: "Bucket must accept uploads"
+    code: BUCKET_NOT_ACTIVE
+
+  valid_file_size:
+    when: [create]
+    condition: "file_size > 0"
+    message: "File size must be positive"
+    code: INVALID_FILE_SIZE
+
+  minimum_chunk_size:
+    when: [create]
+    condition: "chunk_size >= 5242880"
+    message: "Chunk size must be at least 5MB"
+    code: CHUNK_TOO_SMALL
+
+  reasonable_chunk_size:
+    when: [create]
+    condition: "chunk_size <= 5368709120"
+    message: "Chunk size must not exceed 5GB"
+    code: CHUNK_TOO_LARGE
+
+  valid_chunk_count:
+    when: [create]
+    condition: "total_chunks == ceil(file_size / chunk_size)"
+    message: "Total chunks must match file size and chunk size"
+    code: INVALID_CHUNK_COUNT
+
+  valid_path:
+    when: [create]
+    condition: "path != null && !path.contains('..') && path.length <= 1024"
+    message: "Path must be valid and not contain traversal"
+    code: INVALID_PATH
+
+  valid_expiration:
+    when: [create]
+    condition: "expires_at > now()"
+    message: "Expiration must be in future"
+    code: INVALID_EXPIRATION
+
+  reasonable_expiration:
+    when: [create]
+    condition: "expires_at <= now() + INTERVAL '7 days'"
+    message: "Expiration must be within 7 days"
+    code: EXPIRATION_TOO_FAR
+
+  session_not_expired:
+    when: [update]
+    condition: "expires_at > now() || status IN ('completed', 'failed', 'expired')"
+    message: "Session has expired"
+    code: SESSION_EXPIRED
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: list
+      - action: abort
+      - action: delete
+
+  user:
+    allow:
+      - action: create
+        if: "has_bucket_access(bucket_id)"
+      - action: read
+        if: "$this.user_id == $actor.id"
+      - action: add_part
+        if: "$this.user_id == $actor.id"
+      - action: complete
+        if: "$this.user_id == $actor.id"
+      - action: abort
+        if: "$this.user_id == $actor.id"
+      - action: retry
+        if: "$this.user_id == $actor.id"
+    deny:
+      - action: delete
+
+  guest:
+    deny:
+      - all
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  after_create:
+    actions:
+      - "log(upload.session_initiated, { session_id: id, bucket_id: bucket_id, user_id: user_id, file_size: file_size })"
+      - "emit: UploadSessionCreatedEvent(session_id: id, bucket_id: bucket_id, file_size: file_size, total_chunks: total_chunks)"
+
+  after_update_uploaded_chunks:
+    actions:
+      - "emit: UploadPartReceivedEvent(session_id: id, uploaded_chunks: uploaded_chunks, total_chunks: total_chunks)"
+    if: "$old.uploaded_chunks != uploaded_chunks"
+
+  expire_old_sessions:
+    schedule: "*/5 * * * *"
+    actions:
+      - "update: UploadSession(status: 'expired') WHERE status IN ('initiated', 'uploading') AND expires_at < now()"
+
+  cleanup_expired_parts:
+    schedule: "0 * * * *"
+    actions:
+      - "queue: CleanupUploadParts(session_id: id) WHERE status IN ('expired', 'failed') AND metadata->>'created_at' < now() - INTERVAL '24 hours'"
+
+  notify_expiring_sessions:
+    schedule: "*/15 * * * *"
+    actions:
+      - "notify([user_id], upload_expiring, { session_id: id }) WHERE status IN ('initiated', 'uploading') AND expires_at BETWEEN now() AND now() + INTERVAL '30 minutes'"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  progress_percent: "total_chunks > 0 ? (uploaded_chunks * 100) / total_chunks : 0"
+  is_resumable: "status == 'uploading' && expires_at > now() && uploaded_chunks < total_chunks"
+  is_complete: "uploaded_chunks == total_chunks"
+  remaining_chunks: "total_chunks - uploaded_chunks"
+  is_expired: "expires_at != null && expires_at <= now()"

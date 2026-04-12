@@ -1,0 +1,214 @@
+# FileComment Lifecycle Hook
+# Comment system with threading, mentions, and resolution tracking
+
+name: FileComment
+model: file_comment.model.yaml
+
+# =============================================================================
+# State Machine - Comment lifecycle
+# =============================================================================
+states:
+  field: status
+
+  values:
+    active:
+      initial: true
+      description: "Comment is active and visible"
+
+    resolved:
+      description: "Comment has been resolved"
+
+    deleted:
+      description: "Comment is soft-deleted"
+      final: true
+
+  transitions:
+    resolve:
+      from: active
+      to: resolved
+      description: "Mark comment as resolved"
+      roles: [owner, file_owner]
+      condition: "$actor.id == user_id || $actor.id == file.owner_id"
+      actions:
+        - action: resolve_comment
+
+    edit:
+      from: active
+      to: active
+      description: "Edit comment content"
+      roles: [owner]
+      condition: "$actor.id == user_id"
+      actions:
+        - action: edit_comment
+
+    delete_active:
+      from: active
+      to: deleted
+      description: "Soft delete active comment"
+      roles: [owner, file_owner]
+      condition: "$actor.id == user_id || $actor.id == file.owner_id"
+      actions:
+        - action: soft_delete_comment
+
+    reopen:
+      from: resolved
+      to: active
+      description: "Reopen a resolved comment"
+      roles: [user]
+      condition: "has_file_access($actor.id, file_id)"
+      actions:
+        - action: reopen_comment
+
+    delete_resolved:
+      from: resolved
+      to: deleted
+      description: "Soft delete resolved comment"
+      roles: [owner, file_owner]
+      condition: "$actor.id == user_id || $actor.id == file.owner_id"
+      actions:
+        - action: soft_delete_comment
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  file_must_exist:
+    when: [create]
+    condition: "file_exists(file_id)"
+    message: "File must exist"
+    code: FILE_NOT_FOUND
+
+  file_must_be_accessible:
+    when: [create]
+    condition: "file.is_accessible()"
+    message: "File must be accessible"
+    code: FILE_NOT_ACCESSIBLE
+
+  content_required:
+    when: [create]
+    condition: "content != null && content.trim().length > 0"
+    message: "Comment content is required"
+    code: EMPTY_COMMENT
+
+  content_max_length:
+    when: [create, update]
+    condition: "content.length <= 10000"
+    message: "Comment content max 10000 characters"
+    code: COMMENT_TOO_LONG
+
+  parent_must_exist:
+    when: [create]
+    condition: "parent_id == null || comment_exists(parent_id)"
+    message: "Parent comment must exist if provided"
+    code: INVALID_PARENT_COMMENT
+
+  parent_must_be_on_same_file:
+    when: [create]
+    condition: "parent_id == null || get_comment(parent_id).file_id == file_id"
+    message: "Parent comment must be on the same file"
+    code: INVALID_PARENT_COMMENT
+
+  mentions_must_be_valid:
+    when: [create]
+    condition: "mentions.all(user_exists)"
+    message: "All mentioned users must exist"
+    code: INVALID_MENTION
+
+  annotation_must_be_valid:
+    when: [create]
+    condition: "annotation_region == null || is_valid_json(annotation_region)"
+    message: "Annotation region must be valid JSON"
+    code: INVALID_ANNOTATION
+
+  only_owner_can_edit:
+    when: [update]
+    condition: "$actor.id == user_id"
+    message: "Only comment owner can edit"
+    code: NOT_COMMENT_OWNER
+
+  cannot_edit_deleted:
+    when: [update]
+    condition: "status != 'deleted'"
+    message: "Cannot edit deleted comment"
+    code: COMMENT_DELETED
+
+  cannot_edit_resolved_after_timeout:
+    when: [update]
+    condition: "status != 'resolved' || resolved_at > NOW() - INTERVAL '5 minutes'"
+    message: "Cannot edit resolved comment after 5 minutes"
+    code: EDIT_TIMEOUT
+
+  max_thread_depth:
+    when: [create]
+    condition: "parent_id == null || get_thread_depth(parent_id) < 5"
+    message: "Maximum thread depth exceeded"
+    code: MAX_THREAD_DEPTH_EXCEEDED
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: create
+      - action: update
+      - action: delete
+      - action: list
+      - action: resolve
+
+  user:
+    allow:
+      - action: create
+        if: "has_file_access(file_id)"
+      - action: read
+        if: "has_file_access(file_id)"
+      - action: update
+        if: "$this.user_id == $actor.id"
+      - action: delete
+        if: "$this.user_id == $actor.id || file.owner_id == $actor.id"
+      - action: list
+        if: "has_file_access(file_id)"
+      - action: resolve
+        if: "$this.user_id == $actor.id || file.owner_id == $actor.id"
+
+  guest:
+    deny:
+      - all
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  after_create:
+    actions:
+      - "log(comment.created, { comment_id: id, file_id: file_id, user_id: user_id })"
+      - "emit: CommentCreatedEvent(comment_id: id, file_id: file_id, user_id: user_id, parent_id: parent_id)"
+      - "if: mentions != null && mentions.length > 0 { notify(mentions, comment_mention, { comment_id: id, file_id: file_id }) }"
+      - "if: user_id != file.owner_id { notify([file.owner_id], file_comment, { comment_id: id, file_id: file_id }) }"
+      - "if: parent_id != null && get_comment(parent_id).user_id != user_id { notify([get_comment(parent_id).user_id], comment_reply, { comment_id: id, file_id: file_id }) }"
+
+  after_update_status:
+    actions:
+      - "log(comment.status_changed, { comment_id: id, old_status: $old.status, new_status: status })"
+
+  after_delete:
+    actions:
+      - "emit: CommentDeletedEvent(comment_id: id, file_id: file_id)"
+      - "log(comment.deleted, { comment_id: id, file_id: file_id })"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  is_reply: "parent_id != null"
+  is_resolved: "status == 'resolved'"
+  is_deleted: "status == 'deleted'"
+  is_editable: "status == 'active' && $actor.id == user_id"
+  has_annotation: "annotation_region != null"
+  has_mentions: "mentions != null && mentions.length > 0"
+  reply_count: "count(FileComment, parent_id == id && status != 'deleted')"

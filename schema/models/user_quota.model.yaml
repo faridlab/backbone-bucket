@@ -1,0 +1,188 @@
+# UserQuota Entity - Storage quota tracking per user
+# Enforces storage limits and tracks usage
+
+models:
+  - name: UserQuota
+    collection: user_quotas
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+
+      user_id:
+        type: uuid
+        attributes: ["@unique", "@required", "@foreign_key(sapiens.User.id)"]
+        description: "One quota record per user"
+
+      # Quota limits
+      limit_bytes:
+        type: int64
+        attributes: ["@required", "@non_negative"]
+        description: "Maximum storage allowed"
+
+      # Current usage
+      used_bytes:
+        type: int64
+        attributes: ["@default(0)", "@non_negative"]
+
+      # File counts
+      file_count:
+        type: int
+        attributes: ["@default(0)", "@non_negative"]
+
+      # Limits by type
+      max_file_size:
+        type: int64?
+        description: "Maximum single file size"
+
+      max_file_count:
+        type: int?
+        description: "Maximum number of files"
+
+      # Quota tier/plan
+      tier:
+        type: string
+        attributes: ["@default(free)", "@max(50)"]
+        description: "Quota tier: free, basic, premium, enterprise"
+
+      # Quota status (for state machine)
+      quota_status:
+        type: QuotaStatus
+        attributes: ["@default(normal)"]
+        description: "Quota lifecycle status"
+
+      # Warnings
+      warning_threshold_percent:
+        type: int
+        attributes: ["@default(80)"]
+        description: "Percent at which to warn user"
+
+      last_warning_sent_at: datetime?
+
+      # Statistics
+      peak_usage_bytes:
+        type: int64
+        attributes: ["@default(0)", "@non_negative"]
+        description: "Highest usage ever recorded"
+
+      peak_usage_at: datetime?
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: unique
+        fields: [user_id]
+      - type: index
+        fields: [tier]
+      - type: index
+        fields: [used_bytes]
+      - type: index
+        fields: [quota_status]
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+enums:
+  - name: QuotaStatus
+    description: "Quota lifecycle status"
+    variants:
+      - name: normal
+        description: "Quota usage is within limits"
+        default: true
+      - name: exceeded
+        description: "Quota usage exceeds the limit"
+
+# =============================================================================
+# ENTITIES - Enhanced quota with behavior
+# =============================================================================
+entities:
+  UserQuota:
+    model: UserQuota
+    description: "User storage quota with enforcement"
+
+    methods:
+      - name: has_space_for
+        params:
+          bytes: i64
+        returns: bool
+        description: "Check if user has space for additional bytes"
+
+      - name: usage_percent
+        returns: f64
+        description: "Get current usage percentage"
+
+      - name: is_over_warning_threshold
+        returns: bool
+        description: "Check if usage exceeds warning threshold"
+
+      - name: add_usage
+        mutates: true
+        params:
+          bytes: i64
+        returns: "Result<(), QuotaExceeded>"
+        description: "Add bytes to usage, returns error if exceeded"
+
+      - name: subtract_usage
+        mutates: true
+        params:
+          bytes: i64
+        description: "Subtract bytes from usage"
+
+      - name: update_peak
+        mutates: true
+        description: "Update peak usage if current exceeds"
+
+      - name: remaining_bytes
+        returns: i64
+        description: "Get remaining available bytes"
+
+    invariants:
+      - "used_bytes <= limit_bytes"
+      - "used_bytes >= 0"
+      - "file_count >= 0"
+
+# =============================================================================
+# PROJECTIONS - Read models for quota dashboard
+# =============================================================================
+projections:
+  QuotaUsageSummary:
+    description: "Denormalized view of quota usage for dashboard"
+    storage:
+      type: postgres
+      table: quota_usage_summary
+
+    source_events:
+      - FileUploaded:
+          action: upsert
+          fields: [user_id, size_bytes]
+      - FileDeleted:
+          action: update
+          fields: [size_bytes]
+
+    fields:
+      - name: user_id
+        type: uuid
+        primary: true
+      - name: total_files
+        type: int
+        default: "0"
+      - name: total_bytes
+        type: bigint
+        default: "0"
+      - name: limit_bytes
+        type: bigint
+      - name: usage_percent
+        type: float
+      - name: last_upload_at
+        type: datetime
+        nullable: true
+      - name: updated_at
+        type: datetime
+
+    indexes:
+      - fields: [usage_percent]
+        unique: false

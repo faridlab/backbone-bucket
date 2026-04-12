@@ -1,0 +1,228 @@
+# UserQuota Hook - Storage quota management lifecycle
+# Defines validation rules, permissions, triggers, and computed fields
+
+name: UserQuota
+model: user_quota.model.yaml
+
+# =============================================================================
+# PRIORITY 1: State Machine (quota lifecycle)
+# =============================================================================
+states:
+  field: quota_status
+
+  values:
+    normal:
+      initial: true
+      final: true
+      on_enter:
+        - "set: last_warning_sent_at = null"
+        - "log(quota.normal, { user_id: user_id, used_percent: usage_percent })"
+
+    exceeded:
+      final: true
+      on_enter:
+        - "notify([user_id], Your storage quota has been exceeded. Please upgrade or remove files.)"
+        - "send_email(quota_exceeded, user.email, { used_storage: used_storage_formatted, max_storage: max_storage_formatted })"
+        - "log(quota.exceeded, { user_id: user_id, used_bytes: used_storage_bytes, max_bytes: max_storage_bytes })"
+        - "emit: QuotaExceededEvent(user_id: user_id, used_storage_bytes: used_storage_bytes, max_storage_bytes: max_storage_bytes)"
+
+  transitions:
+    exceed:
+      from: normal
+      to: exceeded
+      roles: [system]
+      condition: "used_storage_bytes >= max_storage_bytes"
+
+    restore:
+      from: exceeded
+      to: normal
+      roles: [system]
+      condition: "used_storage_bytes < max_storage_bytes"
+
+# =============================================================================
+# PRIORITY 2: Validation Rules
+# =============================================================================
+rules:
+  user_exists:
+    when: [create]
+    condition: "count(sapiens.User, id == $this.user_id) > 0"
+    message: "User does not exist"
+    code: USER_NOT_FOUND
+
+  unique_user_quota:
+    when: [create]
+    condition: "count(UserQuota, user_id == $this.user_id) == 0"
+    message: "User already has a quota record"
+    code: QUOTA_EXISTS
+
+  valid_tier:
+    when: [create, update]
+    condition: "$this.tier in ['free', 'pro', 'enterprise']"
+    message: "Invalid tier. Must be free, pro, or enterprise"
+    code: INVALID_TIER
+
+  max_storage_positive:
+    when: [create, update]
+    condition: "$this.max_storage_bytes > 0"
+    message: "Max storage must be positive"
+    code: INVALID_MAX_STORAGE
+
+  max_file_size_positive:
+    when: [create, update]
+    condition: "$this.max_file_size_bytes > 0"
+    message: "Max file size must be positive"
+    code: INVALID_MAX_FILE_SIZE
+
+  max_file_size_within_storage:
+    when: [create, update]
+    condition: "$this.max_file_size_bytes <= $this.max_storage_bytes"
+    message: "Max file size cannot exceed max storage"
+    code: FILE_SIZE_EXCEEDS_STORAGE
+
+  downgrade_allowed:
+    when: [update]
+    condition: "$old.tier == $this.tier || $this.used_storage_bytes <= $this.max_storage_bytes"
+    message: "Cannot downgrade tier: current usage exceeds new quota limits"
+    code: DOWNGRADE_NOT_ALLOWED
+
+  warning_threshold_valid:
+    when: [create, update]
+    condition: "$this.warning_threshold_percent >= 50 && $this.warning_threshold_percent <= 99"
+    message: "Warning threshold must be between 50 and 99 percent"
+    code: INVALID_WARNING_THRESHOLD
+
+# =============================================================================
+# PRIORITY 3: Access Control
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - create
+      - read
+      - update
+      - list
+    deny:
+      - delete
+
+  user:
+    allow:
+      - action: read
+        if: "user_id == $actor.id"
+        only: [id, user_id, max_storage_bytes, max_file_size_bytes, max_files, max_buckets, used_storage_bytes, file_count, bucket_count, tier, is_exceeded, versioning_enabled, sharing_enabled]
+    deny:
+      - create
+      - update
+      - delete
+
+  system:
+    allow:
+      - create
+      - read
+      - update
+    deny:
+      - delete
+
+# =============================================================================
+# PRIORITY 4: Triggers
+# =============================================================================
+triggers:
+  before_create:
+    actions:
+      - "set: used_storage_bytes = 0"
+      - "set: file_count = 0"
+      - "set: bucket_count = 0"
+      - "set: used_bandwidth_today = 0"
+      - "set: used_bandwidth_month = 0"
+      - "set: is_exceeded = false"
+      - "trigger: apply_tier_defaults"
+
+  after_create:
+    actions:
+      - "log(quota.created, { user_id: user_id, tier: tier, max_storage_bytes: max_storage_bytes })"
+      - "emit: UserQuotaCreatedEvent(user_id: user_id, tier: tier, max_storage_bytes: max_storage_bytes)"
+
+  before_update_tier:
+    actions:
+      - "trigger: apply_tier_defaults"
+
+  after_update_tier:
+    actions:
+      - "send_email(tier_changed, user.email, { old_tier: $old.tier, new_tier: tier, new_max_storage: max_storage_formatted })"
+      - "notify([user_id], Your storage plan has been changed to #{tier})"
+      - "log(quota.tier_changed, { user_id: user_id, old_tier: $old.tier, new_tier: tier })"
+      - "emit: UserQuotaTierChangedEvent(user_id: user_id, old_tier: $old.tier, new_tier: tier, expires_at: expires_at)"
+    if: "$old.tier != tier"
+
+  after_update_used_storage_bytes:
+    actions:
+      - "trigger: check_warning_threshold"
+      - "trigger: update_exceeded_status"
+    if: "$old.used_storage_bytes != used_storage_bytes"
+
+  # Scheduled jobs
+  scheduled_reset_daily_bandwidth:
+    schedule: "every 1.day at 00:00"
+    actions:
+      - "trigger: reset_daily_bandwidth_batch"
+
+  scheduled_reset_monthly_bandwidth:
+    schedule: "every 1.month at 00:00"
+    actions:
+      - "trigger: reset_monthly_bandwidth_batch"
+
+  scheduled_expire_quotas:
+    schedule: "every 1.hour"
+    actions:
+      - "trigger: process_expired_quotas_batch"
+
+  scheduled_send_expiry_warnings:
+    schedule: "every 1.day at 09:00"
+    actions:
+      - "trigger: send_quota_expiry_warnings(days_before: 7)"
+
+# =============================================================================
+# PRIORITY 5: Computed Fields
+# =============================================================================
+computed:
+  usage_percent: "(used_storage_bytes / max_storage_bytes * 100).round(2)"
+  storage_remaining_bytes: "max_storage_bytes - used_storage_bytes"
+  files_remaining: "max_files - file_count"
+  buckets_remaining: "max_buckets - bucket_count"
+
+  used_storage_formatted: |
+    used_storage_bytes < 1024 ? used_storage_bytes + ' B' :
+    used_storage_bytes < 1048576 ? (used_storage_bytes / 1024).round(2) + ' KB' :
+    used_storage_bytes < 1073741824 ? (used_storage_bytes / 1048576).round(2) + ' MB' :
+    (used_storage_bytes / 1073741824).round(2) + ' GB'
+
+  max_storage_formatted: |
+    max_storage_bytes < 1024 ? max_storage_bytes + ' B' :
+    max_storage_bytes < 1048576 ? (max_storage_bytes / 1024).round(2) + ' KB' :
+    max_storage_bytes < 1073741824 ? (max_storage_bytes / 1048576).round(2) + ' MB' :
+    max_storage_bytes < 1099511627776 ? (max_storage_bytes / 1073741824).round(2) + ' GB' :
+    (max_storage_bytes / 1099511627776).round(2) + ' TB'
+
+  is_near_limit: "usage_percent >= warning_threshold_percent"
+  is_at_file_limit: "file_count >= max_files"
+  is_at_bucket_limit: "bucket_count >= max_buckets"
+
+  is_expired: "expires_at != null && expires_at <= now()"
+  days_until_expiry: "expires_at != null ? (expires_at - now()).days : null"
+
+  daily_bandwidth_remaining: "daily_bandwidth_bytes != null ? daily_bandwidth_bytes - used_bandwidth_today : null"
+  monthly_bandwidth_remaining: "monthly_bandwidth_bytes != null ? monthly_bandwidth_bytes - used_bandwidth_month : null"
+
+  can_upload: "!is_exceeded && !is_at_file_limit"
+  can_create_bucket: "!is_at_bucket_limit"
+  can_share: "sharing_enabled == true"
+  can_public_share: "public_sharing_enabled == true"
+  can_version: "versioning_enabled == true"
+
+  tier_label: |
+    tier == 'free' ? 'Free Plan' :
+    tier == 'pro' ? 'Pro Plan' :
+    tier == 'enterprise' ? 'Enterprise Plan' : 'Unknown'

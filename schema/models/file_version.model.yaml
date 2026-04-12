@@ -1,0 +1,146 @@
+# FileVersion Model - File versioning support
+# Tracks historical versions of files for recovery and audit
+
+models:
+  - name: FileVersion
+    collection: file_versions
+    description: "Historical version of a stored file"
+    config:
+      generators:
+        disabled: [handler, usecase, cqrs, projection, bulk-operations]
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+
+      file_id:
+        type: uuid
+        description: "Original file this is a version of"
+        attributes: ["@required", "@foreign_key(StoredFile.id)"]
+
+      # Version identification
+      version_number:
+        type: int32
+        description: "Sequential version number"
+        attributes: ["@required"]
+
+      version_type:
+        type: VersionType
+        description: "What caused this version"
+        attributes: ["@required"]
+
+      # Storage location (separate from current file)
+      storage_key:
+        type: string
+        description: "Unique storage key for this version"
+        attributes: ["@required", "@unique"]
+
+      storage_backend:
+        type: string
+        attributes: ["@default('local')"]
+
+      # File state at this version
+      name:
+        type: string
+        description: "File name at this version"
+        attributes: ["@required", "@max(255)"]
+
+      mime_type:
+        type: string
+        attributes: ["@required"]
+
+      checksum_md5:
+        type: string?
+        attributes: ["@max(32)"]
+
+      checksum_sha256:
+        type: string?
+        attributes: ["@max(64)"]
+
+      # Who created this version
+      created_by_id:
+        type: uuid
+        description: "User who created this version"
+        attributes: ["@required", "@foreign_key(sapiens.User.id)"]
+
+      # Version notes
+      change_summary:
+        type: string?
+        description: "Optional description of changes"
+        attributes: ["@max(500)"]
+
+      # Restoration tracking
+      is_current:
+        type: bool
+        description: "Whether this is the current version"
+        attributes: ["@default(false)"]
+
+      restored_from_id:
+        type: uuid?
+        description: "If restored, which version it came from"
+        attributes: ["@foreign_key(FileVersion.id)"]
+
+      # Retention
+      expires_at:
+        type: datetime?
+        description: "When this version will be auto-deleted"
+
+      is_deleted:
+        type: bool
+        attributes: ["@default(false)"]
+
+      deleted_at:
+        type: datetime?
+
+      size_bytes:
+        type: int64
+        attributes: ["@required", "@non_negative"]
+        description: "File size in bytes for this version"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      file:
+        type: StoredFile
+        attributes: ["@one", "@foreign_key(file_id)"]
+
+      restored_from:
+        type: FileVersion?
+        attributes: ["@one", "@foreign_key(restored_from_id)"]
+
+    indexes:
+      - type: index
+        fields: [file_id]
+      - type: unique
+        fields: [file_id, version_number]
+      - type: unique
+        fields: [storage_key]
+      - type: index
+        fields: [created_by_id]
+      - type: index
+        fields: [file_id, is_current]
+      - type: index
+        fields: [expires_at]
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+enums:
+  - name: VersionType
+    description: "What caused a file version to be created"
+    variants:
+      - name: upload
+        description: "Initial file upload"
+        default: true
+      - name: replace
+        description: "File content was replaced"
+      - name: edit
+        description: "File was edited in place"
+      - name: restore
+        description: "Restored from a previous version"
+      - name: auto_save
+        description: "Automatic save/backup"

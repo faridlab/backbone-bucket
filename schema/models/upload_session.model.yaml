@@ -1,0 +1,170 @@
+# UploadSession Entity - Multipart upload sessions
+# Manages large file uploads with chunking and resume capability
+
+models:
+  - name: UploadSession
+    collection: upload_sessions
+    description: "Multipart upload session for large files"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Primary key"
+
+      bucket_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(Bucket.id)"]
+        description: "Target bucket"
+
+      user_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(sapiens.User.id)"]
+        description: "Upload owner"
+
+      path:
+        type: string
+        attributes: ["@required", "@max(1024)"]
+        description: "Target file path"
+
+      filename:
+        type: string
+        attributes: ["@required", "@max(255)"]
+        description: "Original filename"
+
+      mime_type:
+        type: string?
+        attributes: ["@max(127)"]
+        description: "File MIME type"
+
+      file_size:
+        type: int64
+        attributes: ["@required", "@positive"]
+        description: "Total file size in bytes"
+
+      chunk_size:
+        type: int
+        attributes: ["@required", "@positive"]
+        description: "Size of each chunk in bytes"
+
+      total_chunks:
+        type: int
+        attributes: ["@required", "@positive"]
+        description: "Total number of chunks"
+
+      uploaded_chunks:
+        type: int
+        attributes: ["@default(0)", "@non_negative"]
+        description: "Number of uploaded chunks"
+
+      status:
+        type: UploadStatus
+        attributes: ["@default(initiated)"]
+        description: "Upload session status"
+
+      storage_backend:
+        type: StorageBackend
+        attributes: ["@default(local)"]
+        description: "Storage backend to use"
+
+      # Chunk tracking
+      completed_parts:
+        type: "int[]"
+        description: "List of completed part numbers (must be unique)"
+
+      part_etags:
+        type: json?
+        description: "Part ETags for final assembly verification"
+
+      expires_at:
+        type: datetime
+        attributes: ["@required"]
+        description: "Session expiration time"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: index
+        fields: [user_id, status]
+        description: "User's active uploads"
+
+      - type: index
+        fields: [expires_at]
+        description: "For cleanup of expired sessions"
+
+      - type: index
+        fields: [bucket_id, status]
+        description: "Bucket uploads by status"
+
+enums:
+  - name: UploadStatus
+    description: "Multipart upload status"
+    variants:
+      - name: initiated
+        description: "Session created"
+        default: true
+      - name: uploading
+        description: "Receiving chunks"
+      - name: completing
+        description: "Assembling final file"
+      - name: completed
+        description: "Upload complete"
+      - name: expired
+        description: "Session expired"
+      - name: failed
+        description: "Upload failed"
+
+entities:
+  UploadSession:
+    model: UploadSession
+    description: "Multipart upload session with resume capability"
+
+    methods:
+      - name: is_expired
+        returns: bool
+        description: "Check if session has expired"
+
+      - name: add_part
+        mutates: true
+        params:
+          part_number: int
+          etag: string
+        returns: "Result<(), UploadError>"
+        description: "Add completed part"
+
+      - name: is_complete
+        returns: bool
+        description: "Check if all parts uploaded"
+
+      - name: calculate_progress
+        returns: int
+        description: "Get upload progress percentage"
+
+      - name: remaining_chunks
+        returns: int
+        description: "Get number of remaining chunks"
+
+      - name: can_resume
+        returns: bool
+        description: "Check if upload can be resumed"
+
+      - name: mark_complete
+        mutates: true
+        returns: "Result<(), UploadError>"
+        description: "Mark session as completing"
+
+      - name: mark_failed
+        mutates: true
+        params:
+          error: string
+        returns: "Result<(), UploadError>"
+        description: "Mark session as failed"
+
+    invariants:
+      - "uploaded_chunks <= total_chunks"
+      - "uploaded_chunks == completed_parts.length"
+      - "expires_at > created_at"
+      - "chunk_size >= 5 * 1024 * 1024 (minimum 5MB)"

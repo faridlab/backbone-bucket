@@ -1,0 +1,188 @@
+# FileShare Entity - Sharing links and permissions
+# Supports user-specific shares, public links, and password protection
+
+models:
+  - name: FileShare
+    collection: file_shares
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+
+      file_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(StoredFile.id)"]
+
+      owner_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(sapiens.User.id)"]
+        description: "User who created the share"
+
+      # Share identification
+      token:
+        type: string
+        attributes: ["@unique", "@required", "@min(32)", "@max(64)"]
+        description: "Unique share token for URL"
+
+      # Share type and permissions
+      share_type:
+        type: ShareType
+        attributes: ["@default(link)"]
+
+      permission:
+        type: SharePermission
+        attributes: ["@default(view)"]
+
+      # For user-specific shares
+      shared_with:
+        type: "uuid[]"
+        description: "User IDs this is shared with (for type=user)"
+
+      # Security
+      password_hash:
+        type: string?
+        description: "Optional password protection (bcrypt/argon2 hash)"
+
+      # Limits
+      max_downloads:
+        type: int?
+        description: "Maximum number of downloads (null = unlimited)"
+
+      download_count:
+        type: int
+        attributes: ["@default(0)", "@non_negative"]
+
+      expires_at:
+        type: datetime?
+        description: "Share expiration (null = never)"
+
+      # Status
+      share_status:
+        type: ShareStatus
+        attributes: ["@default(active)"]
+        description: "Share lifecycle status"
+
+      is_active:
+        type: bool
+        attributes: ["@default(true)"]
+
+      revoked_at:
+        type: datetime?
+        description: "When share was revoked"
+      revoked_by:
+        type: uuid?
+        description: "User who revoked the share"
+
+      # Custom message
+      message: string?
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      file:
+        type: StoredFile
+        attributes: ["@one", "@foreign_key(file_id)"]
+
+    indexes:
+      - type: unique
+        fields: [token]
+      - type: index
+        fields: [file_id]
+      - type: index
+        fields: [owner_id]
+      - type: index
+        fields: [share_status]
+      - type: index
+        fields: [is_active]
+      - type: index
+        fields: [expires_at]
+      - type: index
+        fields: [file_id, share_status]
+
+# =============================================================================
+# ENTITIES - Enhanced share with behavior
+# =============================================================================
+entities:
+  FileShare:
+    model: FileShare
+    description: "File share with access control and limits"
+
+    methods:
+      - name: is_valid
+        returns: bool
+        description: "Check if share is active, not expired, and has downloads remaining"
+
+      - name: can_access
+        params:
+          user_id: "Option<Uuid>"
+          password: "Option<&str>"
+        returns: bool
+        description: "Check if user can access via this share"
+
+      - name: record_download
+        mutates: true
+        returns: bool
+        description: "Increment download count, returns false if limit reached"
+
+      - name: revoke
+        mutates: true
+        params:
+          by_user_id: Uuid
+        description: "Revoke the share"
+
+      - name: is_expired
+        returns: bool
+        description: "Check if share has expired"
+
+      - name: has_downloads_remaining
+        returns: bool
+        description: "Check if download limit not reached"
+
+    invariants:
+      - "download_count <= max_downloads (if set)"
+      - "token is unique"
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+enums:
+  - name: ShareType
+    description: "Type of share"
+    variants:
+      - name: user
+        description: "Shared with specific users"
+      - name: link
+        description: "Public link (anyone with link)"
+        default: true
+      - name: password
+        description: "Link with password protection"
+
+  - name: ShareStatus
+    description: "Lifecycle status of a file share"
+    variants:
+      - name: active
+        description: "Share is active and accessible"
+        default: true
+      - name: expired
+        description: "Share has expired"
+      - name: exhausted
+        description: "Download limit reached"
+      - name: revoked
+        description: "Share was manually revoked"
+
+  - name: SharePermission
+    description: "File/folder sharing permission level"
+    variants:
+      - name: private
+        description: "Only owner can access"
+      - name: view
+        description: "Can view/download only"
+        default: true
+      - name: edit
+        description: "Can view and replace file"
+      - name: full
+        description: "Full access including delete"

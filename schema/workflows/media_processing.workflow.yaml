@@ -1,0 +1,92 @@
+# Media Processing Workflow
+# Handles thumbnail and preview generation for uploaded files.
+#
+# Extracted from file_upload.workflow.yaml (Phase 10 decomposition).
+# Triggered by FileUploadedEvent — reusable by both FileUpload and MultipartUpload flows.
+
+name: MediaProcessing
+description: |
+  Asynchronous media processing workflow triggered after a file is uploaded.
+  Generates thumbnails and previews for images, videos, and documents.
+  Reusable by any upload flow that emits FileUploadedEvent.
+
+version: 1
+
+trigger:
+  event: FileUploadedEvent
+  extract:
+    file_id: "event.file_id"
+    bucket_id: "event.bucket_id"
+    owner_id: "event.owner_id"
+    mime_type: "event.mime_type"
+
+config:
+  timeout: 15m
+  persistence: true
+  retry:
+    max_attempts: 3
+    backoff: exponential
+
+context:
+  file_id: null
+  mime_type: null
+
+steps:
+  - name: check_media_type
+    type: condition
+    conditions:
+      - if: "context.mime_type.starts_with('image/')"
+        next: create_image_thumbnail
+      - if: "context.mime_type.starts_with('video/')"
+        next: create_video_thumbnail
+      - if: "context.mime_type.contains('pdf') || context.mime_type.contains('document')"
+        next: create_document_preview
+      - else: true
+        next: no_processing_needed
+
+  - name: create_image_thumbnail
+    type: action
+    action: create
+    entity: ProcessingJob
+    params:
+      file_id: "{{ context.file_id }}"
+      job_type: thumbnail_generation
+      priority: 5
+    on_success:
+      next: complete
+
+  - name: create_video_thumbnail
+    type: action
+    action: create
+    entity: ProcessingJob
+    params:
+      file_id: "{{ context.file_id }}"
+      job_type: video_thumbnail
+      priority: 5
+    on_success:
+      next: complete
+
+  - name: create_document_preview
+    type: action
+    action: create
+    entity: ProcessingJob
+    params:
+      file_id: "{{ context.file_id }}"
+      job_type: document_preview
+      priority: 4
+    on_success:
+      next: complete
+
+  - name: no_processing_needed
+    type: terminal
+    status: completed
+    result:
+      processed: false
+      reason: "Non-media file type, no processing required"
+
+  - name: complete
+    type: terminal
+    status: completed
+    result:
+      processed: true
+      file_id: "{{ context.file_id }}"

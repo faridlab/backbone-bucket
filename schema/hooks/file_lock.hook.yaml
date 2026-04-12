@@ -1,0 +1,169 @@
+# FileLock Lifecycle Hook
+# State machine for file editing locks - prevents concurrent edits
+
+name: FileLock
+model: file_lock.model.yaml
+
+# =============================================================================
+# State Machine - Lock lifecycle
+# =============================================================================
+states:
+  field: status
+
+  values:
+    active:
+      initial: true
+      description: "Lock is active and preventing other edits"
+      on_enter:
+        - "log(lock.acquired, { lock_id: id, file_id: file_id, user_id: user_id })"
+        - "emit: FileLockAcquiredEvent(lock_id: id, file_id: file_id, user_id: user_id)"
+
+    expired:
+      final: true
+      description: "Lock has expired due to timeout"
+      on_enter:
+        - "log(lock.expired, { lock_id: id, file_id: file_id })"
+        - "emit: FileLockExpiredEvent(lock_id: id, file_id: file_id)"
+
+    released:
+      final: true
+      description: "Lock was released by owner"
+      on_enter:
+        - "log(lock.released, { lock_id: id, file_id: file_id, user_id: user_id })"
+        - "emit: FileLockReleasedEvent(lock_id: id, file_id: file_id, user_id: user_id)"
+
+  transitions:
+    expire:
+      from: active
+      to: expired
+      roles: [system]
+      description: "Lock expired due to timeout"
+      condition: "expires_at <= now()"
+
+    release:
+      from: active
+      to: released
+      roles: [owner, admin]
+      description: "Lock released by owner"
+      condition: "$actor.id == user_id || $actor.has_role('admin')"
+
+    refresh:
+      from: active
+      to: active
+      roles: [owner]
+      description: "Refresh lock expiration time"
+      condition: "$actor.id == user_id && expires_at > now()"
+      actions:
+        - action: refresh_lock
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  file_must_exist:
+    when: [create]
+    condition: "file_exists(file_id)"
+    message: "File must exist to be locked"
+    code: FILE_NOT_FOUND
+
+  file_must_be_active:
+    when: [create]
+    condition: "file.status == 'active'"
+    message: "Only active files can be locked"
+    code: FILE_NOT_ACTIVE
+
+  no_existing_lock:
+    when: [create]
+    condition: "!has_active_lock(file_id)"
+    message: "File is already locked by another user"
+    code: FILE_ALREADY_LOCKED
+
+  reasonable_duration:
+    when: [create]
+    condition: "lock_duration_minutes >= 5 && lock_duration_minutes <= 1440"
+    message: "Lock duration must be between 5 minutes and 24 hours"
+    code: INVALID_DURATION
+
+  only_owner_can_modify:
+    when: [update]
+    condition: "$actor.id == user_id"
+    message: "Only lock owner can modify"
+    code: NOT_LOCK_OWNER
+
+  cannot_modify_expired:
+    when: [update]
+    condition: "status != 'expired'"
+    message: "Cannot modify expired lock"
+    code: LOCK_EXPIRED
+
+  within_refresh_window:
+    when: [refresh]
+    condition: "expires_at - now() <= INTERVAL '5 minutes'"
+    message: "Can only refresh within 5 minutes of expiration"
+    code: REFRESH_TOO_EARLY
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: list
+      - action: release
+      - action: delete
+
+  user:
+    allow:
+      - action: create
+        if: "is_file_owner_or_has_edit_access(file_id)"
+      - action: read
+        if: "has_file_access(file_id)"
+      - action: release
+        if: "$this.user_id == $actor.id"
+      - action: refresh
+        if: "$this.user_id == $actor.id"
+      - action: list
+        if: "has_file_access(file_id)"
+    deny:
+      - action: delete
+
+  guest:
+    deny:
+      - all
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  after_create:
+    actions:
+      - "log(lock.created, { lock_id: id, file_id: file_id, user_id: user_id })"
+      - "emit: FileLockCreatedEvent(lock_id: id, file_id: file_id, user_id: user_id, expires_at: expires_at)"
+
+  after_update_status:
+    actions:
+      - "log(lock.status_changed, { lock_id: id, old_status: $old.status, new_status: status })"
+
+  expire_overdue_locks:
+    schedule: "*/5 * * * *"
+    actions:
+      - "update: FileLock(status: 'expired') WHERE status == 'active' AND expires_at < now()"
+
+  notify_lock_expiration:
+    schedule: "*/10 * * * *"
+    actions:
+      - "notify([user_id], lock_expiring, { lock_id: id, file_id: file_id }) WHERE status == 'active' AND expires_at BETWEEN now() AND now() + INTERVAL '5 minutes'"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  is_active: "status == 'active' && expires_at > now()"
+  is_expired: "status == 'expired' || expires_at <= now()"
+  time_remaining_minutes: "status == 'active' ? EXTRACT(EPOCH FROM expires_at - now()) / 60 : 0"
+  can_refresh: "status == 'active' && expires_at - now() <= INTERVAL '5 minutes'"

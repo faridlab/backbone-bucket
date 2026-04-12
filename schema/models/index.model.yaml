@@ -1,0 +1,929 @@
+# Bucket Module - Index Schema
+# File storage module with S3/Drive-like features
+# Uses backbone-storage crate for actual file I/O
+
+module: bucket
+version: 2
+description: "Enterprise file storage with buckets, sharing, quotas, security scanning, and media processing"
+
+# =============================================================================
+# EXTERNAL IMPORTS - Reuse sapiens for user management
+# =============================================================================
+external_imports:
+  - module: sapiens
+    types: [User]
+
+# =============================================================================
+# SHARED TYPES - Reusable across all models
+# =============================================================================
+shared_types:
+  # Timestamps for all entities
+  Timestamps:
+    created_at:
+      type: datetime
+      attributes: ["@default(now)"]
+      description: "Record creation timestamp"
+    updated_at:
+      type: datetime
+      attributes: ["@updated_at"]
+      description: "Last update timestamp"
+    deleted_at:
+      type: datetime?
+      description: "Soft delete timestamp"
+
+  # Actor tracking for audit
+  Actors:
+    created_by:
+      type: uuid?
+      attributes: ["@foreign_key(User.id)"]
+      description: "User who created this record"
+    updated_by:
+      type: uuid?
+      attributes: ["@foreign_key(User.id)"]
+      description: "User who last updated this record"
+    deleted_by:
+      type: uuid?
+      attributes: ["@foreign_key(User.id)"]
+      description: "User who deleted this record"
+
+  # Compose Timestamps + Actors into Metadata
+  Metadata: [Timestamps, Actors]
+
+  # Storage size tracking
+  StorageSize:
+    size_bytes:
+      type: int64
+      attributes: ["@required", "@non_negative"]
+
+# =============================================================================
+# MODULE CONFIGURATION
+# =============================================================================
+config:
+  database: postgresql
+  soft_delete: true
+  audit: true
+  default_timestamps: true
+  generators:
+    disabled:
+      - graphql
+      - grpc
+      - proto
+      - openapi
+      # Protects presentation/http/routes.rs, presentation/http/mod.rs, and routes/mod.rs
+      # from being regenerated with the 3 collapsed child entities (Thumbnail, FileVersion,
+      # AccessLog). These files were manually patched after adding generators.disabled to
+      # those model yamls. Re-enable only after the routes-composer generator respects
+      # per-model disabled flags.
+      - routes-composer
+      - handlers-module
+
+# =============================================================================
+# IMPORTS - Model files in this module
+# =============================================================================
+imports:
+  - bucket.model.yaml
+  - stored_file.model.yaml
+  - file_share.model.yaml
+  - user_quota.model.yaml
+  - file_version.model.yaml
+  - thumbnail.model.yaml
+  - access_log.model.yaml
+  # V2.0: New models
+  - file_lock.model.yaml
+  - file_comment.model.yaml
+  - processing_job.model.yaml
+  - conversion_job.model.yaml
+  - upload_session.model.yaml
+  - content_hash.model.yaml
+
+# =============================================================================
+# VALUE OBJECTS
+# =============================================================================
+value_objects:
+  FileSize:
+    inner_type: i64
+    validation:
+      min: 0
+    methods:
+      - name: to_human_readable
+        returns: String
+        description: "Format as KB/MB/GB"
+      - name: is_over_limit
+        params:
+          limit: i64
+        returns: bool
+
+  MimeType:
+    inner_type: String
+    validation:
+      pattern: "^[a-z]+/[a-z0-9.+-]+$"
+    methods:
+      - name: category
+        returns: "&str"
+        description: "Get category (image, video, document, etc.)"
+      - name: is_image
+        returns: bool
+      - name: is_compressible
+        returns: bool
+
+  StoragePath:
+    inner_type: String
+    validation:
+      max_length: 1024
+      pattern: "^[a-zA-Z0-9/_.-]+$"
+    methods:
+      - name: parent
+        returns: "Option<StoragePath>"
+      - name: filename
+        returns: "&str"
+      - name: extension
+        returns: "Option<&str>"
+
+  ShareToken:
+    inner_type: String
+    validation:
+      length: 32
+      pattern: "^[a-zA-Z0-9]+$"
+    derives: [Clone, PartialEq, Eq, Hash]
+
+# =============================================================================
+# DOMAIN SERVICES
+# =============================================================================
+domain_services:
+  FileProcessingService:
+    description: "Handles file compression and security scanning"
+    stateless: true
+    methods:
+      - name: compress_if_needed
+        async: true
+        params:
+          content: "&[u8]"
+          mime_type: "&MimeType"
+        returns: "Result<(Vec<u8>, CompressionInfo), ProcessingError>"
+
+      - name: scan_for_threats
+        async: true
+        params:
+          content: "&[u8]"
+          filename: "&str"
+        returns: "Result<SecurityScanResult, ScanError>"
+
+      - name: generate_thumbnail
+        async: true
+        params:
+          content: "&[u8]"
+          max_size: u32
+        returns: "Result<Option<Vec<u8>>, ProcessingError>"
+
+  QuotaEnforcementService:
+    description: "Enforces user storage quotas"
+    stateless: true
+    dependencies:
+      - quota_repo: UserQuotaRepository
+    methods:
+      - name: check_quota
+        async: true
+        params:
+          user_id: Uuid
+          additional_bytes: i64
+        returns: "Result<bool, QuotaError>"
+
+      - name: update_usage
+        async: true
+        params:
+          user_id: Uuid
+          delta_bytes: i64
+        returns: "Result<UserQuota, QuotaError>"
+
+      - name: get_usage_percentage
+        params:
+          quota: "&UserQuota"
+        returns: f64
+
+  ShareLinkService:
+    description: "Manages file sharing links"
+    stateless: true
+    methods:
+      - name: generate_token
+        returns: ShareToken
+
+      - name: generate_share_url
+        params:
+          token: "&ShareToken"
+          base_url: "&str"
+        returns: String
+
+      - name: validate_password
+        params:
+          share: "&FileShare"
+          password: "&str"
+        returns: bool
+
+  # V2.0: New domain services
+  LockingService:
+    description: "Manages file editing locks"
+    stateless: false
+    dependencies:
+      - file_lock_repo: FileLockRepository
+      - stored_file_repo: StoredFileRepository
+    methods:
+      - name: acquire_lock
+        async: true
+        params:
+          file_id: Uuid
+          user_id: Uuid
+          duration: Duration
+        returns: "Result<FileLock, LockError>"
+
+      - name: release_lock
+        async: true
+        params:
+          file_id: Uuid
+          user_id: Uuid
+        returns: "Result<(), LockError>"
+
+      - name: refresh_lock
+        async: true
+        params:
+          file_id: Uuid
+          user_id: Uuid
+        returns: "Result<FileLock, LockError>"
+
+      - name: break_lock
+        async: true
+        params:
+          file_id: Uuid
+          admin_id: Uuid
+        returns: "Result<(), LockError>"
+
+      - name: get_active_lock
+        async: true
+        params:
+          file_id: Uuid
+        returns: "Result<Option<FileLock>, LockError>"
+
+  DeduplicationService:
+    description: "Content-based deduplication"
+    stateless: true
+    dependencies:
+      - content_hash_repo: ContentHashRepository
+      - storage_backend: StorageBackend
+    methods:
+      - name: find_or_create
+        async: true
+        params:
+          hash: String
+          size: i64
+          content: "&[u8]"
+        returns: "Result<ContentHash, DedupError>"
+
+      - name: increment_reference
+        async: true
+        params:
+          hash_id: Uuid
+        returns: "Result<(), DedupError>"
+
+      - name: decrement_reference
+        async: true
+        params:
+          hash_id: Uuid
+        returns: "Result<bool, DedupError>"
+
+      - name: cleanup_orphaned
+        async: true
+        params:
+          older_than: Duration
+        returns: "Result<Vec<Uuid>, DedupError>"
+
+      - name: compute_hash
+        params:
+          content: "&[u8]"
+        returns: String
+
+  ConversionService:
+    description: "File format conversion"
+    stateless: true
+    dependencies:
+      - storage: StorageBackend
+      - processor: MediaProcessor
+    methods:
+      - name: convert_image
+        async: true
+        params:
+          source: Vec<u8>
+          from_format: String
+          to_format: String
+          options: ConversionOptions
+        returns: "Result<Vec<u8>, ConversionError>"
+
+      - name: convert_document
+        async: true
+        params:
+          source: Vec<u8>
+          from_format: String
+          to_format: String
+        returns: "Result<Vec<u8>, ConversionError>"
+
+      - name: convert_video
+        async: true
+        params:
+          source: Vec<u8>
+          from_format: String
+          to_format: String
+        returns: "Result<Vec<u8>, ConversionError>"
+
+  CdnService:
+    description: "CDN URL generation and caching"
+    stateless: true
+    dependencies:
+      - cdn_provider: CdnProvider
+      - config: CdnConfig
+    methods:
+      - name: get_or_generate_url
+        async: true
+        params:
+          file: StoredFile
+          expiry: Duration
+        returns: "Result<String, CdnError>"
+
+      - name: generate_signed_url
+        params:
+          storage_key: String
+          expiry: Duration
+        returns: String
+
+      - name: invalidate
+        async: true
+        params:
+          file_id: Uuid
+        returns: "Result<(), CdnError>"
+
+      - name: purge_from_cdn
+        async: true
+        params:
+          file: StoredFile
+        returns: "Result<(), CdnError>"
+
+  MediaProcessingService:
+    description: "Video and document processing"
+    stateless: true
+    dependencies:
+      - video_processor: VideoProcessor
+      - document_processor: DocumentProcessor
+    methods:
+      - name: generate_video_thumbnail
+        async: true
+        params:
+          file: StoredFile
+          timestamp_percent: f64
+        returns: "Result<Thumbnail, ProcessingError>"
+
+      - name: generate_document_preview
+        async: true
+        params:
+          file: StoredFile
+          first_page_only: bool
+        returns: "Result<DocumentPreview, ProcessingError>"
+
+      - name: extract_video_metadata
+        async: true
+        params:
+          content: "&[u8]"
+        returns: "Result<VideoMetadata, ProcessingError>"
+
+# =============================================================================
+# USE CASES
+# =============================================================================
+usecases:
+  UploadFile:
+    description: "Upload a new file with validation, virus scan, and quota check"
+    actor: User
+    input:
+      bucket_id: Uuid
+      path: String
+      content: "Vec<u8>"
+      original_name: String
+      mime_type: "Option<String>"
+    output: StoredFile
+    steps:
+      - validate_input
+      - check_quota
+      - scan_for_threats
+      - compress_if_image
+      - store_content
+      - create_metadata
+      - update_quota
+      - emit_event
+    async: true
+
+  DownloadFile:
+    description: "Download a file with permission check"
+    actor: User
+    input:
+      file_id: Uuid
+      share_token: "Option<String>"
+    output: "(Vec<u8>, FileInfo)"
+    steps:
+      - load_file_metadata
+      - check_permission
+      - load_content
+      - log_access
+    async: true
+
+  ShareFile:
+    description: "Create a share link for a file"
+    actor: User
+    input:
+      file_id: Uuid
+      share_type: ShareType
+      permission: SharePermission
+      expires_at: "Option<DateTime<Utc>>"
+      password: "Option<String>"
+      shared_with: "Option<Vec<Uuid>>"
+    output: FileShare
+    steps:
+      - validate_ownership
+      - generate_token
+      - create_share
+      - emit_event
+    async: true
+
+  RevokeShare:
+    description: "Revoke a file share"
+    actor: User
+    input:
+      share_id: Uuid
+    output: bool
+    steps:
+      - validate_ownership
+      - deactivate_share
+      - emit_event
+    async: true
+
+  CreateBucket:
+    description: "Create a new storage bucket"
+    actor: User
+    input:
+      name: String
+      bucket_type: BucketType
+      description: "Option<String>"
+    output: Bucket
+    steps:
+      - validate_name
+      - check_duplicate
+      - create_bucket
+      - emit_event
+    async: true
+
+  DeleteFile:
+    description: "Soft delete a file (move to trash)"
+    actor: User
+    input:
+      file_id: Uuid
+    output: bool
+    steps:
+      - validate_ownership
+      - move_to_trash
+      - update_quota
+      - emit_event
+    async: true
+
+  RestoreFile:
+    description: "Restore a file from trash"
+    actor: User
+    input:
+      file_id: Uuid
+    output: StoredFile
+    steps:
+      - validate_ownership
+      - check_quota
+      - restore_file
+      - update_quota
+      - emit_event
+    async: true
+
+  PurgeTrash:
+    description: "Permanently delete files in trash"
+    actor: System
+    input:
+      older_than_days: i32
+    output: i64
+    steps:
+      - find_expired_files
+      - delete_content
+      - delete_metadata
+      - emit_event
+    async: true
+
+# =============================================================================
+# DOMAIN EVENTS
+# =============================================================================
+events:
+  FileUploaded:
+    description: "A new file was uploaded"
+    aggregate: StoredFile
+    version: 1
+    storage:
+      store: true
+      retention: 2_years
+      index_fields: [file_id, bucket_id, owner_id]
+    fields:
+      - name: file_id
+        type: Uuid
+      - name: bucket_id
+        type: Uuid
+      - name: owner_id
+        type: Uuid
+      - name: path
+        type: String
+      - name: size_bytes
+        type: i64
+      - name: mime_type
+        type: String
+      - name: uploaded_at
+        type: "DateTime<Utc>"
+
+  FileDeleted:
+    description: "A file was deleted (soft or hard)"
+    aggregate: StoredFile
+    version: 1
+    storage:
+      store: true
+      retention: 2_years
+    fields:
+      - name: file_id
+        type: Uuid
+      - name: owner_id
+        type: Uuid
+      - name: permanent
+        type: bool
+      - name: deleted_at
+        type: "DateTime<Utc>"
+
+  FileShared:
+    description: "A file share was created"
+    aggregate: FileShare
+    version: 1
+    storage:
+      store: true
+      retention: 1_year
+    fields:
+      - name: share_id
+        type: Uuid
+      - name: file_id
+        type: Uuid
+      - name: owner_id
+        type: Uuid
+      - name: share_type
+        type: ShareType
+      - name: permission
+        type: SharePermission
+      - name: shared_at
+        type: "DateTime<Utc>"
+
+  ShareRevoked:
+    description: "A file share was revoked"
+    aggregate: FileShare
+    version: 1
+    storage:
+      store: true
+      retention: 1_year
+    fields:
+      - name: share_id
+        type: Uuid
+      - name: file_id
+        type: Uuid
+      - name: revoked_at
+        type: "DateTime<Utc>"
+
+  QuotaExceeded:
+    description: "User exceeded storage quota"
+    aggregate: UserQuota
+    version: 1
+    storage:
+      store: true
+      retention: 1_year
+    fields:
+      - name: user_id
+        type: Uuid
+      - name: limit_bytes
+        type: i64
+      - name: used_bytes
+        type: i64
+      - name: attempted_bytes
+        type: i64
+      - name: occurred_at
+        type: "DateTime<Utc>"
+
+  ThreatDetected:
+    description: "Malware or virus detected in uploaded file"
+    aggregate: StoredFile
+    version: 1
+    storage:
+      store: true
+      retention: 5_years
+    fields:
+      - name: file_id
+        type: Uuid
+      - name: owner_id
+        type: Uuid
+      - name: threat_level
+        type: ThreatLevel
+      - name: threats
+        type: "Vec<String>"
+      - name: detected_at
+        type: "DateTime<Utc>"
+
+  BucketCreated:
+    description: "A new bucket was created"
+    aggregate: Bucket
+    version: 1
+    storage:
+      store: true
+      retention: 2_years
+    fields:
+      - name: bucket_id
+        type: Uuid
+      - name: owner_id
+        type: Uuid
+      - name: name
+        type: String
+      - name: bucket_type
+        type: BucketType
+      - name: created_at
+        type: "DateTime<Utc>"
+
+  # V2.0: New events
+  FileLocked:
+    description: "File was locked for editing"
+    aggregate: StoredFile
+    version: 1
+    storage:
+      store: true
+      retention: 1_year
+    fields:
+      - name: file_id
+        type: Uuid
+      - name: user_id
+        type: Uuid
+      - name: locked_at
+        type: "DateTime<Utc>"
+      - name: expires_at
+        type: "DateTime<Utc>"
+
+  FileUnlocked:
+    description: "File lock was released"
+    aggregate: StoredFile
+    version: 1
+    storage:
+      store: true
+      retention: 1_year
+    fields:
+      - name: file_id
+        type: Uuid
+      - name: user_id
+        type: Uuid
+      - name: unlocked_at
+        type: "DateTime<Utc>"
+
+  FileCommented:
+    description: "Comment added to file"
+    aggregate: FileComment
+    version: 1
+    storage:
+      store: true
+      retention: 2_years
+    fields:
+      - name: comment_id
+        type: Uuid
+      - name: file_id
+        type: Uuid
+      - name: user_id
+        type: Uuid
+      - name: content
+        type: String
+      - name: mentioned_users
+        type: "Vec<Uuid>"
+      - name: commented_at
+        type: "DateTime<Utc>"
+
+  ConversionCompleted:
+    description: "File conversion completed"
+    aggregate: ConversionJob
+    version: 1
+    storage:
+      store: true
+      retention: 6_months
+    fields:
+      - name: conversion_id
+        type: Uuid
+      - name: source_file_id
+        type: Uuid
+      - name: result_file_id
+        type: Uuid
+      - name: target_format
+        type: String
+      - name: completed_at
+        type: "DateTime<Utc>"
+
+  FileProcessed:
+    description: "File processing completed"
+    aggregate: ProcessingJob
+    version: 1
+    storage:
+      store: true
+      retention: 6_months
+    fields:
+      - name: file_id
+        type: Uuid
+      - name: job_type
+        type: ProcessingJobType
+      - name: processing_results
+        type: Json
+      - name: processed_at
+        type: "DateTime<Utc>"
+
+# =============================================================================
+# AUTHORIZATION
+# =============================================================================
+authorization:
+  permissions:
+    buckets: [read, create, update, delete, list]
+    files: [read, create, update, delete, list, download, share, lock, convert, comment]
+    shares: [read, create, revoke, list]
+    quotas: [read, update]
+    # V2.0: New permissions
+    comments: [read, create, update, delete, resolve]
+    locks: [read, create, delete, refresh, break]
+    conversions: [read, create, cancel]
+
+  roles:
+    super_admin:
+      permissions: ["*"]
+      level: 100
+
+    admin:
+      permissions:
+        - "buckets.*"
+        - "files.*"
+        - "shares.*"
+        - "quotas.*"
+      level: 80
+
+    user:
+      permissions:
+        - "buckets.read"
+        - "buckets.create"
+        - "files.read"
+        - "files.create"
+        - "files.update"
+        - "files.delete"
+        - "files.download"
+        - "files.share"
+        - "files.lock"
+        - "files.convert"
+        - "files.comment"
+        - "shares.read"
+        - "shares.create"
+        - "shares.revoke"
+        - "quotas.read"
+        # V2.0: New permissions
+        - "comments.read"
+        - "comments.create"
+        - "comments.update"
+        - "comments.delete"
+        - "locks.read"
+        - "locks.create"
+        - "locks.delete"
+        - "conversions.read"
+        - "conversions.create"
+      level: 10
+
+    guest:
+      permissions:
+        - "files.read"
+        - "files.download"
+      level: 0
+
+  resource_policies:
+    Bucket:
+      read:
+        - policy: owner_or_admin
+      update:
+        - policy: owner_or_admin
+      delete:
+        - policy: owner_or_admin
+
+    StoredFile:
+      read:
+        - policy: owner_or_shared
+      update:
+        - policy: owner_only
+      delete:
+        - policy: owner_or_admin
+      download:
+        - policy: owner_or_shared
+      # V2.0: New permissions
+      lock:
+        - policy: owner_or_admin
+      convert:
+        - policy: owner_only
+      comment:
+        - policy: owner_or_shared
+
+    FileShare:
+      revoke:
+        - policy: owner_only
+
+    # V2.0: New resource policies
+    FileLock:
+      release:
+        - policy: lock_owner
+      break:
+        - policy: admin_only
+      refresh:
+        - policy: lock_owner
+
+    FileComment:
+      update:
+        - policy: comment_owner
+      delete:
+        - policy: comment_owner_or_admin
+      resolve:
+        - policy: file_owner_or_admin
+
+    ConversionJob:
+      cancel:
+        - policy: job_owner
+      read:
+        - policy: job_owner
+
+  policies:
+    owner_only:
+      description: "Only the owner can perform this action"
+      rules:
+        - owner:
+            resource: "$this"
+            field: owner_id
+            actor_field: id
+
+    owner_or_admin:
+      description: "Owner or admin can perform this action"
+      type: any
+      rules:
+        - owner:
+            resource: "$this"
+            field: owner_id
+            actor_field: id
+        - role: admin
+
+    owner_or_shared:
+      description: "Owner or users with share access"
+      type: any
+      rules:
+        - owner:
+            resource: "$this"
+            field: owner_id
+            actor_field: id
+        - condition: "has_share_access($actor.id, $this.id)"
+
+    # V2.0: New policies
+    lock_owner:
+      description: "Only the lock owner can perform this action"
+      rules:
+        - condition: "$this.user_id == $actor.id"
+
+    admin_only:
+      description: "Only admins can perform this action"
+      rules:
+        - role: admin
+
+    comment_owner:
+      description: "Only comment author can perform this action"
+      rules:
+        - resource: "$this"
+          field: user_id
+          actor_field: id
+
+    comment_owner_or_admin:
+      description: "Comment owner or admin can perform this action"
+      type: any
+      rules:
+        - resource: "$this"
+          field: user_id
+          actor_field: id
+        - role: admin
+
+    file_owner_or_admin:
+      description: "File owner or admin can perform this action"
+      type: any
+      rules:
+        - resource: "$this.file"
+          field: owner_id
+          actor_field: id
+        - role: admin
+
+    job_owner:
+      description: "Only job creator can perform this action"
+      rules:
+        - condition: "$actor.id == $this.source_file.owner_id"

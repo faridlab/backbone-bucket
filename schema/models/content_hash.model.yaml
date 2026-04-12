@@ -1,0 +1,134 @@
+# ContentHash Entity - Content deduplication tracking
+# SHA-256 based deduplication with reference counting to save storage
+
+models:
+  - name: ContentHash
+    collection: content_hashes
+    description: "Content hash for deduplication with reference counting"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Primary key"
+
+      hash:
+        type: string
+        attributes: ["@unique", "@required", "@length(64)", "@lowercase"]
+        description: "SHA-256 hash (hex encoded, 64 characters)"
+
+      size_bytes:
+        type: int64
+        attributes: ["@required", "@positive"]
+        description: "Content size in bytes"
+
+      storage_key:
+        type: string
+        attributes: ["@required", "@max(1024)"]
+        description: "Location in storage backend"
+
+      storage_backend:
+        type: StorageBackend
+        attributes: ["@default(local)"]
+        description: "Storage backend used"
+
+      reference_count:
+        type: int
+        attributes: ["@required", "@min(1)", "@default(1)"]
+        description: "Number of files using this content"
+
+      first_uploaded_at:
+        type: datetime
+        attributes: ["@default(now)"]
+        description: "First time this content was uploaded"
+
+      last_referenced_at:
+        type: datetime
+        attributes: ["@default(now)", "@updated_at"]
+        description: "Last time a file referenced this content"
+
+      # Optional: Content fingerprint for partial deduplication
+      fingerprint:
+        type: string?
+        attributes: ["@max(128)"]
+        description: "Partial content hash for similarity detection"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: unique
+        fields: [hash]
+        description: "Fast hash lookup"
+
+      - type: index
+        fields: [reference_count]
+        description: "For cleanup of unused content"
+
+      - type: index
+        fields: [last_referenced_at]
+        description: "For age-based queries"
+
+      - type: index
+        fields: [fingerprint]
+        where: "fingerprint IS NOT NULL"
+        description: "For similarity searches"
+
+      - type: index
+        fields: [size_bytes]
+        description: "For size-based queries"
+
+enums:
+  - name: HashAlgorithm
+    description: "Hash algorithm used"
+    variants:
+      - name: sha256
+        description: "SHA-256 algorithm"
+        default: true
+      - name: md5
+        description: "MD5 algorithm (legacy)"
+      - name: xxhash
+        description: "XXHash fast algorithm"
+
+entities:
+  ContentHash:
+    model: ContentHash
+    description: "Content hash with reference counting for deduplication"
+
+    methods:
+      - name: increment_reference
+        mutates: true
+        returns: "Result<(), DedupError>"
+        description: "Increment reference count"
+
+      - name: decrement_reference
+        mutates: true
+        returns: "Result<bool, DedupError>"
+        description: "Decrement, return true if should delete"
+
+      - name: can_delete
+        returns: bool
+        description: "Check if content can be deleted (ref_count = 0)"
+
+      - name: is_unused
+        returns: bool
+        description: "Check if content has no references"
+
+      - name: storage_saved
+        returns: i64
+        description: "Calculate storage saved (size * (ref_count - 1))"
+
+      - name: age_days
+        returns: int
+        description: "Get age in days since first upload"
+
+      - name: days_since_last_reference
+        returns: int
+        description: "Days since last reference"
+
+    invariants:
+      - "reference_count >= 1 when active"
+      - "hash.length == 64 (SHA-256 hex)"
+      - "size_bytes > 0"

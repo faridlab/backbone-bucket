@@ -1,0 +1,147 @@
+# AccessLog Model - File access audit logging
+# Tracks all access events for security and analytics
+
+models:
+  - name: AccessLog
+    collection: access_logs
+    description: "Audit log for file access events"
+    config:
+      generators:
+        disabled: [handler, usecase, cqrs, projection, bulk-operations]
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+
+      # What was accessed
+      file_id:
+        type: uuid
+        description: "File that was accessed"
+        attributes: ["@required", "@foreign_key(StoredFile.id)"]
+
+      bucket_id:
+        type: uuid?
+        description: "Bucket containing the file"
+        attributes: ["@foreign_key(Bucket.id)"]
+
+      # Action performed
+      action:
+        type: AccessAction
+        description: "Type of access action"
+        attributes: ["@required"]
+
+      # Who accessed
+      user_id:
+        type: uuid?
+        description: "User who performed the action (null for public access)"
+        attributes: ["@foreign_key(sapiens.User.id)"]
+
+      # Access context
+      share_id:
+        type: uuid?
+        description: "Share link used for access (if applicable)"
+        attributes: ["@foreign_key(FileShare.id)"]
+
+      is_owner:
+        type: bool
+        description: "Was accessed by file owner"
+        attributes: ["@default(false)"]
+
+      is_shared:
+        type: bool
+        description: "Was accessed via share link"
+        attributes: ["@default(false)"]
+
+      is_public:
+        type: bool
+        description: "Was accessed as public file"
+        attributes: ["@default(false)"]
+
+      # Request details
+      ip_address:
+        type: string?
+        description: "Client IP address (IPv6 max length)"
+        attributes: ["@max(45)"]
+
+      user_agent:
+        type: string?
+        description: "Client user agent"
+        attributes: ["@max(500)"]
+
+      referer:
+        type: string?
+        description: "HTTP referer header"
+        attributes: ["@max(500)"]
+
+      # Geolocation (optional)
+      country_code:
+        type: string?
+        description: "ISO country code"
+        attributes: ["@max(2)"]
+
+      city:
+        type: string?
+        attributes: ["@max(100)"]
+
+      # Transfer details (for downloads/uploads)
+      bytes_transferred:
+        type: int64?
+        description: "Bytes transferred in this request"
+
+      duration_ms:
+        type: int32?
+        description: "Request duration in milliseconds"
+
+      # Status
+      success:
+        type: bool
+        description: "Whether the action succeeded"
+        attributes: ["@default(true)"]
+
+      error_message:
+        type: string?
+        description: "Error message if failed"
+        attributes: ["@max(500)"]
+
+      # Timestamp
+      accessed_at:
+        type: datetime
+        attributes: ["@required", "@default(now)"]
+
+      # Additional metadata
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      file:
+        type: StoredFile
+        attributes: ["@one", "@foreign_key(file_id)"]
+
+      bucket:
+        type: Bucket?
+        attributes: ["@one", "@foreign_key(bucket_id)"]
+
+      share:
+        type: FileShare?
+        attributes: ["@one", "@foreign_key(share_id)"]
+
+    indexes:
+      - type: index
+        fields: [file_id]
+      - type: index
+        fields: [user_id]
+      - type: index
+        fields: [action]
+      - type: index
+        fields: [accessed_at]
+      - type: index
+        fields: [share_id]
+      - type: index
+        fields: [file_id, accessed_at]
+      - type: index
+        fields: [user_id, accessed_at]
+      - type: index
+        fields: [success]

@@ -1,0 +1,227 @@
+# ProcessingJob Lifecycle Hook
+# Async media processing pipeline for thumbnails, video, documents, and scanning
+
+name: ProcessingJob
+model: processing_job.model.yaml
+
+# =============================================================================
+# State Machine - Processing job lifecycle
+# =============================================================================
+states:
+  field: status
+
+  values:
+    pending:
+      initial: true
+      description: "Job is queued and waiting to start"
+      on_enter:
+        - "log(job.queued, { job_id: id, file_id: file_id, job_type: job_type })"
+
+    running:
+      description: "Job is currently being processed"
+      on_enter:
+        - "set: started_at = now()"
+        - "emit: JobStartedEvent(job_id: id, file_id: file_id, job_type: job_type)"
+
+    completed:
+      final: true
+      description: "Job completed successfully"
+      on_enter:
+        - "set: completed_at = now()"
+        - "emit: JobCompletedEvent(job_id: id, file_id: file_id, job_type: job_type)"
+        - "log(job.completed, { job_id: id, file_id: file_id })"
+
+    failed:
+      final: true
+      description: "Job failed"
+      on_enter:
+        - "set: completed_at = now()"
+        - "emit: JobFailedEvent(job_id: id, file_id: file_id, error: error_message)"
+        - "log(job.failed, { job_id: id, file_id: file_id, error: error_message })"
+
+    cancelled:
+      final: true
+      description: "Job was cancelled"
+      on_enter:
+        - "set: completed_at = now()"
+        - "emit: JobCancelledEvent(job_id: id, file_id: file_id)"
+        - "log(job.cancelled, { job_id: id, file_id: file_id })"
+
+  transitions:
+    start:
+      from: pending
+      to: running
+      roles: [system]
+      description: "Start processing the job"
+      condition: "processing_service.has_capacity(job_type)"
+
+    complete:
+      from: running
+      to: completed
+      roles: [system]
+      description: "Job completed successfully"
+
+    fail:
+      from: running
+      to: failed
+      roles: [system]
+      description: "Job failed with error"
+
+    cancel_pending:
+      from: pending
+      to: cancelled
+      roles: [owner, admin]
+      description: "Cancel the job before it starts"
+      condition: "$actor.id == file.owner_id || $actor.has_role('admin')"
+
+    cancel_running:
+      from: running
+      to: cancelled
+      roles: [owner, admin]
+      description: "Cancel running job"
+      condition: "$actor.id == file.owner_id || $actor.has_role('admin')"
+
+    retry:
+      from: failed
+      to: pending
+      roles: [system, owner]
+      description: "Retry failed job"
+      condition: "retry_count < max_retries"
+      actions:
+        - action: schedule_retry
+
+    reprocess:
+      from: completed
+      to: pending
+      roles: [owner, admin]
+      description: "Reprocess with new parameters"
+      actions:
+        - action: create_reprocess_job
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  file_must_exist:
+    when: [create]
+    condition: "file_exists(file_id)"
+    message: "File must exist"
+    code: FILE_NOT_FOUND
+
+  file_must_be_accessible:
+    when: [create]
+    condition: "file.is_accessible()"
+    message: "File must be accessible"
+    code: FILE_NOT_ACCESSIBLE
+
+  valid_job_type:
+    when: [create]
+    condition: "job_type IN ('thumbnail_generation', 'video_thumbnail', 'document_preview', 'compression', 'virus_scan', 'deduplication_check')"
+    message: "Job type must be supported"
+    code: INVALID_JOB_TYPE
+
+  job_type_must_match_file:
+    when: [create]
+    condition: >
+      (job_type == 'thumbnail_generation' && file.mime_type.starts_with('image/')) ||
+      (job_type == 'video_thumbnail' && file.mime_type.starts_with('video/')) ||
+      (job_type == 'document_preview' && file.mime_type IN ('application/pdf', 'application/msword')) ||
+      job_type IN ('compression', 'virus_scan', 'deduplication_check')
+    message: "Job type must match file type"
+    code: JOB_TYPE_MISMATCH
+
+  no_duplicate_pending_job:
+    when: [create]
+    condition: "count(ProcessingJob, file_id == $this.file_id && job_type == $this.job_type && status IN ('pending', 'running')) == 0"
+    message: "A similar job is already pending"
+    code: DUPLICATE_JOB
+
+  priority_valid:
+    when: [create, update]
+    condition: "priority >= 0 && priority <= 10"
+    message: "Priority must be 0-10"
+    code: INVALID_PRIORITY
+
+  cannot_modify_completed:
+    when: [update]
+    condition: "status != 'completed'"
+    message: "Cannot modify completed jobs"
+    code: JOB_COMPLETED
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: list
+      - action: cancel
+      - action: retry
+
+  system:
+    allow:
+      - action: create
+      - action: read
+      - action: update
+
+  user:
+    allow:
+      - action: read
+        if: "file.owner_id == $actor.id"
+      - action: cancel
+        if: "file.owner_id == $actor.id"
+      - action: retry
+        if: "file.owner_id == $actor.id"
+    deny:
+      - action: create
+      - action: delete
+
+  guest:
+    deny:
+      - all
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  after_create:
+    actions:
+      - "log(job.created, { job_id: id, file_id: file_id, job_type: job_type, priority: priority })"
+      - "emit: ProcessingJobCreatedEvent(job_id: id, file_id: file_id, job_type: job_type)"
+
+  after_update_status:
+    actions:
+      - "log(job.status_changed, { job_id: id, old_status: $old.status, new_status: status })"
+    if: "$old.status != status"
+
+  queue_pending_jobs:
+    schedule: "*/1 * * * *"
+    actions:
+      - "dispatch: ProcessingJob WHERE status == 'pending' AND (retry_after IS NULL OR retry_after < now()) ORDER BY priority DESC, metadata->>'created_at' ASC LIMIT 100"
+
+  expire_long_running_jobs:
+    schedule: "*/5 * * * *"
+    actions:
+      - "update: ProcessingJob(status: 'failed', error_message: 'Job timeout', completed_at: now()) WHERE status == 'running' AND started_at < now() - INTERVAL '30 minutes' AND job_type IN ('thumbnail_generation', 'video_thumbnail', 'compression')"
+      - "update: ProcessingJob(status: 'failed', error_message: 'Job timeout', completed_at: now()) WHERE status == 'running' AND started_at < now() - INTERVAL '5 minutes' AND job_type == 'virus_scan'"
+
+  update_file_processing_status:
+    timing: after_update
+    condition: "status IN ('completed', 'failed') AND $old.status NOT IN ('completed', 'failed')"
+    actions:
+      - "update: StoredFile(processing_status: check_all_jobs_status(file_id)) WHERE id == file_id"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  is_active: "status IN ('pending', 'running')"
+  is_terminal: "status IN ('completed', 'failed', 'cancelled')"
+  can_retry: "status == 'failed' && retry_count < max_retries"
+  duration_seconds: "started_at != null && completed_at != null ? EXTRACT(EPOCH FROM completed_at - started_at) : null"
+  wait_time_seconds: "started_at != null ? EXTRACT(EPOCH FROM started_at - metadata->>'created_at') : null"

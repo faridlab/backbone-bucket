@@ -1,0 +1,188 @@
+# Bucket Entity - Storage container for files
+# Similar to S3 bucket or Google Drive folder
+
+models:
+  - name: Bucket
+    collection: buckets
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+
+      name:
+        type: string
+        attributes: ["@required", "@max(255)"]
+        description: "Bucket name, alphanumeric with underscores/hyphens"
+
+      slug:
+        type: string
+        attributes: ["@unique", "@required", "@max(255)", "@lowercase"]
+        description: "URL-safe identifier"
+
+      description: string?
+
+      owner_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(sapiens.User.id)"]
+        description: "User who owns this bucket"
+
+      bucket_type:
+        type: BucketType
+        attributes: ["@default(user)"]
+
+      status:
+        type: BucketStatus
+        attributes: ["@default(active)"]
+
+      storage_backend:
+        type: StorageBackend
+        attributes: ["@default(local)"]
+
+      # Storage location
+      root_path:
+        type: string
+        attributes: ["@required", "@max(1024)"]
+        description: "Root path in storage backend"
+
+      # Statistics (denormalized for performance)
+      file_count:
+        type: int
+        attributes: ["@default(0)", "@non_negative"]
+
+      total_size_bytes:
+        type: int64
+        attributes: ["@default(0)", "@non_negative"]
+
+      # Settings
+      max_file_size:
+        type: int64?
+        description: "Maximum file size in bytes (null = no limit)"
+
+      allowed_mime_types:
+        type: "string[]"
+        description: "Allowed MIME types (empty = all allowed)"
+
+      # Lifecycle
+      auto_delete_after_days:
+        type: int?
+        description: "Auto-delete files after N days (for temp buckets)"
+
+      # V2.0: New bucket settings
+      enable_cdn:
+        type: bool
+        attributes: ["@default(false)"]
+        description: "Enable CDN for public files"
+
+      enable_versioning:
+        type: bool
+        attributes: ["@default(true)"]
+        description: "Enable file versioning"
+
+      enable_deduplication:
+        type: bool
+        attributes: ["@default(true)"]
+        description: "Enable content deduplication"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      files:
+        type: StoredFile[]
+        attributes: ["@one_to_many", "@on_delete(cascade)", "@on_update(cascade)"]
+
+      # V2.0: Upload sessions
+      upload_sessions:
+        type: UploadSession[]
+        attributes: ["@one_to_many"]
+        description: "Active multipart uploads"
+
+    indexes:
+      - type: unique
+        fields: [slug]
+      - type: index
+        fields: [owner_id]
+      - type: index
+        fields: [status]
+      - type: index
+        fields: [bucket_type]
+      - type: index
+        fields: [owner_id, status]
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+enums:
+  - name: BucketType
+    description: "Type of storage bucket"
+    variants:
+      - name: user
+        description: "Personal user storage"
+        default: true
+      - name: shared
+        description: "Shared team/group storage"
+      - name: system
+        description: "System-managed storage"
+      - name: temp
+        description: "Temporary storage with auto-cleanup"
+
+  - name: BucketStatus
+    description: "Bucket lifecycle status"
+    variants:
+      - name: active
+        description: "Bucket is active and accessible"
+        default: true
+      - name: readonly
+        description: "Bucket is read-only (no uploads)"
+      - name: archived
+        description: "Bucket is archived (limited access)"
+      - name: deleted
+        description: "Bucket is soft-deleted"
+
+  - name: StorageBackend
+    description: "Storage backend type"
+    variants:
+      - name: local
+        description: "Local filesystem"
+        default: true
+      - name: s3
+        description: "AWS S3 or compatible"
+      - name: minio
+        description: "MinIO object storage"
+      - name: gcs
+        description: "Google Cloud Storage"
+
+# =============================================================================
+# ENTITIES - Enhanced bucket with behavior
+# =============================================================================
+entities:
+  Bucket:
+    model: Bucket
+    description: "Storage bucket with management capabilities"
+
+    methods:
+      - name: can_upload
+        params:
+          file_size: i64
+          mime_type: "&str"
+        returns: bool
+        description: "Check if file can be uploaded to this bucket"
+
+      - name: update_stats
+        mutates: true
+        params:
+          size_delta: i64
+          count_delta: i32
+        description: "Update file count and total size"
+
+      - name: is_accessible
+        returns: bool
+        description: "Check if bucket is accessible (not deleted/archived)"
+
+    invariants:
+      - "file_count >= 0"
+      - "total_size_bytes >= 0"
+      - "name is unique per owner"

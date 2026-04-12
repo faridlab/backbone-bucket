@@ -1,0 +1,190 @@
+# FileShare Lifecycle Hook
+# Manages share state transitions, access validation, and expiration
+
+name: FileShare
+model: file_share.model.yaml
+
+# =============================================================================
+# State Machine - Share lifecycle
+# =============================================================================
+states:
+  field: share_status
+
+  values:
+    active:
+      initial: true
+      on_enter:
+        - "emit: ShareCreatedEvent(share_id: id, file_id: file_id, shared_by_id: owner_id, shared_with_user_id: $context.shared_with, permission: permission)"
+
+    expired:
+      final: true
+      on_enter:
+        - "log(share.expired, { share_id: id, file_id: file_id })"
+
+    exhausted:
+      final: true
+      on_enter:
+        - "emit: ShareDownloadLimitReachedEvent(share_id: id, file_id: file_id)"
+        - "log(share.exhausted, { share_id: id, file_id: file_id, download_count: download_count })"
+
+    revoked:
+      final: true
+      on_enter:
+        - "set: revoked_at = now()"
+        - "emit: ShareRevokedEvent(share_id: id, file_id: file_id, revoked_by: $context.actor_id)"
+        - "log(share.revoked, { share_id: id, file_id: file_id, revoked_by: $context.actor_id })"
+
+  transitions:
+    expire:
+      from: active
+      to: expired
+      roles: [system]
+      condition: "expires_at != null && expires_at <= now()"
+
+    exhaust:
+      from: active
+      to: exhausted
+      roles: [system]
+      condition: "max_downloads != null && download_count >= max_downloads"
+
+    revoke:
+      from: active
+      to: revoked
+      roles: [admin, owner]
+      condition: "$actor.id == owner_id || $actor.has_role('admin')"
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  token_length:
+    when: [create]
+    condition: "token.length >= 32 && token.length <= 64"
+    message: "Share token must be 32-64 characters"
+    code: INVALID_TOKEN_LENGTH
+
+  token_alphanumeric:
+    when: [create]
+    condition: "token matches '^[a-zA-Z0-9]+$'"
+    message: "Share token must be alphanumeric"
+    code: INVALID_TOKEN_CHARS
+
+  file_active:
+    when: [create]
+    condition: "file.status == 'active'"
+    message: "Cannot share inactive or quarantined files"
+    code: FILE_NOT_ACTIVE
+
+  owner_only_creates:
+    when: [create]
+    condition: "file.owner_id == owner_id"
+    message: "Only file owner can create shares"
+    code: NOT_FILE_OWNER
+
+  future_expiry:
+    when: [create, update]
+    condition: "expires_at == null || expires_at > now()"
+    message: "Expiration date must be in the future"
+    code: EXPIRED_DATE
+
+  positive_downloads:
+    when: [create, update]
+    condition: "max_downloads == null || max_downloads > 0"
+    message: "Maximum downloads must be positive"
+    code: INVALID_MAX_DOWNLOADS
+
+  user_share_requires_recipients:
+    when: [create]
+    condition: "share_type != 'user' || (shared_with != null && shared_with.length > 0)"
+    message: "User shares must specify recipients"
+    code: MISSING_RECIPIENTS
+
+  cannot_modify_inactive:
+    when: [update]
+    condition: "is_active == true || $actor.id == owner_id || $actor.has_role('admin')"
+    message: "Cannot modify inactive shares"
+    code: SHARE_INACTIVE
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: create
+      - action: update
+      - action: delete
+      - action: list
+      - action: revoke
+
+  user:
+    allow:
+      - action: create
+        if: "file.owner_id == $actor.id"
+      - action: read
+        if: "$this.owner_id == $actor.id || shared_with.contains($actor.id)"
+      - action: update
+        if: "$this.owner_id == $actor.id"
+      - action: revoke
+        if: "$this.owner_id == $actor.id"
+      - action: list
+        if: "$this.owner_id == $actor.id || shared_with.contains($actor.id)"
+    deny:
+      - action: delete
+
+  guest:
+    allow:
+      - action: access
+        if: "is_active && (share_type == 'link' || (share_type == 'password' && $context.password_valid))"
+    deny:
+      - action: create
+      - action: update
+      - action: delete
+      - action: revoke
+      - action: list
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  before_create:
+    actions:
+      - "if: token == null || token == '' { set: token = generate_secure_token(32) }"
+      - "if: share_type == 'password' && $input.password != null { set: password_hash = hash_password($input.password) }"
+
+  after_create:
+    actions:
+      - "log(share.created, { share_id: id, file_id: file_id, owner_id: owner_id, share_type: share_type })"
+      - "if: share_type == 'user' && shared_with != null && shared_with.length > 0 { notify(shared_with, file_shared, { file_name: file.original_name, shared_by: owner.email, share_url: generate_share_url(token) }) }"
+
+  after_update_download_count:
+    actions:
+      - "create: FileAccessLog(file_id: file_id, share_id: id, action: 'download', accessed_at: now())"
+      - "emit: ShareAccessedEvent(share_id: id, file_id: file_id, user_id: $context.user_id)"
+
+  after_update_is_active:
+    actions:
+      - "log(share.status_changed, { share_id: id, is_active: is_active })"
+      - "emit: ShareStatusChangedEvent(share_id: id, is_active: is_active)"
+
+  after_delete:
+    actions:
+      - "emit: ShareDeletedEvent(share_id: id, file_id: file_id)"
+      - "log(share.deleted, { share_id: id, file_id: file_id })"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  is_valid: "is_active && !is_expired() && has_downloads_remaining()"
+  share_url: "'/share/' + token"
+  days_until_expiry: "expires_at != null ? (expires_at - now()).days() : null"
+  downloads_remaining: "max_downloads != null ? (max_downloads - download_count) : null"
+  is_password_protected: "share_type == 'password' && password_hash != null"
+  is_expired: "expires_at != null && expires_at <= now()"
+  has_downloads_remaining: "max_downloads == null || download_count < max_downloads"

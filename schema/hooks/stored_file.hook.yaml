@@ -1,0 +1,293 @@
+# StoredFile Lifecycle Hook
+# Manages file state transitions, validation, and triggers
+# V2.0: Enhanced with processing status, deduplication, CDN support
+
+name: StoredFile
+model: stored_file.model.yaml
+
+# =============================================================================
+# State Machine - File status lifecycle
+# =============================================================================
+states:
+  field: status
+
+  values:
+    uploading:
+      initial: true
+      on_enter:
+        - "log(file.upload_started, { file_id: id })"
+        - "set: processing_status = 'pending'"
+
+    processing:
+      on_enter:
+        - "queue: ScanFile(file_id: id)"
+        - "queue: GenerateThumbnail(file_id: id)"
+        - "queue: CheckDeduplication(file_id: id)"
+        - "set: processing_status = 'processing'"
+
+    active:
+      on_enter:
+        - "emit: FileActivatedEvent(file_id: id, owner_id: owner_id)"
+        - "update: Bucket(id: bucket_id, file_count: file_count + 1, total_size_bytes: total_size_bytes + size_bytes)"
+        - "update: UserQuota(user_id: owner_id, used_bytes: used_bytes + size_bytes)"
+        - "set: processing_status = 'complete'"
+
+    quarantined:
+      on_enter:
+        - "emit: FileQuarantinedEvent(file_id: id, owner_id: owner_id, threat_name: $context.threat_name)"
+        - "notify([admin], Security Alert: File #{original_name} quarantined)"
+        - "set: processing_status = 'failed'"
+
+    deleted:
+      on_enter:
+        - "set: metadata.deleted_at = now()"
+        - "update: Bucket(id: bucket_id, file_count: file_count - 1, total_size_bytes: total_size_bytes - size_bytes)"
+        - "update: UserQuota(user_id: owner_id, used_bytes: used_bytes - size_bytes)"
+        - "emit: FileDeletedEvent(file_id: id, owner_id: owner_id, permanent: false)"
+        - "invalidate_cdn: cdn_url"
+
+    purged:
+      final: true
+      on_enter:
+        - "delete_storage: storage_key"
+        - "dedup_decrement: content_hash_id"
+        - "emit: FileDeletedEvent(file_id: id, owner_id: owner_id, permanent: true)"
+
+  transitions:
+    complete_upload:
+      from: uploading
+      to: processing
+      roles: [system]
+      condition: "size_bytes > 0"
+
+    mark_safe:
+      from: processing
+      to: active
+      roles: [system]
+      condition: "is_scanned == true && (threat_level == null || threat_level == 'safe')"
+
+    quarantine:
+      from: processing
+      to: quarantined
+      roles: [system]
+      condition: "threat_level != null && threat_level != 'safe'"
+
+    mark_safe_by_admin:
+      from: quarantined
+      to: active
+      roles: [admin]
+
+    soft_delete:
+      from: [active, quarantined]
+      to: deleted
+      roles: [admin, owner]
+      condition: "$actor.id == owner_id || $actor.has_role('admin')"
+
+    restore:
+      from: deleted
+      to: active
+      roles: [admin, owner]
+      condition: "metadata.deleted_at != null && $actor.id == owner_id || $actor.has_role('admin')"
+
+    purge:
+      from: deleted
+      to: purged
+      roles: [admin, system]
+      condition: "metadata.deleted_at != null && metadata.deleted_at < now() - 30.days"
+
+# =============================================================================
+# V2.0: Processing Status State Machine
+# =============================================================================
+processing_states:
+  field: processing_status
+
+  values:
+    pending:
+      initial: true
+      description: "Processing queued"
+
+    processing:
+      description: "Processing in progress"
+      on_enter:
+        - "emit: FileProcessingStartedEvent(file_id: id)"
+
+    thumbnails_ready:
+      description: "Thumbnails generated"
+      on_enter:
+        - "set: has_thumbnail = true"
+
+    scan_complete:
+      description: "Virus scan complete"
+      on_enter:
+        - "set: is_scanned = true"
+
+    complete:
+      description: "All processing complete"
+      final: true
+      on_enter:
+        - "emit: FileProcessingCompletedEvent(file_id: id)"
+
+    failed:
+      description: "Processing failed"
+      final: true
+      on_enter:
+        - "emit: FileProcessingFailedEvent(file_id: id, error: $context.error)"
+
+  transitions:
+    start_processing:
+      from: [pending]
+      to: [processing]
+      roles: [system]
+
+    thumbnails_generated:
+      from: [processing]
+      to: [thumbnails_ready]
+      roles: [system]
+      condition: "has_thumbnail == true || has_video_thumbnail == true"
+
+    scan_finished:
+      from: [processing, thumbnails_ready]
+      to: [scan_complete]
+      roles: [system]
+      condition: "is_scanned == true"
+
+    mark_complete:
+      from: [scan_complete, thumbnails_ready]
+      to: [complete]
+      roles: [system]
+      condition: "is_scanned == true && (has_thumbnail == true || mime_type.starts_with('video/') == false)"
+
+    mark_failed:
+      from: [processing, thumbnails_ready, scan_complete]
+      to: [failed]
+      roles: [system]
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  path_length:
+    when: [create, update]
+    condition: "path.length <= 1024"
+    message: "File path too long (max 1024 characters)"
+    code: PATH_TOO_LONG
+
+  no_path_traversal:
+    when: [create, update]
+    condition: "!path.contains('..')"
+    message: "Path traversal not allowed"
+    code: PATH_TRAVERSAL
+
+  filename_length:
+    when: [create]
+    condition: "original_name.length <= 255"
+    message: "File name too long (max 255 characters)"
+    code: FILENAME_TOO_LONG
+
+  valid_mime_type:
+    when: [create]
+    condition: "mime_type matches '^[a-z]+/[a-z0-9.+-]+$'"
+    message: "Invalid MIME type format"
+    code: INVALID_MIME_TYPE
+
+  file_not_purged:
+    when: [update]
+    condition: "status != 'purged'"
+    message: "Cannot update purged files"
+    code: FILE_PURGED
+
+  quarantine_admin_only:
+    when: [update]
+    condition: "status != 'quarantined' || $actor.has_role('admin')"
+    message: "Only admins can modify quarantined files"
+    code: QUARANTINE_RESTRICTED
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: update
+      - action: delete
+      - action: list
+      - action: download
+      - action: restore
+      - action: quarantine
+      - action: mark_safe
+
+  user:
+    allow:
+      - action: create
+      - action: read
+        if: "$this.owner_id == $actor.id || has_share_access($actor.id, $this.id)"
+      - action: update
+        if: "$this.owner_id == $actor.id"
+      - action: delete
+        if: "$this.owner_id == $actor.id"
+      - action: download
+        if: "$this.owner_id == $actor.id || has_share_access($actor.id, $this.id)"
+      - action: list
+        if: "$this.owner_id == $actor.id"
+    deny:
+      - action: quarantine
+      - action: mark_safe
+
+  guest:
+    allow:
+      - action: read
+        if: "has_share_access(null, $this.id)"
+      - action: download
+        if: "has_share_access(null, $this.id)"
+    deny:
+      - action: create
+      - action: update
+      - action: delete
+      - action: list
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  after_create:
+    actions:
+      - "create: FileAccessLog(file_id: id, user_id: owner_id, action: 'upload', accessed_at: now())"
+      - "log(file.created, { file_id: id, owner_id: owner_id, size: size_bytes })"
+      - "emit: FileCreatedEvent(file_id: id, owner_id: owner_id, bucket_id: bucket_id, name: original_name, size_bytes: size_bytes, mime_type: mime_type)"
+
+  after_update_status:
+    actions:
+      - "log(file.status_changed, { file_id: id, old_status: $old.status, new_status: status })"
+
+  after_update_download_count:
+    actions:
+      - "set: last_accessed_at = now()"
+      - "emit: FileDownloadedEvent(file_id: id, user_id: $context.user_id, share_id: $context.share_id, ip_address: $context.ip_address)"
+
+  before_delete:
+    actions:
+      - "log(file.deleting, { file_id: id })"
+
+  after_delete:
+    actions:
+      - "delete: FileShare(file_id: id)"
+      - "delete: FileAccessLog(file_id: id)"
+      - "log(file.deleted, { file_id: id, owner_id: owner_id })"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  compression_ratio: "original_size != null ? (size_bytes / original_size) : 1.0"
+  is_image: "mime_type.starts_with('image/')"
+  is_video: "mime_type.starts_with('video/')"
+  is_document: "mime_type.starts_with('application/pdf') || mime_type.contains('document')"
+  full_path: "bucket.root_path + '/' + path"
+  age_days: "(now() - metadata.created_at).days()"
+  is_accessible: "status == 'active'"
+  is_safe: "is_scanned == true && (threat_level == null || threat_level == 'safe')"

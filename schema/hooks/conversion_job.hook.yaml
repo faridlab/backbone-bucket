@@ -1,0 +1,225 @@
+# ConversionJob Lifecycle Hook
+# File format conversion tracking with progress and retry logic
+
+name: ConversionJob
+model: conversion_job.model.yaml
+
+# =============================================================================
+# State Machine - Conversion job lifecycle
+# =============================================================================
+states:
+  field: status
+
+  values:
+    pending:
+      initial: true
+      description: "Job is queued and waiting"
+      on_enter:
+        - "log(conversion.queued, { job_id: id, source_file_id: source_file_id, target_format: target_format })"
+
+    processing:
+      description: "Conversion is in progress"
+      on_enter:
+        - "set: started_at = now()"
+        - "emit: ConversionStartedEvent(job_id: id, source_file_id: source_file_id, target_format: target_format)"
+
+    completed:
+      final: true
+      description: "Conversion completed successfully"
+      on_enter:
+        - "set: completed_at = now()"
+        - "set: progress = 100"
+        - "emit: ConversionCompletedEvent(job_id: id, source_file_id: source_file_id, result_file_id: result_file_id)"
+        - "log(conversion.completed, { job_id: id, source_file_id: source_file_id, result_file_id: result_file_id })"
+
+    failed:
+      final: true
+      description: "Conversion failed"
+      on_enter:
+        - "set: completed_at = now()"
+        - "emit: ConversionFailedEvent(job_id: id, source_file_id: source_file_id, error: error_message)"
+        - "log(conversion.failed, { job_id: id, error: error_message })"
+
+    cancelled:
+      final: true
+      description: "Conversion was cancelled"
+      on_enter:
+        - "set: completed_at = now()"
+        - "emit: ConversionCancelledEvent(job_id: id, source_file_id: source_file_id)"
+        - "log(conversion.cancelled, { job_id: id })"
+
+  transitions:
+    start:
+      from: pending
+      to: processing
+      roles: [system]
+      description: "Start the conversion"
+      condition: "conversion_service.is_available(source_file.mime_type, target_format)"
+
+    update_progress:
+      from: processing
+      to: processing
+      roles: [system]
+      description: "Update conversion progress"
+      condition: "$context.progress >= 0 && $context.progress <= 100 && $context.progress >= progress"
+
+    complete:
+      from: processing
+      to: completed
+      roles: [system]
+      description: "Conversion completed"
+
+    fail:
+      from: processing
+      to: failed
+      roles: [system]
+      description: "Conversion failed"
+
+    cancel_pending:
+      from: pending
+      to: cancelled
+      roles: [owner, admin]
+      description: "Cancel before starting"
+      condition: "$actor.id == source_file.owner_id || $actor.has_role('admin')"
+
+    cancel_running:
+      from: processing
+      to: cancelled
+      roles: [owner, admin]
+      description: "Cancel running conversion"
+      condition: "$actor.id == source_file.owner_id || $actor.has_role('admin')"
+
+    retry:
+      from: failed
+      to: pending
+      roles: [system, owner]
+      description: "Retry failed conversion"
+      condition: "retry_count < 3"
+      actions:
+        - action: schedule_retry
+
+    reconvert:
+      from: completed
+      to: pending
+      roles: [owner, admin]
+      description: "Reconvert with different options"
+      actions:
+        - action: create_reconversion_job
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  source_file_must_exist:
+    when: [create]
+    condition: "file_exists(source_file_id)"
+    message: "Source file must exist"
+    code: SOURCE_FILE_NOT_FOUND
+
+  source_must_be_accessible:
+    when: [create]
+    condition: "get_file(source_file_id).is_accessible()"
+    message: "Source file must be accessible"
+    code: FILE_NOT_ACCESSIBLE
+
+  valid_target_format:
+    when: [create]
+    condition: "target_format IN ('png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tiff', 'pdf', 'docx', 'txt', 'html', 'mp4', 'webm', 'avi', 'mov', 'mp3', 'wav', 'ogg', 'm4a', 'flac')"
+    message: "Target format must be supported"
+    code: CONVERSION_NOT_SUPPORTED
+
+  conversion_supported:
+    when: [create]
+    condition: "conversion_service.is_supported(source_file.mime_type, target_format)"
+    message: "Conversion between these formats is not supported"
+    code: CONVERSION_NOT_SUPPORTED
+
+  sufficient_quota:
+    when: [create]
+    condition: "quota_service.has_space($actor.id, estimated_result_size)"
+    message: "Insufficient storage quota for conversion result"
+    code: INSUFFICIENT_QUOTA
+
+  no_duplicate_pending:
+    when: [create]
+    condition: "count(ConversionJob, source_file_id == $this.source_file_id && target_format == $this.target_format && status IN ('pending', 'processing')) == 0"
+    message: "A pending conversion with same params already exists"
+    code: DUPLICATE_CONVERSION
+
+  progress_monotonic:
+    when: [update]
+    condition: "progress >= $old.progress"
+    message: "Progress cannot decrease"
+    code: INVALID_PROGRESS
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: list
+      - action: cancel
+      - action: retry
+
+  user:
+    allow:
+      - action: create
+        if: "source_file.owner_id == $actor.id && quota_service.has_space($actor.id)"
+      - action: read
+        if: "source_file.owner_id == $actor.id"
+      - action: cancel
+        if: "source_file.owner_id == $actor.id"
+      - action: retry
+        if: "source_file.owner_id == $actor.id"
+    deny:
+      - action: delete
+
+  guest:
+    deny:
+      - all
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  after_create:
+    actions:
+      - "log(conversion.created, { job_id: id, source_file_id: source_file_id, target_format: target_format })"
+      - "emit: ConversionJobCreatedEvent(job_id: id, source_file_id: source_file_id, target_format: target_format)"
+
+  after_update_status:
+    actions:
+      - "log(conversion.status_changed, { job_id: id, old_status: $old.status, new_status: status })"
+    if: "$old.status != status"
+
+  queue_conversions:
+    schedule: "*/1 * * * *"
+    actions:
+      - "dispatch: ConversionJob WHERE status == 'pending' AND (retry_after IS NULL OR retry_after < now()) ORDER BY priority DESC, metadata->>'created_at' ASC LIMIT 50"
+
+  timeout_running_jobs:
+    schedule: "*/5 * * * *"
+    actions:
+      - "update: ConversionJob(status: 'failed', error_message: 'Conversion timeout', completed_at: now()) WHERE status == 'processing' AND started_at < now() - INTERVAL '60 minutes'"
+
+  update_bucket_stats:
+    timing: after_update
+    condition: "status == 'completed' AND $old.status != 'completed' AND result_file_id != null"
+    actions:
+      - "update: Bucket(file_count: file_count + 1, total_size_bytes: total_size_bytes + get_file(result_file_id).size_bytes) WHERE id == source_file.bucket_id"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  is_active: "status IN ('pending', 'processing')"
+  is_terminal: "status IN ('completed', 'failed', 'cancelled')"
+  can_retry: "status == 'failed' && retry_count < 3"
+  progress_percentage: "progress"
+  duration_seconds: "started_at != null && completed_at != null ? EXTRACT(EPOCH FROM completed_at - started_at) : null"

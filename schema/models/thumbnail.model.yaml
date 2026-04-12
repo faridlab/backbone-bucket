@@ -1,0 +1,136 @@
+# Thumbnail Model - Image thumbnail/preview management
+# Stores generated thumbnails for image files
+
+models:
+  - name: Thumbnail
+    collection: thumbnails
+    description: "Generated thumbnail for an image file"
+    config:
+      generators:
+        disabled: [handler, usecase, cqrs, projection, bulk-operations]
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+
+      file_id:
+        type: uuid
+        description: "Source file this thumbnail is for"
+        attributes: ["@required", "@foreign_key(StoredFile.id)"]
+
+      # Thumbnail specification
+      size:
+        type: ThumbnailSize
+        description: "Predefined size category"
+        attributes: ["@required"]
+
+      width:
+        type: int32
+        description: "Actual width in pixels"
+        attributes: ["@required"]
+
+      height:
+        type: int32
+        description: "Actual height in pixels"
+        attributes: ["@required"]
+
+      # Storage
+      storage_key:
+        type: string
+        description: "Storage key for thumbnail"
+        attributes: ["@required", "@unique"]
+
+      storage_backend:
+        type: string
+        attributes: ["@default('local')"]
+
+      # Format
+      mime_type:
+        type: string
+        description: "Thumbnail format (usually webp/jpeg)"
+        attributes: ["@required", "@default('image/webp')"]
+
+      format:
+        type: string
+        description: "Image format (webp, jpeg, png)"
+        attributes: ["@required", "@default('webp')"]
+
+      quality:
+        type: int32
+        description: "Compression quality (1-100)"
+        attributes: ["@default(80)"]
+
+      # Size
+      size_bytes:
+        type: int64
+        attributes: ["@required"]
+
+      # Generation info
+      generated_at:
+        type: datetime
+        attributes: ["@default(now)"]
+
+      generation_time_ms:
+        type: int32?
+        description: "Time taken to generate in milliseconds"
+
+      # Source version (for versioned files)
+      source_version:
+        type: int32
+        description: "Version of source file this was generated from"
+        attributes: ["@default(1)"]
+
+      # CDN/caching
+      cdn_url:
+        type: string?
+        description: "CDN URL if cached externally"
+
+      cache_expires_at:
+        type: datetime?
+        description: "When CDN cache expires"
+
+      # Status
+      is_stale:
+        type: bool
+        description: "Source file updated, needs regeneration"
+        attributes: ["@default(false)"]
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      file:
+        type: StoredFile
+        attributes: ["@one", "@foreign_key(file_id)"]
+
+    indexes:
+      - type: index
+        fields: [file_id]
+      - type: unique
+        fields: [file_id, size]
+      - type: unique
+        fields: [storage_key]
+      - type: index
+        fields: [is_stale]
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+enums:
+  - name: ThumbnailSize
+    description: "Predefined thumbnail size categories"
+    variants:
+      - name: tiny
+        description: "32x32 - Icon/avatar size"
+      - name: small
+        description: "64x64 - List view"
+        default: true
+      - name: medium
+        description: "128x128 - Grid view"
+      - name: large
+        description: "256x256 - Detail preview"
+      - name: xlarge
+        description: "512x512 - Full preview"

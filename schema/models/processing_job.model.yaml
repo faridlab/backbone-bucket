@@ -1,0 +1,165 @@
+# ProcessingJob Entity - Async file processing tasks
+# Handles thumbnails, video processing, document previews, virus scanning
+
+models:
+  - name: ProcessingJob
+    collection: processing_jobs
+    description: "Async file processing job with retry logic"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Primary key"
+
+      file_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(StoredFile.id)"]
+        description: "Target file for processing"
+
+      job_type:
+        type: ProcessingJobType
+        attributes: ["@required"]
+        description: "Type of processing job"
+
+      status:
+        type: JobStatus
+        attributes: ["@default(pending)"]
+        description: "Job execution status"
+
+      priority:
+        type: int
+        attributes: ["@default(0)"]
+        description: "Job priority (higher = more important)"
+
+      input_data:
+        type: json?
+        description: "Job parameters and input data"
+
+      result_data:
+        type: json?
+        description: "Job output and results"
+
+      error_message:
+        type: string?
+        description: "Error message if job failed"
+
+      started_at:
+        type: datetime?
+        description: "Job start timestamp"
+
+      completed_at:
+        type: datetime?
+        description: "Job completion timestamp"
+
+      retry_count:
+        type: int
+        attributes: ["@default(0)", "@non_negative"]
+        description: "Number of retry attempts"
+
+      max_retries:
+        type: int
+        attributes: ["@default(3)", "@positive"]
+        description: "Maximum retry attempts allowed"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: index
+        fields: [file_id, status]
+        description: "File's jobs by status"
+
+      - type: index
+        fields: [status, priority, "(metadata->>'created_at')"]
+        description: "Job queue queries"
+
+      - type: index
+        fields: [job_type, status]
+        description: "Jobs by type and status"
+
+      - type: index
+        fields: ["(metadata->>'created_at')"]
+        description: "Chronological ordering"
+
+enums:
+  - name: ProcessingJobType
+    description: "Type of processing job"
+    variants:
+      - name: thumbnail_generation
+        description: "Generate image thumbnails"
+        default: true
+      - name: video_thumbnail
+        description: "Extract video thumbnail frame"
+      - name: document_preview
+        description: "Generate document preview"
+      - name: compression
+        description: "Compress file for optimization"
+      - name: virus_scan
+        description: "Scan for malware threats"
+      - name: deduplication_check
+        description: "Check for duplicate content"
+
+  - name: JobStatus
+    description: "Processing job status"
+    variants:
+      - name: pending
+        description: "Queued for processing"
+        default: true
+      - name: running
+        description: "Currently processing"
+      - name: completed
+        description: "Finished successfully"
+      - name: failed
+        description: "Failed with error"
+      - name: cancelled
+        description: "Cancelled by user"
+
+entities:
+  ProcessingJob:
+    model: ProcessingJob
+    description: "Async processing job with retry logic"
+
+    methods:
+      - name: can_retry
+        returns: bool
+        description: "Check if job can be retried"
+
+      - name: increment_retry
+        mutates: true
+        description: "Increment retry count"
+
+      - name: mark_started
+        mutates: true
+        returns: "Result<(), JobError>"
+        description: "Mark job as started"
+
+      - name: mark_completed
+        mutates: true
+        params:
+          result: json
+        returns: "Result<(), JobError>"
+        description: "Mark job as completed with result"
+
+      - name: mark_failed
+        mutates: true
+        params:
+          error: string
+        returns: "Result<(), JobError>"
+        description: "Mark job as failed with error"
+
+      - name: cancel
+        mutates: true
+        returns: "Result<(), JobError>"
+        description: "Cancel the job"
+
+      - name: duration
+        returns: Duration?
+        description: "Get job execution duration"
+
+    invariants:
+      - "retry_count <= max_retries"
+      - "status == running implies started_at != null"
+      - "status == completed implies completed_at != null"

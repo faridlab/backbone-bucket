@@ -1,0 +1,112 @@
+# FileLock Entity - File editing locks for collaboration
+# Prevents concurrent edits with automatic timeout and refresh capability
+
+models:
+  - name: FileLock
+    collection: file_locks
+    description: "File editing lock to prevent concurrent modifications"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Primary key"
+
+      file_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(StoredFile.id)", "@unique"]
+        description: "Locked file (one lock per file)"
+
+      user_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(sapiens.User.id)"]
+        description: "Lock owner"
+
+      locked_at:
+        type: datetime
+        attributes: ["@default(now)"]
+        description: "When lock was acquired"
+
+      expires_at:
+        type: datetime
+        attributes: ["@required"]
+        description: "Automatic lock release time"
+
+      refreshed_at:
+        type: datetime?
+        description: "Last lock refresh timestamp"
+
+      status:
+        type: LockStatus
+        attributes: ["@default(active)"]
+        description: "Lock status"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: unique
+        fields: [file_id]
+        description: "One lock per file"
+
+      - type: index
+        fields: [expires_at]
+        description: "For cleanup of expired locks"
+
+      - type: index
+        fields: [user_id]
+        description: "User's active locks"
+
+enums:
+  - name: LockStatus
+    description: "Lock status classification"
+    variants:
+      - name: active
+        description: "Lock is active and valid"
+        default: true
+      - name: expired
+        description: "Lock has expired"
+      - name: released
+        description: "Lock was manually released"
+
+entities:
+  FileLock:
+    model: FileLock
+    description: "File editing lock with timeout and refresh capabilities"
+
+    methods:
+      - name: is_valid
+        returns: bool
+        description: "Check if lock is still valid (not expired)"
+
+      - name: is_expired
+        returns: bool
+        description: "Check if lock has expired"
+
+      - name: is_owned_by
+        params:
+          user_id: Uuid
+        returns: bool
+        description: "Check if lock belongs to user"
+
+      - name: can_refresh
+        returns: bool
+        description: "Check if lock can be refreshed by owner"
+
+      - name: refresh
+        mutates: true
+        params:
+          duration: Duration
+        returns: "Result<(), LockError>"
+        description: "Refresh lock expiry time"
+
+      - name: time_remaining
+        returns: Duration
+        description: "Get remaining time until expiry"
+
+    invariants:
+      - "expires_at > locked_at"
+      - "file_id is unique"
+      - "expires_at > now() when status == active"

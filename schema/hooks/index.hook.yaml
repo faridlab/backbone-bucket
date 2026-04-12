@@ -1,0 +1,72 @@
+# =============================================================================
+# Bucket Module - Hooks Index
+# =============================================================================
+# Version: 2.0
+#
+# This file defines module-level configuration for hooks (lifecycle behaviors).
+# Hooks define: state machines, rules, permissions, triggers, computed fields.
+# =============================================================================
+
+module: bucket
+version: 2
+
+# =============================================================================
+# Import all hook files
+# =============================================================================
+imports:
+  # Core Entity Hooks
+  - bucket.hook.yaml
+  - stored_file.hook.yaml
+  - file_share.hook.yaml
+  - file_lock.hook.yaml
+  - file_comment.hook.yaml
+
+  # Upload Hooks
+  - upload_session.hook.yaml
+
+  # Processing Hooks
+  - processing_job.hook.yaml
+  - conversion_job.hook.yaml
+
+  # Quota & Access Hooks
+  - user_quota.hook.yaml
+
+# =============================================================================
+# Module-level configuration
+# =============================================================================
+config:
+  # Storage settings
+  storage:
+    default_backend: local
+    max_file_size: 5368709120  # 5GB
+    chunk_size: 10485760       # 10MB
+
+  # Processing settings
+  processing:
+    thumbnail_enabled: true
+    virus_scan_enabled: true
+    deduplication_enabled: true
+    max_concurrent_jobs: 10
+
+  # Audit settings
+  audit:
+    retention_days: 365
+    archive_after_days: 90
+    critical_events: []
+
+  # Notification channels
+  notifications:
+    email_enabled: true
+    push_enabled: true
+
+# =============================================================================
+# Shared domain events
+# =============================================================================
+events: {}
+  # Events are defined in individual hook files
+
+# =============================================================================
+# Scheduled jobs
+# =============================================================================
+scheduled_jobs: {}
+  # Scheduled jobs are defined in individual hook files

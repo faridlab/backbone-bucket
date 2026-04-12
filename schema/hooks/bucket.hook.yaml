@@ -1,0 +1,199 @@
+# Bucket Lifecycle Hook
+# Manages bucket state transitions, storage provisioning, and cleanup
+
+name: Bucket
+model: bucket.model.yaml
+
+# =============================================================================
+# State Machine - Bucket status lifecycle
+# =============================================================================
+states:
+  field: status
+
+  values:
+    active:
+      initial: true
+      on_enter:
+        - "log(bucket.activated, { bucket_id: id })"
+
+    readonly:
+      on_enter:
+        - "log(bucket.locked, { bucket_id: id })"
+
+    archived:
+      on_enter:
+        - "log(bucket.archived, { bucket_id: id })"
+        - "queue: CompressArchivedBucket(bucket_id: id)"
+
+    deleted:
+      final: true
+      on_enter:
+        - "set: metadata.deleted_at = now()"
+        - "queue: ScheduleBucketPurge(bucket_id: id, delay: 30.days)"
+        - "emit: BucketDeletedEvent(bucket_id: id, owner_id: owner_id)"
+
+  transitions:
+    lock:
+      from: active
+      to: readonly
+      roles: [admin, owner]
+      condition: "$actor.id == owner_id || $actor.has_role('admin')"
+
+    unlock:
+      from: readonly
+      to: active
+      roles: [admin, owner]
+      condition: "$actor.id == owner_id || $actor.has_role('admin')"
+
+    archive:
+      from: [active, readonly]
+      to: archived
+      roles: [admin, owner]
+      condition: "$actor.id == owner_id || $actor.has_role('admin')"
+
+    restore:
+      from: archived
+      to: active
+      roles: [admin, owner]
+      condition: "$actor.id == owner_id || $actor.has_role('admin')"
+
+    delete:
+      from: [active, readonly, archived]
+      to: deleted
+      roles: [admin, owner]
+      condition: "file_count == 0 || $actor.has_role('admin')"
+      message: "Cannot delete bucket with files. Delete or move files first."
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+rules:
+  name_format:
+    when: [create, update]
+    condition: "name.length >= 1 && name.length <= 255"
+    message: "Bucket name must be 1-255 characters"
+    code: INVALID_NAME_LENGTH
+
+  name_characters:
+    when: [create, update]
+    condition: "name matches '^[a-zA-Z0-9_-]+$'"
+    message: "Bucket name must contain only alphanumeric characters, underscores, and hyphens"
+    code: INVALID_NAME_CHARS
+
+  slug_format:
+    when: [create, update]
+    condition: "slug.length >= 1 && slug.length <= 255"
+    message: "Bucket slug must be 1-255 characters"
+    code: INVALID_SLUG_LENGTH
+
+  slug_characters:
+    when: [create]
+    condition: "slug matches '^[a-z0-9-]+$'"
+    message: "Bucket slug must be lowercase with hyphens only"
+    code: INVALID_SLUG_CHARS
+
+  root_path_length:
+    when: [create]
+    condition: "root_path.length <= 1024"
+    message: "Root path too long"
+    code: PATH_TOO_LONG
+
+  no_path_traversal:
+    when: [create]
+    condition: "!root_path.contains('..')"
+    message: "Path traversal not allowed in root path"
+    code: PATH_TRAVERSAL
+
+  cannot_modify_deleted:
+    when: [update]
+    condition: "status != 'deleted'"
+    message: "Cannot modify deleted buckets"
+    code: BUCKET_DELETED
+
+  unique_slug:
+    when: [create, update]
+    condition: "count(Bucket, slug == $this.slug && id != $this.id && metadata.deleted_at == null) == 0"
+    message: "Bucket slug is already taken"
+    code: SLUG_EXISTS
+
+# =============================================================================
+# Access Control (RBAC)
+# =============================================================================
+permissions:
+  super_admin:
+    allow:
+      - all
+
+  admin:
+    allow:
+      - action: read
+      - action: create
+      - action: update
+      - action: delete
+      - action: list
+      - action: restore
+      - action: archive
+      - action: lock
+      - action: unlock
+
+  user:
+    allow:
+      - action: create
+      - action: read
+        if: "$this.owner_id == $actor.id || bucket_type == 'shared'"
+      - action: update
+        if: "$this.owner_id == $actor.id"
+      - action: delete
+        if: "$this.owner_id == $actor.id && file_count == 0"
+      - action: list
+        if: "$this.owner_id == $actor.id"
+      - action: archive
+        if: "$this.owner_id == $actor.id"
+      - action: restore
+        if: "$this.owner_id == $actor.id"
+    deny:
+      - action: delete
+        if: "file_count > 0"
+
+  guest:
+    deny:
+      - all
+
+# =============================================================================
+# Triggers (Side Effects)
+# =============================================================================
+triggers:
+  before_create:
+    actions:
+      - "if: slug == null || slug == '' { set: slug = slugify(name) }"
+      - "if: root_path == null || root_path == '' { set: root_path = owner_id + '/' + slug }"
+
+  after_create:
+    actions:
+      - "call: StorageProvisioningService.create_bucket_directory(path: root_path, backend: storage_backend)"
+      - "emit: BucketCreatedEvent(bucket_id: id, owner_id: owner_id, name: name, bucket_type: bucket_type)"
+      - "log(bucket.created, { bucket_id: id, owner_id: owner_id, name: name })"
+
+  after_update_status:
+    actions:
+      - "log(bucket.status_changed, { bucket_id: id, old_status: $old.status, new_status: status })"
+
+  before_delete:
+    condition: "file_count == 0"
+    actions:
+      - "log(bucket.deleting, { bucket_id: id })"
+
+  after_delete:
+    actions:
+      - "queue: CleanupBucketStorage(root_path: root_path, backend: storage_backend)"
+      - "log(bucket.deleted, { bucket_id: id, owner_id: owner_id })"
+
+# =============================================================================
+# Computed Fields
+# =============================================================================
+computed:
+  is_empty: "file_count == 0"
+  usage_bytes: "total_size_bytes"
+  average_file_size: "file_count > 0 ? (total_size_bytes / file_count) : null"
+  is_accessible: "status == 'active' || status == 'readonly'"
+  accepts_uploads: "status == 'active'"

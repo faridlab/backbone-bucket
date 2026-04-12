@@ -1,0 +1,216 @@
+# Multipart Upload Workflow V2.0
+# Large file upload with chunking and progress tracking
+
+name: MultipartUpload
+description: |
+  Multipart upload workflow for large files including:
+  - Session initialization
+  - Chunk upload tracking
+  - Progress updates
+  - File assembly
+  - Validation and processing
+
+version: 2
+
+trigger:
+  event: MultipartUploadRequestedEvent
+  extract:
+    bucket_id: "event.bucket_id"
+    path: "event.path"
+    filename: "event.original_name"
+    file_size: "event.file_size"
+    mime_type: "event.mime_type"
+    owner_id: "event.owner_id"
+
+config:
+  timeout: 24h
+  persistence: true
+  retry:
+    max_attempts: 5
+    backoff: exponential
+
+context:
+  bucket: null
+  session: null
+  file: null
+  quota: null
+  chunk_size: 0
+  total_chunks: 0
+
+steps:
+  - name: load_bucket
+    type: action
+    action: query
+    entity: Bucket
+    params:
+      id: "{{ context.bucket_id }}"
+    on_success:
+      set:
+        bucket: "{{ result }}"
+      next: check_bucket_accessible
+    on_failure:
+      next: bucket_not_found
+
+  - name: check_bucket_accessible
+    type: condition
+    conditions:
+      - if: "context.bucket != null && context.bucket.status == 'active'"
+        next: validate_file_size
+      - else: true
+        next: bucket_not_active
+
+  - name: validate_file_size
+    type: condition
+    conditions:
+      - if: "context.file_size > 0"
+        next: check_max_file_size
+      - else: true
+        next: invalid_file_size
+
+  - name: check_max_file_size
+    type: condition
+    conditions:
+      - if: "context.bucket.max_file_size == null || context.file_size <= context.bucket.max_file_size"
+        next: calculate_chunk_params
+      - else: true
+        next: file_too_large
+
+  - name: calculate_chunk_params
+    type: action
+    action: calculate_chunk_size
+    params:
+      file_size: "{{ context.file_size }}"
+      min_chunk_size: 5242880
+      max_chunk_size: 5368709120
+      max_parts: 10000
+    on_success:
+      set:
+        chunk_size: "{{ result.chunk_size }}"
+        total_chunks: "{{ result.total_chunks }}"
+      next: validate_mime_type
+
+  - name: validate_mime_type
+    type: condition
+    conditions:
+      - if: "context.bucket.allowed_mime_types.length == 0 || context.bucket.allowed_mime_types.contains(context.mime_type)"
+        next: load_quota
+      - else: true
+        next: mime_type_not_allowed
+
+  - name: load_quota
+    type: action
+    action: query
+    entity: UserQuota
+    params:
+      user_id: "{{ context.owner_id }}"
+    on_success:
+      set:
+        quota: "{{ result }}"
+      next: check_quota_available
+    on_failure:
+      next: create_default_quota
+
+  - name: create_default_quota
+    type: action
+    action: create
+    entity: UserQuota
+    params:
+      user_id: "{{ context.owner_id }}"
+      tier: free
+    on_success:
+      set:
+        quota: "{{ result }}"
+      next: check_quota_available
+
+  - name: check_quota_available
+    type: condition
+    conditions:
+      - if: "context.quota.used_bytes + context.file_size <= context.quota.limit_bytes"
+        next: create_upload_session
+      - else: true
+        next: quota_exceeded
+
+  - name: create_upload_session
+    type: action
+    action: create
+    entity: UploadSession
+    params:
+      bucket_id: "{{ context.bucket_id }}"
+      user_id: "{{ context.owner_id }}"
+      path: "{{ context.path }}"
+      filename: "{{ context.filename }}"
+      mime_type: "{{ context.mime_type }}"
+      file_size: "{{ context.file_size }}"
+      chunk_size: "{{ context.chunk_size }}"
+      total_chunks: "{{ context.total_chunks }}"
+      storage_backend: "{{ context.bucket.storage_backend }}"
+      expires_at: "{{ now() + 24h }}"
+      status: initiated
+    on_success:
+      set:
+        session: "{{ result }}"
+      next: reserve_quota
+
+  - name: reserve_quota
+    type: action
+    action: update
+    entity: UserQuota
+    params:
+      id: "{{ context.quota.id }}"
+      reserved_bytes: "{{ context.quota.reserved_bytes + context.file_size }}"
+    on_success:
+      next: emit_session_created
+
+  - name: emit_session_created
+    type: action
+    action: emit_event
+    params:
+      event: UploadSessionCreatedEvent
+      data:
+        session_id: "{{ context.session.id }}"
+        bucket_id: "{{ context.bucket_id }}"
+        file_size: "{{ context.file_size }}"
+        chunk_size: "{{ context.chunk_size }}"
+        total_chunks: "{{ context.total_chunks }}"
+        expires_at: "{{ context.session.expires_at }}"
+    on_success:
+      next: complete
+
+  - name: complete
+    type: terminal
+    status: completed
+    result:
+      session: "{{ context.session }}"
+      chunk_size: "{{ context.chunk_size }}"
+      total_chunks: "{{ context.total_chunks }}"
+
+  # Error terminals
+  - name: bucket_not_found
+    type: terminal
+    status: failed
+    reason: "Bucket not found"
+
+  - name: bucket_not_active
+    type: terminal
+    status: failed
+    reason: "Bucket is not accepting uploads"
+
+  - name: invalid_file_size
+    type: terminal
+    status: failed
+    reason: "Invalid file size"
+
+  - name: file_too_large
+    type: terminal
+    status: failed
+    reason: "File exceeds maximum size for this bucket"
+
+  - name: mime_type_not_allowed
+    type: terminal
+    status: failed
+    reason: "File type not allowed in this bucket"
+
+  - name: quota_exceeded
+    type: terminal
+    status: failed
+    reason: "Storage quota exceeded"

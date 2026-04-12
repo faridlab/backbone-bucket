@@ -1,0 +1,348 @@
+# StoredFile Entity - File metadata and lifecycle
+# Actual file content stored via backbone-storage crate
+
+models:
+  - name: StoredFile
+    collection: stored_files
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+
+      bucket_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(Bucket.id)"]
+
+      owner_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(sapiens.User.id)"]
+        description: "User who owns this file"
+
+      # File path within bucket
+      path:
+        type: string
+        attributes: ["@required", "@max(1024)"]
+        description: "Relative path within bucket"
+
+      # File information (embedded type)
+      original_name:
+        type: string
+        attributes: ["@required", "@max(255)"]
+
+      size_bytes:
+        type: int64
+        attributes: ["@required", "@non_negative"]
+
+      mime_type:
+        type: string
+        attributes: ["@required", "@max(127)"]
+
+      checksum:
+        type: string?
+        attributes: ["@max(128)"]
+        description: "SHA-256 hash"
+
+      # Compression info
+      is_compressed:
+        type: bool
+        attributes: ["@default(false)"]
+
+      original_size:
+        type: int64?
+        description: "Original size before compression"
+
+      compression_algorithm: string?
+
+      # Security
+      is_scanned:
+        type: bool
+        attributes: ["@default(false)"]
+
+      scan_result:
+        type: json?
+        description: "Detailed scan results"
+
+      threat_level:
+        type: ThreatLevel?
+
+      # Thumbnail for images
+      has_thumbnail:
+        type: bool
+        attributes: ["@default(false)"]
+
+      thumbnail_path: string?
+
+      # V2.0: Video thumbnail support
+      has_video_thumbnail:
+        type: bool
+        attributes: ["@default(false)"]
+        description: "Video thumbnail exists"
+
+      # V2.0: Document preview support
+      has_document_preview:
+        type: bool
+        attributes: ["@default(false)"]
+        description: "Document preview exists"
+
+      # V2.0: Processing status
+      processing_status:
+        type: ProcessingStatus?
+        description: "Overall processing status"
+
+      # V2.0: Content deduplication
+      content_hash_id:
+        type: uuid?
+        attributes: ["@foreign_key(ContentHash.id)"]
+        description: "For deduplication reference"
+
+      # V2.0: CDN support
+      cdn_url:
+        type: string?
+        description: "Cached CDN URL"
+
+      cdn_url_expires_at:
+        type: datetime?
+        description: "CDN URL expiration"
+
+      # V2.1: Owner context (cross-module file association)
+      owner_module:
+        type: string?
+        attributes: ["@max(100)"]
+        description: "Source module (e.g., 'bersihir', 'sapiens')"
+
+      owner_entity:
+        type: string?
+        attributes: ["@max(100)"]
+        description: "Entity type (e.g., 'OrderDelivery', 'Agent', 'Product')"
+
+      owner_entity_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Entity record ID (cross-module, no FK constraint)"
+
+      field_name:
+        type: string?
+        attributes: ["@max(100)"]
+        description: "Field on entity (e.g., 'photo_url', 'photos', 'ktp_photo_url')"
+
+      sort_order:
+        type: int
+        attributes: ["@default(0)"]
+        description: "Ordering for multi-file fields (e.g., before/after photos)"
+
+      # Status
+      status:
+        type: FileStatus
+        attributes: ["@default(active)"]
+
+      # Storage location (actual path in backend)
+      storage_key:
+        type: string
+        attributes: ["@required", "@max(1024)"]
+        description: "Key/path in storage backend"
+
+      # Versioning
+      version:
+        type: int
+        attributes: ["@default(1)"]
+
+      previous_version_id:
+        type: uuid?
+        attributes: ["@foreign_key(StoredFile.id)"]
+        description: "Previous version in the version chain"
+
+      # Access tracking
+      download_count:
+        type: int
+        attributes: ["@default(0)", "@non_negative"]
+
+      last_accessed_at: datetime?
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      bucket:
+        type: Bucket
+        attributes: ["@one", "@foreign_key(bucket_id)"]
+
+      shares:
+        type: FileShare[]
+        attributes: ["@one_to_many", "@on_delete(cascade)", "@on_update(cascade)"]
+
+      previous_version:
+        type: StoredFile?
+        attributes: ["@one", "@foreign_key(previous_version_id)"]
+
+      access_logs:
+        type: AccessLog[]
+        attributes: ["@one_to_many"]
+
+      # V2.0: New relations
+      content_hash:
+        type: ContentHash?
+        attributes: ["@one", "@foreign_key(content_hash_id)"]
+        description: "Deduplication reference"
+
+      lock:
+        type: FileLock?
+        attributes: ["@one"]
+        description: "Active editing lock"
+
+      comments:
+        type: FileComment[]
+        attributes: ["@one_to_many", "@on_delete(cascade)", "@on_update(cascade)"]
+        description: "File comments"
+
+      processing_jobs:
+        type: ProcessingJob[]
+        attributes: ["@one_to_many"]
+        description: "Processing jobs"
+
+    indexes:
+      - type: unique
+        fields: [bucket_id, path, "(metadata->>'deleted_at')"]
+        description: "Unique path within bucket (excluding deleted)"
+      - type: index
+        fields: [owner_id]
+      - type: index
+        fields: [bucket_id]
+      - type: index
+        fields: [status]
+      - type: index
+        fields: [mime_type]
+      - type: index
+        fields: [owner_id, status]
+      - type: index
+        fields: ["(metadata->>'created_at')"]
+      - type: index
+        fields: [checksum]
+        description: "For deduplication"
+      # V2.0: New indexes
+      - type: index
+        fields: [content_hash_id]
+        description: "Deduplication lookup"
+      - type: index
+        fields: [cdn_url_expires_at]
+        description: "CDN URL cleanup"
+      - type: index
+        fields: [processing_status]
+      # V2.1: Owner context indexes
+      - type: index
+        fields: [owner_module, owner_entity, owner_entity_id]
+        description: "Find files by owner (module + entity + record)"
+      - type: index
+        fields: [owner_entity_id]
+        description: "Find all files for a specific record"
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+enums:
+  - name: FileStatus
+    description: "File lifecycle status"
+    variants:
+      - name: uploading
+        description: "File upload in progress"
+      - name: processing
+        description: "File being scanned/compressed"
+      - name: active
+        description: "File is active and accessible"
+        default: true
+      - name: quarantined
+        description: "File flagged as unsafe"
+      - name: deleted
+        description: "File is soft-deleted (in trash)"
+      - name: purged
+        description: "File permanently deleted"
+
+  - name: ThreatLevel
+    description: "Security threat level"
+    variants:
+      - name: safe
+        description: "No threats detected"
+        default: true
+      - name: low
+        description: "Minor concern (suspicious extension)"
+      - name: medium
+        description: "Potential threat detected"
+      - name: high
+        description: "Known malware signature"
+      - name: critical
+        description: "Active malware confirmed"
+
+  - name: AccessAction
+    description: "Type of file access"
+    variants:
+      - name: download
+        description: "File was downloaded"
+        default: true
+      - name: view
+        description: "File was viewed in browser"
+      - name: preview
+        description: "File preview/thumbnail was accessed"
+
+  # V2.0: Processing status enum
+  - name: ProcessingStatus
+    description: "File processing status for tracking"
+    variants:
+      - name: pending
+        description: "Processing queued"
+        default: true
+      - name: processing
+        description: "Processing in progress"
+      - name: thumbnails_ready
+        description: "Thumbnails generated"
+      - name: scan_complete
+        description: "Virus scan complete"
+      - name: complete
+        description: "All processing complete"
+      - name: failed
+        description: "Processing failed"
+
+# =============================================================================
+# ENTITIES - Enhanced file with behavior
+# =============================================================================
+entities:
+  StoredFile:
+    model: StoredFile
+    description: "Stored file with processing and access control"
+
+    methods:
+      - name: is_accessible
+        returns: bool
+        description: "Check if file is accessible (active, not quarantined)"
+
+      - name: is_safe
+        returns: bool
+        description: "Check if file passed security scan"
+
+      - name: needs_processing
+        returns: bool
+        description: "Check if file needs compression or scanning"
+
+      - name: record_access
+        mutates: true
+        description: "Increment download count and update last_accessed_at"
+
+      - name: soft_delete
+        mutates: true
+        description: "Mark file as deleted (move to trash)"
+
+      - name: restore
+        mutates: true
+        description: "Restore file from trash"
+
+      - name: quarantine
+        mutates: true
+        params:
+          threats: "Vec<String>"
+        description: "Mark file as quarantined due to threats"
+
+    invariants:
+      - "size_bytes > 0"
+      - "path does not contain .."
+      - "status transition rules"
