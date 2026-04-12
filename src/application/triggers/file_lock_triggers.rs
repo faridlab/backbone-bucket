@@ -1,0 +1,296 @@
+//! FileLock trigger handlers
+
+use std::sync::Arc;
+use async_trait::async_trait;
+use backbone_core::trigger::{
+    ActionExecutor, TriggerContext, TriggerContextMut, TriggerEvent, TriggerHandler,
+    TriggerRegistry,
+};
+
+use crate::domain::entity::FileLock;
+
+pub type FileLockTriggerEvent      = TriggerEvent;
+pub type FileLockTriggerContext    = TriggerContext<FileLock>;
+pub type FileLockTriggerContextMut = TriggerContextMut<FileLock>;
+pub type FileLockActionExecutor    = ActionExecutor;
+pub type FileLockTriggerRegistry   = TriggerRegistry<FileLock>;
+pub type FileLockTriggerHandlerObj = dyn TriggerHandler<TriggerContext<FileLock>, TriggerEvent>;
+
+
+// Lifecycle trigger handlers
+
+/// AfterCreate handler
+pub struct FileLockAfterCreateHandler1 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::FileLockEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<FileLockActionExecutor>>,
+}
+
+impl FileLockAfterCreateHandler1 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::FileLockEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<FileLockActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockAfterCreateHandler1 {
+    fn events(&self) -> Vec<FileLockTriggerEvent> {
+        vec![FileLockTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &FileLockTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit filelockcreatedevent event
+        if let Some(publisher) = &self.event_publisher {
+            publisher.publish_created(ctx.entity.clone(), ctx.user_id.clone()).await?;
+        }
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct FileLockAfterCreateHandler2 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::FileLockEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<FileLockActionExecutor>>,
+}
+
+impl FileLockAfterCreateHandler2 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::FileLockEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<FileLockActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockAfterCreateHandler2 {
+    fn events(&self) -> Vec<FileLockTriggerEvent> {
+        vec![FileLockTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &FileLockTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct FileLockAfterCreateHandler3 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::FileLockEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<FileLockActionExecutor>>,
+}
+
+impl FileLockAfterCreateHandler3 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::FileLockEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<FileLockActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockAfterCreateHandler3 {
+    fn events(&self) -> Vec<FileLockTriggerEvent> {
+        vec![FileLockTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &FileLockTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'update': filelock
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct FileLockAfterCreateHandler4 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::FileLockEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<FileLockActionExecutor>>,
+}
+
+impl FileLockAfterCreateHandler4 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::FileLockEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<FileLockActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockAfterCreateHandler4 {
+    fn events(&self) -> Vec<FileLockTriggerEvent> {
+        vec![FileLockTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &FileLockTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Send notification
+        if let Some(executor) = &self.action_executor {
+            executor.notify(ctx, "default").await?;
+        }
+        Ok(())
+    }
+}
+
+// State machine trigger handlers
+
+/// Handler for entering active state
+pub struct FileLockOnEnterActiveHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::FileLockEventPublisher>>,
+}
+
+impl FileLockOnEnterActiveHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockOnEnterActiveHandler {
+    fn events(&self) -> Vec<FileLockTriggerEvent> {
+        vec![FileLockTriggerEvent::OnEnterState("active".to_string())]
+    }
+
+    async fn handle(&self, ctx: &FileLockTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit filelockacquiredevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: filelockacquiredevent
+            // <<< CUSTOM EMIT: filelockacquiredevent >>>
+        }
+        Ok(())
+    }
+}
+
+/// Handler for entering expired state
+pub struct FileLockOnEnterExpiredHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::FileLockEventPublisher>>,
+}
+
+impl FileLockOnEnterExpiredHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockOnEnterExpiredHandler {
+    fn events(&self) -> Vec<FileLockTriggerEvent> {
+        vec![FileLockTriggerEvent::OnEnterState("expired".to_string())]
+    }
+
+    async fn handle(&self, ctx: &FileLockTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit filelockexpiredevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: filelockexpiredevent
+            // <<< CUSTOM EMIT: filelockexpiredevent >>>
+        }
+        Ok(())
+    }
+}
+
+/// Handler for entering released state
+pub struct FileLockOnEnterReleasedHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::FileLockEventPublisher>>,
+}
+
+impl FileLockOnEnterReleasedHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockOnEnterReleasedHandler {
+    fn events(&self) -> Vec<FileLockTriggerEvent> {
+        vec![FileLockTriggerEvent::OnEnterState("released".to_string())]
+    }
+
+    async fn handle(&self, ctx: &FileLockTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit filelockreleasedevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: filelockreleasedevent
+            // <<< CUSTOM EMIT: filelockreleasedevent >>>
+        }
+        Ok(())
+    }
+}
+
+/// Action executor for FileLock triggers
+
+pub fn file_lock_trigger_registry() -> FileLockTriggerRegistry {
+    TriggerRegistry::build(|r| {
+        r.register(Arc::new(FileLockAfterCreateHandler1::new()));
+        r.register(Arc::new(FileLockAfterCreateHandler2::new()));
+        r.register(Arc::new(FileLockAfterCreateHandler3::new()));
+        r.register(Arc::new(FileLockAfterCreateHandler4::new()));
+        r.register(Arc::new(FileLockOnEnterActiveHandler::new()));
+        r.register(Arc::new(FileLockOnEnterExpiredHandler::new()));
+        r.register(Arc::new(FileLockOnEnterReleasedHandler::new()));
+    })
+}

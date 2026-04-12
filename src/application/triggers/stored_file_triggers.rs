@@ -1,0 +1,440 @@
+//! StoredFile trigger handlers
+
+use std::sync::Arc;
+use async_trait::async_trait;
+use backbone_core::trigger::{
+    ActionExecutor, TriggerContext, TriggerContextMut, TriggerEvent, TriggerHandler,
+    TriggerRegistry,
+};
+
+use crate::domain::entity::StoredFile;
+
+pub type StoredFileTriggerEvent      = TriggerEvent;
+pub type StoredFileTriggerContext    = TriggerContext<StoredFile>;
+pub type StoredFileTriggerContextMut = TriggerContextMut<StoredFile>;
+pub type StoredFileActionExecutor    = ActionExecutor;
+pub type StoredFileTriggerRegistry   = TriggerRegistry<StoredFile>;
+pub type StoredFileTriggerHandlerObj = dyn TriggerHandler<TriggerContext<StoredFile>, TriggerEvent>;
+
+
+// Lifecycle trigger handlers
+
+/// AfterCreate handler
+pub struct StoredFileAfterCreateHandler1 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<StoredFileActionExecutor>>,
+}
+
+impl StoredFileAfterCreateHandler1 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::StoredFileEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<StoredFileActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileAfterCreateHandler1 {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'create': fileaccesslog
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit filecreatedevent event
+        if let Some(publisher) = &self.event_publisher {
+            publisher.publish_created(ctx.entity.clone(), ctx.user_id.clone()).await?;
+        }
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct StoredFileAfterCreateHandler2 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<StoredFileActionExecutor>>,
+}
+
+impl StoredFileAfterCreateHandler2 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::StoredFileEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<StoredFileActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileAfterCreateHandler2 {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct StoredFileAfterCreateHandler3 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<StoredFileActionExecutor>>,
+}
+
+impl StoredFileAfterCreateHandler3 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::StoredFileEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<StoredFileActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileAfterCreateHandler3 {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Set last_accessed_at to current timestamp
+        // <<< CUSTOM SET: last_accessed_at = now >>>
+        // ctx.entity.last_accessed_at = Some(chrono::Utc::now();
+        // Note: Add closing parenthesis if using Some()
+        // Emit filedownloadedevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: filedownloadedevent
+            // <<< CUSTOM EMIT: filedownloadedevent >>>
+        }
+        Ok(())
+    }
+}
+
+/// BeforeDelete handler
+pub struct StoredFileBeforeDeleteHandler4 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<StoredFileActionExecutor>>,
+}
+
+impl StoredFileBeforeDeleteHandler4 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::StoredFileEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<StoredFileActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileBeforeDeleteHandler4 {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::BeforeDelete]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        Ok(())
+    }
+}
+
+/// AfterDelete handler
+pub struct StoredFileAfterDeleteHandler5 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<StoredFileActionExecutor>>,
+}
+
+impl StoredFileAfterDeleteHandler5 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::StoredFileEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<StoredFileActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileAfterDeleteHandler5 {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::AfterDelete]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'delete': fileshare
+        // Unknown action type 'delete': fileaccesslog
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        Ok(())
+    }
+}
+
+// State machine trigger handlers
+
+/// Handler for entering uploading state
+pub struct StoredFileOnEnterUploadingHandler {}
+
+impl StoredFileOnEnterUploadingHandler {
+    pub fn new() -> Self { Self {} }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileOnEnterUploadingHandler {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::OnEnterState("uploading".to_string())]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // <<< CUSTOM SET: processing_status = 'pending' >>>
+        // ctx.entity.processing_status = "pending".to_string(); // or Some(...) if optional
+        Ok(())
+    }
+}
+
+/// Handler for entering processing state
+pub struct StoredFileOnEnterProcessingHandler {}
+
+impl StoredFileOnEnterProcessingHandler {
+    pub fn new() -> Self { Self {} }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileOnEnterProcessingHandler {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::OnEnterState("processing".to_string())]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'queue': scanfile
+        // Unknown action type 'queue': generatethumbnail
+        // Unknown action type 'queue': checkdeduplication
+        // <<< CUSTOM SET: processing_status = 'processing' >>>
+        // ctx.entity.processing_status = "processing".to_string(); // or Some(...) if optional
+        Ok(())
+    }
+}
+
+/// Handler for entering active state
+pub struct StoredFileOnEnterActiveHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+}
+
+impl StoredFileOnEnterActiveHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileOnEnterActiveHandler {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::OnEnterState("active".to_string())]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Emit fileactivatedevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: fileactivatedevent
+            // <<< CUSTOM EMIT: fileactivatedevent >>>
+        }
+        // Unknown action type 'update': bucket
+        // Unknown action type 'update': userquota
+        // <<< CUSTOM SET: processing_status = 'complete' >>>
+        // ctx.entity.processing_status = "complete".to_string(); // or Some(...) if optional
+        Ok(())
+    }
+}
+
+/// Handler for entering quarantined state
+pub struct StoredFileOnEnterQuarantinedHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+    pub action_executor: Option<Arc<StoredFileActionExecutor>>,
+}
+
+impl StoredFileOnEnterQuarantinedHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileOnEnterQuarantinedHandler {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::OnEnterState("quarantined".to_string())]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Emit filequarantinedevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: filequarantinedevent
+            // <<< CUSTOM EMIT: filequarantinedevent >>>
+        }
+        // Send notification
+        if let Some(executor) = &self.action_executor {
+            executor.notify(ctx, "default").await?;
+        }
+        // <<< CUSTOM SET: processing_status = 'failed' >>>
+        // ctx.entity.processing_status = "failed".to_string(); // or Some(...) if optional
+        Ok(())
+    }
+}
+
+/// Handler for entering deleted state
+pub struct StoredFileOnEnterDeletedHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+}
+
+impl StoredFileOnEnterDeletedHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileOnEnterDeletedHandler {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::OnEnterState("deleted".to_string())]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Set metadata.deleted_at to current timestamp
+        // <<< CUSTOM SET: metadata.deleted_at = now >>>
+        // ctx.entity.metadata.deleted_at = Some(chrono::Utc::now();
+        // Note: Add closing parenthesis if using Some()
+        // Unknown action type 'update': bucket
+        // Unknown action type 'update': userquota
+        // Emit filedeletedevent event
+        if let Some(publisher) = &self.event_publisher {
+            publisher.publish_deleted(ctx.entity.id().to_string(), ctx.user_id.clone()).await?;
+        }
+        // Unknown action type 'invalidate_cdn': cdn_url
+        Ok(())
+    }
+}
+
+/// Handler for entering purged state
+pub struct StoredFileOnEnterPurgedHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::StoredFileEventPublisher>>,
+}
+
+impl StoredFileOnEnterPurgedHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for StoredFileOnEnterPurgedHandler {
+    fn events(&self) -> Vec<StoredFileTriggerEvent> {
+        vec![StoredFileTriggerEvent::OnEnterState("purged".to_string())]
+    }
+
+    async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'delete_storage': storage_key
+        // Unknown action type 'dedup_decrement': content_hash_id
+        // Emit filedeletedevent event
+        if let Some(publisher) = &self.event_publisher {
+            publisher.publish_deleted(ctx.entity.id().to_string(), ctx.user_id.clone()).await?;
+        }
+        Ok(())
+    }
+}
+
+/// Action executor for StoredFile triggers
+
+pub fn stored_file_trigger_registry() -> StoredFileTriggerRegistry {
+    TriggerRegistry::build(|r| {
+        r.register(Arc::new(StoredFileAfterCreateHandler1::new()));
+        r.register(Arc::new(StoredFileAfterCreateHandler2::new()));
+        r.register(Arc::new(StoredFileAfterCreateHandler3::new()));
+        r.register(Arc::new(StoredFileBeforeDeleteHandler4::new()));
+        r.register(Arc::new(StoredFileAfterDeleteHandler5::new()));
+        r.register(Arc::new(StoredFileOnEnterUploadingHandler::new()));
+        r.register(Arc::new(StoredFileOnEnterProcessingHandler::new()));
+        r.register(Arc::new(StoredFileOnEnterActiveHandler::new()));
+        r.register(Arc::new(StoredFileOnEnterQuarantinedHandler::new()));
+        r.register(Arc::new(StoredFileOnEnterDeletedHandler::new()));
+        r.register(Arc::new(StoredFileOnEnterPurgedHandler::new()));
+    })
+}

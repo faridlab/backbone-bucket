@@ -1,0 +1,494 @@
+//! UserQuota trigger handlers
+
+use std::sync::Arc;
+use async_trait::async_trait;
+use backbone_core::trigger::{
+    ActionExecutor, TriggerContext, TriggerContextMut, TriggerEvent, TriggerHandler,
+    TriggerRegistry,
+};
+
+use crate::domain::entity::UserQuota;
+
+pub type UserQuotaTriggerEvent      = TriggerEvent;
+pub type UserQuotaTriggerContext    = TriggerContext<UserQuota>;
+pub type UserQuotaTriggerContextMut = TriggerContextMut<UserQuota>;
+pub type UserQuotaActionExecutor    = ActionExecutor;
+pub type UserQuotaTriggerRegistry   = TriggerRegistry<UserQuota>;
+pub type UserQuotaTriggerHandlerObj = dyn TriggerHandler<TriggerContext<UserQuota>, TriggerEvent>;
+
+
+// Lifecycle trigger handlers
+
+/// BeforeCreate handler
+pub struct UserQuotaBeforeCreateHandler1 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaBeforeCreateHandler1 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaBeforeCreateHandler1 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::BeforeCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // <<< CUSTOM SET: used_storage_bytes = 0 >>>
+        // ctx.entity.used_storage_bytes = 0; // or Some(0) if optional
+        // <<< CUSTOM SET: file_count = 0 >>>
+        // ctx.entity.file_count = 0; // or Some(0) if optional
+        // <<< CUSTOM SET: bucket_count = 0 >>>
+        // ctx.entity.bucket_count = 0; // or Some(0) if optional
+        // <<< CUSTOM SET: used_bandwidth_today = 0 >>>
+        // ctx.entity.used_bandwidth_today = 0; // or Some(0) if optional
+        // <<< CUSTOM SET: used_bandwidth_month = 0 >>>
+        // ctx.entity.used_bandwidth_month = 0; // or Some(0) if optional
+        // Set is_exceeded = false
+        // <<< CUSTOM SET: is_exceeded = false >>>
+        // ctx.entity.is_exceeded = Some(false);
+        // Unknown action type 'trigger': apply_tier_defaults
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler2 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler2 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler2 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit userquotacreatedevent event
+        if let Some(publisher) = &self.event_publisher {
+            publisher.publish_created(ctx.entity.clone(), ctx.user_id.clone()).await?;
+        }
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler3 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler3 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler3 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'trigger': apply_tier_defaults
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler4 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler4 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler4 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Send email notification
+        if let Some(executor) = &self.action_executor {
+            executor.send_email(ctx, "default").await?;
+        }
+        // Send notification
+        if let Some(executor) = &self.action_executor {
+            executor.notify(ctx, "default").await?;
+        }
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit userquotatierchangedevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: userquotatierchangedevent
+            // <<< CUSTOM EMIT: userquotatierchangedevent >>>
+        }
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler5 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler5 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler5 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'trigger': check_warning_threshold
+        // Unknown action type 'trigger': update_exceeded_status
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler6 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler6 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler6 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'trigger': reset_daily_bandwidth_batch
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler7 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler7 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler7 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'trigger': reset_monthly_bandwidth_batch
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler8 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler8 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler8 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'trigger': process_expired_quotas_batch
+        Ok(())
+    }
+}
+
+/// AfterCreate handler
+pub struct UserQuotaAfterCreateHandler9 {
+    /// Event publisher for emitting domain events
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    /// Action executor for side effects
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaAfterCreateHandler9 {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+
+    pub fn with_event_publisher(mut self, publisher: Arc<crate::domain::event::UserQuotaEventPublisher>) -> Self {
+        self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_action_executor(mut self, executor: Arc<UserQuotaActionExecutor>) -> Self {
+        self.action_executor = Some(executor);
+        self
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaAfterCreateHandler9 {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::AfterCreate]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Unknown action type 'trigger': send_quota_expiry_warnings
+        Ok(())
+    }
+}
+
+// State machine trigger handlers
+
+/// Handler for entering normal state
+pub struct UserQuotaOnEnterNormalHandler {}
+
+impl UserQuotaOnEnterNormalHandler {
+    pub fn new() -> Self { Self {} }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaOnEnterNormalHandler {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::OnEnterState("normal".to_string())]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // <<< CUSTOM SET: last_warning_sent_at = null >>>
+        // ctx.entity.last_warning_sent_at = null; // adjust type as needed
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        Ok(())
+    }
+}
+
+/// Handler for entering exceeded state
+pub struct UserQuotaOnEnterExceededHandler {
+    pub event_publisher: Option<Arc<crate::domain::event::UserQuotaEventPublisher>>,
+    pub action_executor: Option<Arc<UserQuotaActionExecutor>>,
+}
+
+impl UserQuotaOnEnterExceededHandler {
+    pub fn new() -> Self {
+        Self {
+            event_publisher: None,
+            action_executor: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuotaOnEnterExceededHandler {
+    fn events(&self) -> Vec<UserQuotaTriggerEvent> {
+        vec![UserQuotaTriggerEvent::OnEnterState("exceeded".to_string())]
+    }
+
+    async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        // Send notification
+        if let Some(executor) = &self.action_executor {
+            executor.notify(ctx, "default").await?;
+        }
+        // Send email notification
+        if let Some(executor) = &self.action_executor {
+            executor.send_email(ctx, "default").await?;
+        }
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        // Emit quotaexceededevent event
+        if let Some(_publisher) = &self.event_publisher {
+            // Custom event: quotaexceededevent
+            // <<< CUSTOM EMIT: quotaexceededevent >>>
+        }
+        Ok(())
+    }
+}
+
+/// Action executor for UserQuota triggers
+
+pub fn user_quota_trigger_registry() -> UserQuotaTriggerRegistry {
+    TriggerRegistry::build(|r| {
+        r.register(Arc::new(UserQuotaBeforeCreateHandler1::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler2::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler3::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler4::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler5::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler6::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler7::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler8::new()));
+        r.register(Arc::new(UserQuotaAfterCreateHandler9::new()));
+        r.register(Arc::new(UserQuotaOnEnterNormalHandler::new()));
+        r.register(Arc::new(UserQuotaOnEnterExceededHandler::new()));
+    })
+}
