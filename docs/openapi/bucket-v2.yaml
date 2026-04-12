@@ -1,0 +1,3618 @@
+openapi: 3.0.3
+info:
+  title: Bucket Module API
+  description: |
+    File storage and management API for the Backbone Framework.
+
+    V2.0 provides enhanced file storage with media processing, collaboration,
+    deduplication, CDN support, and multipart uploads.
+
+    ## Authentication
+    All endpoints require JWT authentication via Bearer token:
+    ```
+    Authorization: Bearer <jwt_token>
+    ```
+
+    ## Common Query Parameters
+    All list endpoints support:
+    - `page` (integer, default: 1) - Page number
+    - `per_page` (integer, default: 20, max: 100) - Items per page
+    - `sort` (string) - Sort field name
+    - `order` (string: asc|desc) - Sort direction
+    - `search` (string) - Full-text search query
+
+    ## Entities (13)
+    - **Bucket** - Storage containers
+    - **StoredFile** - File records with scanning and CDN
+    - **FileVersion** - File version history
+    - **FileShare** - File sharing (link, user, password)
+    - **FileLock** - Concurrent edit prevention
+    - **FileComment** - File commenting and annotations
+    - **ContentHash** - Content deduplication hashes
+    - **UploadSession** - Multipart upload sessions
+    - **ConversionJob** - File format conversion
+    - **ProcessingJob** - Background processing tasks
+    - **Thumbnail** - Generated thumbnail metadata
+    - **UserQuota** - Per-user storage quotas
+    - **AccessLog** - File access audit trail
+
+    ## Custom Services (7)
+    - **LockingService** - File editing lock management
+    - **DeduplicationService** - Content-hash based dedup
+    - **MultipartUploadService** - Chunked upload lifecycle
+    - **ConversionService** - File format conversion pipeline
+    - **CdnService** - CDN URL generation and caching
+    - **VideoThumbnailService** - Video thumbnail generation
+    - **DocumentPreviewService** - Document preview generation
+  version: 2.0.0
+  contact:
+    name: Backbone Framework
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development
+  - url: "{protocol}://{host}/api/v1"
+    description: Custom
+    variables:
+      protocol:
+        default: https
+        enum: [http, https]
+      host:
+        default: localhost:3000
+
+tags:
+  - name: Buckets
+    description: Storage bucket management
+  - name: StoredFiles
+    description: File storage and retrieval
+  - name: FileVersions
+    description: File version history
+  - name: FileShares
+    description: File sharing and collaboration
+  - name: FileLocks
+    description: File locking for concurrent editing
+  - name: FileComments
+    description: File commenting and annotations
+  - name: ContentHashes
+    description: Content deduplication
+  - name: UploadSessions
+    description: Multipart upload management
+  - name: ConversionJobs
+    description: File format conversion
+  - name: ProcessingJobs
+    description: Background processing tasks
+  - name: Thumbnails
+    description: Generated thumbnail metadata
+  - name: UserQuotas
+    description: Per-user storage quotas
+  - name: AccessLogs
+    description: File access audit trail
+
+# ===========================================================================
+# Paths
+# ===========================================================================
+paths:
+  # -------------------------------------------------------------------------
+  # Buckets
+  # -------------------------------------------------------------------------
+  /buckets:
+    get:
+      tags: [Buckets]
+      summary: List buckets
+      operationId: listBuckets
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+        - $ref: "#/components/parameters/SearchParam"
+      responses:
+        "200":
+          description: Paginated list of buckets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Bucket"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Buckets]
+      summary: Create a bucket
+      operationId: createBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBucket"
+      responses:
+        "201":
+          description: Bucket created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Bucket"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /buckets/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [Buckets]
+      summary: Get bucket by ID
+      operationId: getBucket
+      responses:
+        "200":
+          description: Bucket details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Bucket"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Buckets]
+      summary: Update bucket (full replace)
+      operationId: updateBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBucket"
+      responses:
+        "200":
+          description: Bucket updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Bucket"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Buckets]
+      summary: Partial update bucket
+      operationId: patchBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchBucket"
+      responses:
+        "200":
+          description: Bucket partially updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Bucket"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Buckets]
+      summary: Soft delete bucket
+      operationId: deleteBucket
+      responses:
+        "204":
+          description: Bucket soft-deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /buckets/bulk:
+    post:
+      tags: [Buckets]
+      summary: Bulk create buckets
+      operationId: bulkCreateBuckets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/CreateBucket"
+      responses:
+        "201":
+          description: Buckets created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Bucket"
+
+  /buckets/upsert:
+    post:
+      tags: [Buckets]
+      summary: Upsert a bucket
+      operationId: upsertBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBucket"
+      responses:
+        "200":
+          description: Bucket upserted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Bucket"
+
+  /buckets/count:
+    get:
+      tags: [Buckets]
+      summary: Count active buckets
+      operationId: countBuckets
+      responses:
+        "200":
+          description: Count of active buckets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            format: int64
+
+  /buckets/trash:
+    get:
+      tags: [Buckets]
+      summary: List soft-deleted buckets
+      operationId: listDeletedBuckets
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+      responses:
+        "200":
+          description: Paginated list of deleted buckets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Bucket"
+
+  /buckets/trash/count:
+    get:
+      tags: [Buckets]
+      summary: Count deleted buckets
+      operationId: countDeletedBuckets
+      responses:
+        "200":
+          description: Count of deleted buckets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            format: int64
+
+  /buckets/empty:
+    delete:
+      tags: [Buckets]
+      summary: Empty trash (permanent delete all)
+      operationId: emptyBucketTrash
+      responses:
+        "204":
+          description: Trash emptied
+
+  /buckets/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [Buckets]
+      summary: Restore soft-deleted bucket
+      operationId: restoreBucket
+      responses:
+        "200":
+          description: Bucket restored
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Bucket"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /buckets/{id}/deleted:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [Buckets]
+      summary: Get deleted bucket by ID
+      operationId: getDeletedBucket
+      responses:
+        "200":
+          description: Deleted bucket details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/Bucket"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /buckets/trash/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    delete:
+      tags: [Buckets]
+      summary: Permanently delete bucket from trash
+      operationId: permanentDeleteBucket
+      responses:
+        "204":
+          description: Bucket permanently deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # -------------------------------------------------------------------------
+  # Stored Files
+  # -------------------------------------------------------------------------
+  /stored_files:
+    get:
+      tags: [StoredFiles]
+      summary: List stored files
+      operationId: listStoredFiles
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+        - $ref: "#/components/parameters/SearchParam"
+      responses:
+        "200":
+          description: Paginated list of files
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/StoredFile"
+    post:
+      tags: [StoredFiles]
+      summary: Create a stored file record
+      operationId: createStoredFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoredFile"
+      responses:
+        "201":
+          description: File record created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/StoredFile"
+
+  /stored_files/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [StoredFiles]
+      summary: Get file by ID
+      operationId: getStoredFile
+      responses:
+        "200":
+          description: File details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/StoredFile"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [StoredFiles]
+      summary: Update file (full replace)
+      operationId: updateStoredFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoredFile"
+      responses:
+        "200":
+          description: File updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [StoredFiles]
+      summary: Partial update file
+      operationId: patchStoredFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchStoredFile"
+      responses:
+        "200":
+          description: File partially updated
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [StoredFiles]
+      summary: Soft delete file
+      operationId: deleteStoredFile
+      responses:
+        "204":
+          description: File soft-deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /stored_files/bulk:
+    post:
+      tags: [StoredFiles]
+      summary: Bulk create files
+      operationId: bulkCreateStoredFiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/CreateStoredFile"
+      responses:
+        "201":
+          description: Files created
+
+  /stored_files/upsert:
+    post:
+      tags: [StoredFiles]
+      summary: Upsert a file
+      operationId: upsertStoredFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoredFile"
+      responses:
+        "200":
+          description: File upserted
+
+  /stored_files/count:
+    get:
+      tags: [StoredFiles]
+      summary: Count active files
+      operationId: countStoredFiles
+      responses:
+        "200":
+          description: Count
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            format: int64
+
+  /stored_files/trash:
+    get:
+      tags: [StoredFiles]
+      summary: List deleted files
+      operationId: listDeletedStoredFiles
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+      responses:
+        "200":
+          description: Paginated list of deleted files
+
+  /stored_files/trash/count:
+    get:
+      tags: [StoredFiles]
+      summary: Count deleted files
+      operationId: countDeletedStoredFiles
+      responses:
+        "200":
+          description: Count of deleted files
+
+  /stored_files/empty:
+    delete:
+      tags: [StoredFiles]
+      summary: Empty file trash
+      operationId: emptyStoredFileTrash
+      responses:
+        "204":
+          description: Trash emptied
+
+  /stored_files/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [StoredFiles]
+      summary: Restore deleted file
+      operationId: restoreStoredFile
+      responses:
+        "200":
+          description: File restored
+
+  /stored_files/{id}/deleted:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [StoredFiles]
+      summary: Get deleted file by ID
+      operationId: getDeletedStoredFile
+      responses:
+        "200":
+          description: Deleted file details
+
+  /stored_files/trash/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    delete:
+      tags: [StoredFiles]
+      summary: Permanently delete file
+      operationId: permanentDeleteStoredFile
+      responses:
+        "204":
+          description: File permanently deleted
+
+  # -------------------------------------------------------------------------
+  # File Versions
+  # -------------------------------------------------------------------------
+  /file_versions:
+    get:
+      tags: [FileVersions]
+      summary: List file versions
+      operationId: listFileVersions
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of file versions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/FileVersion"
+    post:
+      tags: [FileVersions]
+      summary: Create a file version
+      operationId: createFileVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileVersion"
+      responses:
+        "201":
+          description: Version created
+
+  /file_versions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [FileVersions]
+      summary: Get file version
+      operationId: getFileVersion
+      responses:
+        "200":
+          description: Version details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [FileVersions]
+      summary: Update file version
+      operationId: updateFileVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileVersion"
+      responses:
+        "200":
+          description: Version updated
+    patch:
+      tags: [FileVersions]
+      summary: Partial update file version
+      operationId: patchFileVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFileVersion"
+      responses:
+        "200":
+          description: Version partially updated
+    delete:
+      tags: [FileVersions]
+      summary: Soft delete version
+      operationId: deleteFileVersion
+      responses:
+        "204":
+          description: Version deleted
+
+  /file_versions/bulk:
+    post:
+      tags: [FileVersions]
+      summary: Bulk create versions
+      operationId: bulkCreateFileVersions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/CreateFileVersion"
+      responses:
+        "201":
+          description: Versions created
+
+  /file_versions/count:
+    get:
+      tags: [FileVersions]
+      summary: Count file versions
+      operationId: countFileVersions
+      responses:
+        "200":
+          description: Count
+
+  /file_versions/trash:
+    get:
+      tags: [FileVersions]
+      summary: List deleted versions
+      operationId: listDeletedFileVersions
+      responses:
+        "200":
+          description: Deleted versions
+
+  /file_versions/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [FileVersions]
+      summary: Restore deleted version
+      operationId: restoreFileVersion
+      responses:
+        "200":
+          description: Version restored
+
+  # -------------------------------------------------------------------------
+  # File Shares
+  # -------------------------------------------------------------------------
+  /file_shares:
+    get:
+      tags: [FileShares]
+      summary: List file shares
+      operationId: listFileShares
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of shares
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/FileShare"
+    post:
+      tags: [FileShares]
+      summary: Create a file share
+      operationId: createFileShare
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileShare"
+      responses:
+        "201":
+          description: Share created
+
+  /file_shares/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [FileShares]
+      summary: Get share by ID
+      operationId: getFileShare
+      responses:
+        "200":
+          description: Share details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [FileShares]
+      summary: Update share
+      operationId: updateFileShare
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileShare"
+      responses:
+        "200":
+          description: Share updated
+    patch:
+      tags: [FileShares]
+      summary: Partial update share
+      operationId: patchFileShare
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFileShare"
+      responses:
+        "200":
+          description: Share partially updated
+    delete:
+      tags: [FileShares]
+      summary: Soft delete share
+      operationId: deleteFileShare
+      responses:
+        "204":
+          description: Share deleted
+
+  /file_shares/count:
+    get:
+      tags: [FileShares]
+      summary: Count active shares
+      operationId: countFileShares
+      responses:
+        "200":
+          description: Count
+
+  /file_shares/trash:
+    get:
+      tags: [FileShares]
+      summary: List deleted shares
+      operationId: listDeletedFileShares
+      responses:
+        "200":
+          description: Deleted shares
+
+  /file_shares/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [FileShares]
+      summary: Restore deleted share
+      operationId: restoreFileShare
+      responses:
+        "200":
+          description: Share restored
+
+  # -------------------------------------------------------------------------
+  # File Locks
+  # -------------------------------------------------------------------------
+  /file_locks:
+    get:
+      tags: [FileLocks]
+      summary: List file locks
+      operationId: listFileLocks
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+      responses:
+        "200":
+          description: Paginated list of locks
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/FileLock"
+    post:
+      tags: [FileLocks]
+      summary: Create a file lock
+      operationId: createFileLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileLock"
+      responses:
+        "201":
+          description: Lock created
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /file_locks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [FileLocks]
+      summary: Get lock by ID
+      operationId: getFileLock
+      responses:
+        "200":
+          description: Lock details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [FileLocks]
+      summary: Update lock
+      operationId: updateFileLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileLock"
+      responses:
+        "200":
+          description: Lock updated
+    patch:
+      tags: [FileLocks]
+      summary: Partial update lock
+      operationId: patchFileLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFileLock"
+      responses:
+        "200":
+          description: Lock partially updated
+    delete:
+      tags: [FileLocks]
+      summary: Delete lock (release)
+      operationId: deleteFileLock
+      responses:
+        "204":
+          description: Lock released
+
+  /file_locks/count:
+    get:
+      tags: [FileLocks]
+      summary: Count active locks
+      operationId: countFileLocks
+      responses:
+        "200":
+          description: Count
+
+  # -------------------------------------------------------------------------
+  # File Comments
+  # -------------------------------------------------------------------------
+  /file_comments:
+    get:
+      tags: [FileComments]
+      summary: List file comments
+      operationId: listFileComments
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of comments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/FileComment"
+    post:
+      tags: [FileComments]
+      summary: Create a comment
+      operationId: createFileComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileComment"
+      responses:
+        "201":
+          description: Comment created
+
+  /file_comments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [FileComments]
+      summary: Get comment by ID
+      operationId: getFileComment
+      responses:
+        "200":
+          description: Comment details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [FileComments]
+      summary: Update comment
+      operationId: updateFileComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFileComment"
+      responses:
+        "200":
+          description: Comment updated
+    patch:
+      tags: [FileComments]
+      summary: Partial update comment
+      operationId: patchFileComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFileComment"
+      responses:
+        "200":
+          description: Comment partially updated
+    delete:
+      tags: [FileComments]
+      summary: Delete comment
+      operationId: deleteFileComment
+      responses:
+        "204":
+          description: Comment deleted
+
+  /file_comments/count:
+    get:
+      tags: [FileComments]
+      summary: Count active comments
+      operationId: countFileComments
+      responses:
+        "200":
+          description: Count
+
+  # -------------------------------------------------------------------------
+  # Content Hashes
+  # -------------------------------------------------------------------------
+  /content_hashes:
+    get:
+      tags: [ContentHashes]
+      summary: List content hashes
+      operationId: listContentHashes
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+      responses:
+        "200":
+          description: Paginated list of content hashes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ContentHash"
+    post:
+      tags: [ContentHashes]
+      summary: Create a content hash
+      operationId: createContentHash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContentHash"
+      responses:
+        "201":
+          description: Hash created
+
+  /content_hashes/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [ContentHashes]
+      summary: Get content hash
+      operationId: getContentHash
+      responses:
+        "200":
+          description: Content hash details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [ContentHashes]
+      summary: Update content hash
+      operationId: updateContentHash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContentHash"
+      responses:
+        "200":
+          description: Hash updated
+    patch:
+      tags: [ContentHashes]
+      summary: Partial update content hash
+      operationId: patchContentHash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchContentHash"
+      responses:
+        "200":
+          description: Hash partially updated
+    delete:
+      tags: [ContentHashes]
+      summary: Delete content hash
+      operationId: deleteContentHash
+      responses:
+        "204":
+          description: Hash deleted
+
+  /content_hashes/count:
+    get:
+      tags: [ContentHashes]
+      summary: Count content hashes
+      operationId: countContentHashes
+      responses:
+        "200":
+          description: Count
+
+  # -------------------------------------------------------------------------
+  # Upload Sessions
+  # -------------------------------------------------------------------------
+  /upload_sessions:
+    get:
+      tags: [UploadSessions]
+      summary: List upload sessions
+      operationId: listUploadSessions
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of sessions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/UploadSession"
+    post:
+      tags: [UploadSessions]
+      summary: Create an upload session
+      operationId: createUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadSession"
+      responses:
+        "201":
+          description: Session created
+
+  /upload_sessions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [UploadSessions]
+      summary: Get session by ID
+      operationId: getUploadSession
+      responses:
+        "200":
+          description: Session details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [UploadSessions]
+      summary: Update session
+      operationId: updateUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadSession"
+      responses:
+        "200":
+          description: Session updated
+    patch:
+      tags: [UploadSessions]
+      summary: Partial update session
+      operationId: patchUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchUploadSession"
+      responses:
+        "200":
+          description: Session partially updated
+    delete:
+      tags: [UploadSessions]
+      summary: Delete (abort) session
+      operationId: deleteUploadSession
+      responses:
+        "204":
+          description: Session aborted
+
+  /upload_sessions/count:
+    get:
+      tags: [UploadSessions]
+      summary: Count active sessions
+      operationId: countUploadSessions
+      responses:
+        "200":
+          description: Count
+
+  /upload_sessions/trash:
+    get:
+      tags: [UploadSessions]
+      summary: List deleted sessions
+      operationId: listDeletedUploadSessions
+      responses:
+        "200":
+          description: Deleted sessions
+
+  /upload_sessions/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [UploadSessions]
+      summary: Restore deleted session
+      operationId: restoreUploadSession
+      responses:
+        "200":
+          description: Session restored
+
+  # -------------------------------------------------------------------------
+  # Conversion Jobs
+  # -------------------------------------------------------------------------
+  /conversion_jobs:
+    get:
+      tags: [ConversionJobs]
+      summary: List conversion jobs
+      operationId: listConversionJobs
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of conversion jobs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ConversionJob"
+    post:
+      tags: [ConversionJobs]
+      summary: Create a conversion job
+      operationId: createConversionJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversionJob"
+      responses:
+        "201":
+          description: Job created
+
+  /conversion_jobs/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [ConversionJobs]
+      summary: Get conversion job
+      operationId: getConversionJob
+      responses:
+        "200":
+          description: Job details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [ConversionJobs]
+      summary: Update conversion job
+      operationId: updateConversionJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversionJob"
+      responses:
+        "200":
+          description: Job updated
+    patch:
+      tags: [ConversionJobs]
+      summary: Partial update conversion job
+      operationId: patchConversionJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchConversionJob"
+      responses:
+        "200":
+          description: Job partially updated
+    delete:
+      tags: [ConversionJobs]
+      summary: Delete conversion job
+      operationId: deleteConversionJob
+      responses:
+        "204":
+          description: Job deleted
+
+  /conversion_jobs/count:
+    get:
+      tags: [ConversionJobs]
+      summary: Count conversion jobs
+      operationId: countConversionJobs
+      responses:
+        "200":
+          description: Count
+
+  # -------------------------------------------------------------------------
+  # Processing Jobs
+  # -------------------------------------------------------------------------
+  /processing_jobs:
+    get:
+      tags: [ProcessingJobs]
+      summary: List processing jobs
+      operationId: listProcessingJobs
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of processing jobs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ProcessingJob"
+    post:
+      tags: [ProcessingJobs]
+      summary: Create a processing job
+      operationId: createProcessingJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProcessingJob"
+      responses:
+        "201":
+          description: Job created
+
+  /processing_jobs/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [ProcessingJobs]
+      summary: Get processing job
+      operationId: getProcessingJob
+      responses:
+        "200":
+          description: Job details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [ProcessingJobs]
+      summary: Update processing job
+      operationId: updateProcessingJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProcessingJob"
+      responses:
+        "200":
+          description: Job updated
+    patch:
+      tags: [ProcessingJobs]
+      summary: Partial update processing job
+      operationId: patchProcessingJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchProcessingJob"
+      responses:
+        "200":
+          description: Job partially updated
+    delete:
+      tags: [ProcessingJobs]
+      summary: Delete processing job
+      operationId: deleteProcessingJob
+      responses:
+        "204":
+          description: Job deleted
+
+  /processing_jobs/count:
+    get:
+      tags: [ProcessingJobs]
+      summary: Count processing jobs
+      operationId: countProcessingJobs
+      responses:
+        "200":
+          description: Count
+
+  # -------------------------------------------------------------------------
+  # Thumbnails
+  # -------------------------------------------------------------------------
+  /thumbnails:
+    get:
+      tags: [Thumbnails]
+      summary: List thumbnails
+      operationId: listThumbnails
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of thumbnails
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Thumbnail"
+    post:
+      tags: [Thumbnails]
+      summary: Create a thumbnail record
+      operationId: createThumbnail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateThumbnail"
+      responses:
+        "201":
+          description: Thumbnail created
+
+  /thumbnails/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [Thumbnails]
+      summary: Get thumbnail
+      operationId: getThumbnail
+      responses:
+        "200":
+          description: Thumbnail details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Thumbnails]
+      summary: Update thumbnail
+      operationId: updateThumbnail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateThumbnail"
+      responses:
+        "200":
+          description: Thumbnail updated
+    patch:
+      tags: [Thumbnails]
+      summary: Partial update thumbnail
+      operationId: patchThumbnail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchThumbnail"
+      responses:
+        "200":
+          description: Thumbnail partially updated
+    delete:
+      tags: [Thumbnails]
+      summary: Delete thumbnail
+      operationId: deleteThumbnail
+      responses:
+        "204":
+          description: Thumbnail deleted
+
+  /thumbnails/count:
+    get:
+      tags: [Thumbnails]
+      summary: Count thumbnails
+      operationId: countThumbnails
+      responses:
+        "200":
+          description: Count
+
+  # -------------------------------------------------------------------------
+  # User Quotas
+  # -------------------------------------------------------------------------
+  /user_quotas:
+    get:
+      tags: [UserQuotas]
+      summary: List user quotas
+      operationId: listUserQuotas
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of quotas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/UserQuota"
+    post:
+      tags: [UserQuotas]
+      summary: Create a user quota
+      operationId: createUserQuota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserQuota"
+      responses:
+        "201":
+          description: Quota created
+
+  /user_quotas/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [UserQuotas]
+      summary: Get quota by ID
+      operationId: getUserQuota
+      responses:
+        "200":
+          description: Quota details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [UserQuotas]
+      summary: Update quota
+      operationId: updateUserQuota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserQuota"
+      responses:
+        "200":
+          description: Quota updated
+    patch:
+      tags: [UserQuotas]
+      summary: Partial update quota
+      operationId: patchUserQuota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchUserQuota"
+      responses:
+        "200":
+          description: Quota partially updated
+    delete:
+      tags: [UserQuotas]
+      summary: Delete quota
+      operationId: deleteUserQuota
+      responses:
+        "204":
+          description: Quota deleted
+
+  /user_quotas/{id}/transitions/exceed:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [UserQuotas]
+      summary: Transition quota to Exceeded state
+      operationId: exceedUserQuota
+      description: Transitions the quota status from Normal to Exceeded when usage exceeds limit.
+      responses:
+        "200":
+          description: Quota transitioned to Exceeded
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/UserQuota"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid state transition
+
+  /user_quotas/{id}/transitions/restore:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [UserQuotas]
+      summary: Transition quota back to Normal state
+      operationId: restoreUserQuota
+      description: Transitions the quota status from Exceeded back to Normal.
+      responses:
+        "200":
+          description: Quota transitioned to Normal
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        $ref: "#/components/schemas/UserQuota"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid state transition
+
+  /user_quotas/count:
+    get:
+      tags: [UserQuotas]
+      summary: Count user quotas
+      operationId: countUserQuotas
+      responses:
+        "200":
+          description: Count
+
+  /user_quotas/trash:
+    get:
+      tags: [UserQuotas]
+      summary: List deleted quotas
+      operationId: listDeletedUserQuotas
+      responses:
+        "200":
+          description: Deleted quotas
+
+  /user_quotas/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [UserQuotas]
+      summary: Restore deleted quota
+      operationId: restoreDeletedUserQuota
+      responses:
+        "200":
+          description: Quota restored
+
+  # -------------------------------------------------------------------------
+  # Access Logs
+  # -------------------------------------------------------------------------
+  /access_logs:
+    get:
+      tags: [AccessLogs]
+      summary: List access logs
+      operationId: listAccessLogs
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/SortParam"
+        - $ref: "#/components/parameters/OrderParam"
+      responses:
+        "200":
+          description: Paginated list of access logs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AccessLog"
+    post:
+      tags: [AccessLogs]
+      summary: Create an access log
+      operationId: createAccessLog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccessLog"
+      responses:
+        "201":
+          description: Log created
+
+  /access_logs/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    get:
+      tags: [AccessLogs]
+      summary: Get access log
+      operationId: getAccessLog
+      responses:
+        "200":
+          description: Log details
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [AccessLogs]
+      summary: Delete access log
+      operationId: deleteAccessLog
+      responses:
+        "204":
+          description: Log deleted
+
+  /access_logs/count:
+    get:
+      tags: [AccessLogs]
+      summary: Count access logs
+      operationId: countAccessLogs
+      responses:
+        "200":
+          description: Count
+
+# ===========================================================================
+# Components
+# ===========================================================================
+components:
+  # -------------------------------------------------------------------------
+  # Security Schemes
+  # -------------------------------------------------------------------------
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # -------------------------------------------------------------------------
+  # Parameters
+  # -------------------------------------------------------------------------
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Entity UUID
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+      description: Page number
+
+    PerPageParam:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+      description: Items per page
+
+    SortParam:
+      name: sort
+      in: query
+      schema:
+        type: string
+      description: Sort field name
+
+    OrderParam:
+      name: order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+      description: Sort direction
+
+    SearchParam:
+      name: search
+      in: query
+      schema:
+        type: string
+      description: Full-text search query
+
+  # -------------------------------------------------------------------------
+  # Responses
+  # -------------------------------------------------------------------------
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Conflict:
+      description: Resource conflict (duplicate)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  # -------------------------------------------------------------------------
+  # Schemas
+  # -------------------------------------------------------------------------
+  schemas:
+    # --- Common ---
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+    ResponseMeta:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+              format: int64
+            total_pages:
+              type: integer
+
+    AuditMetadata:
+      type: object
+      description: Audit metadata stored as JSONB
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: uuid
+        updated_by:
+          type: string
+          format: uuid
+        deleted_by:
+          type: string
+          format: uuid
+
+    # --- Enums ---
+    BucketType:
+      type: string
+      enum: [user, shared, system, temp]
+
+    BucketStatus:
+      type: string
+      enum: [active, readonly, archived, deleted]
+
+    StorageBackend:
+      type: string
+      enum: [local, s3, minio, gcs]
+
+    HashAlgorithm:
+      type: string
+      enum: [sha256, md5, xxhash]
+
+    ConversionStatus:
+      type: string
+      enum: [pending, processing, completed, failed]
+
+    ConversionType:
+      type: string
+      enum: [image_to_image, document_to_pdf, video_to_video, audio_to_audio]
+
+    CommentStatus:
+      type: string
+      enum: [active, resolved, deleted, archived]
+
+    LockStatus:
+      type: string
+      enum: [active, expired, released]
+
+    ShareType:
+      type: string
+      enum: [user, link, password]
+
+    ShareStatus:
+      type: string
+      enum: [active, expired, exhausted, revoked]
+
+    SharePermission:
+      type: string
+      enum: [private, view, edit, full]
+
+    VersionType:
+      type: string
+      enum: [upload, replace, edit, restore, auto_save]
+
+    ProcessingJobType:
+      type: string
+      enum: [thumbnail_generation, video_thumbnail, document_preview, compression, virus_scan, deduplication_check]
+
+    JobStatus:
+      type: string
+      enum: [pending, running, completed, failed, cancelled]
+
+    FileStatus:
+      type: string
+      enum: [uploading, processing, active, quarantined, deleted, purged]
+
+    ThreatLevel:
+      type: string
+      enum: [safe, low, medium, high, critical]
+
+    AccessAction:
+      type: string
+      enum: [download, view, preview]
+
+    ProcessingStatus:
+      type: string
+      enum: [pending, processing, thumbnails_ready, scan_complete, complete, failed]
+
+    ThumbnailSize:
+      type: string
+      enum: [tiny, small, medium, large, xlarge]
+
+    UploadStatus:
+      type: string
+      enum: [initiated, uploading, completing, completed, expired, failed]
+
+    QuotaStatus:
+      type: string
+      enum: [normal, exceeded]
+
+    # --- Entity: Bucket ---
+    Bucket:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        bucket_type:
+          $ref: "#/components/schemas/BucketType"
+        status:
+          $ref: "#/components/schemas/BucketStatus"
+        storage_backend:
+          $ref: "#/components/schemas/StorageBackend"
+        root_path:
+          type: string
+        file_count:
+          type: integer
+          format: int32
+        total_size_bytes:
+          type: integer
+          format: int64
+        max_file_size:
+          type: integer
+          format: int64
+          nullable: true
+        allowed_mime_types:
+          type: array
+          items:
+            type: string
+        auto_delete_after_days:
+          type: integer
+          format: int32
+          nullable: true
+        enable_cdn:
+          type: boolean
+        enable_versioning:
+          type: boolean
+        enable_deduplication:
+          type: boolean
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateBucket:
+      type: object
+      required: [name, slug, owner_id, bucket_type, status, storage_backend, root_path, allowed_mime_types, enable_cdn, enable_versioning, enable_deduplication, metadata]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        bucket_type:
+          $ref: "#/components/schemas/BucketType"
+        status:
+          $ref: "#/components/schemas/BucketStatus"
+        storage_backend:
+          $ref: "#/components/schemas/StorageBackend"
+        root_path:
+          type: string
+        file_count:
+          type: integer
+          format: int32
+          default: 0
+        total_size_bytes:
+          type: integer
+          format: int64
+          default: 0
+        max_file_size:
+          type: integer
+          format: int64
+          nullable: true
+        allowed_mime_types:
+          type: array
+          items:
+            type: string
+          description: Empty array allows all MIME types
+        auto_delete_after_days:
+          type: integer
+          format: int32
+          nullable: true
+        enable_cdn:
+          type: boolean
+        enable_versioning:
+          type: boolean
+        enable_deduplication:
+          type: boolean
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchBucket:
+      type: object
+      description: All fields optional for partial update
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        owner_id:
+          type: string
+          format: uuid
+        bucket_type:
+          $ref: "#/components/schemas/BucketType"
+        status:
+          $ref: "#/components/schemas/BucketStatus"
+        storage_backend:
+          $ref: "#/components/schemas/StorageBackend"
+        root_path:
+          type: string
+        file_count:
+          type: integer
+          format: int32
+        total_size_bytes:
+          type: integer
+          format: int64
+        max_file_size:
+          type: integer
+          format: int64
+        allowed_mime_types:
+          type: array
+          items:
+            type: string
+        auto_delete_after_days:
+          type: integer
+          format: int32
+        enable_cdn:
+          type: boolean
+        enable_versioning:
+          type: boolean
+        enable_deduplication:
+          type: boolean
+
+    # --- Entity: StoredFile ---
+    StoredFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bucket_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        path:
+          type: string
+        original_name:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        mime_type:
+          type: string
+        checksum:
+          type: string
+          nullable: true
+        is_compressed:
+          type: boolean
+        original_size:
+          type: integer
+          format: int64
+          nullable: true
+        compression_algorithm:
+          type: string
+          nullable: true
+        is_scanned:
+          type: boolean
+        scan_result:
+          type: object
+          nullable: true
+          description: JSON scan result data
+        threat_level:
+          $ref: "#/components/schemas/ThreatLevel"
+        has_thumbnail:
+          type: boolean
+        thumbnail_path:
+          type: string
+          nullable: true
+        has_video_thumbnail:
+          type: boolean
+        has_document_preview:
+          type: boolean
+        processing_status:
+          $ref: "#/components/schemas/ProcessingStatus"
+        content_hash_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Link to deduplication content hash
+        cdn_url:
+          type: string
+          nullable: true
+          description: Cached CDN URL
+        cdn_url_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/FileStatus"
+        storage_key:
+          type: string
+        version:
+          type: integer
+          format: int32
+        previous_version_id:
+          type: string
+          format: uuid
+          nullable: true
+        download_count:
+          type: integer
+          format: int32
+        last_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateStoredFile:
+      type: object
+      required: [bucket_id, owner_id, path, original_name, size_bytes, mime_type, status, storage_key, metadata]
+      properties:
+        bucket_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        path:
+          type: string
+        original_name:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        mime_type:
+          type: string
+        checksum:
+          type: string
+          nullable: true
+        is_compressed:
+          type: boolean
+          default: false
+        original_size:
+          type: integer
+          format: int64
+          nullable: true
+        compression_algorithm:
+          type: string
+          nullable: true
+        is_scanned:
+          type: boolean
+          default: false
+        scan_result:
+          type: object
+          nullable: true
+        threat_level:
+          $ref: "#/components/schemas/ThreatLevel"
+        has_thumbnail:
+          type: boolean
+          default: false
+        thumbnail_path:
+          type: string
+          nullable: true
+        has_video_thumbnail:
+          type: boolean
+          default: false
+        has_document_preview:
+          type: boolean
+          default: false
+        processing_status:
+          $ref: "#/components/schemas/ProcessingStatus"
+        content_hash_id:
+          type: string
+          format: uuid
+          nullable: true
+        cdn_url:
+          type: string
+          nullable: true
+        cdn_url_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/FileStatus"
+        storage_key:
+          type: string
+        version:
+          type: integer
+          format: int32
+          default: 1
+        previous_version_id:
+          type: string
+          format: uuid
+          nullable: true
+        download_count:
+          type: integer
+          format: int32
+          default: 0
+        last_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchStoredFile:
+      type: object
+      description: All fields optional for partial update
+      properties:
+        bucket_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        path:
+          type: string
+        original_name:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        mime_type:
+          type: string
+        checksum:
+          type: string
+        is_compressed:
+          type: boolean
+        is_scanned:
+          type: boolean
+        scan_result:
+          type: object
+        threat_level:
+          $ref: "#/components/schemas/ThreatLevel"
+        has_thumbnail:
+          type: boolean
+        has_video_thumbnail:
+          type: boolean
+        has_document_preview:
+          type: boolean
+        processing_status:
+          $ref: "#/components/schemas/ProcessingStatus"
+        content_hash_id:
+          type: string
+          format: uuid
+        cdn_url:
+          type: string
+        cdn_url_expires_at:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/FileStatus"
+        storage_key:
+          type: string
+        version:
+          type: integer
+          format: int32
+        download_count:
+          type: integer
+          format: int32
+
+    # --- Entity: FileVersion ---
+    FileVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+          format: uuid
+        version_number:
+          type: integer
+          format: int32
+        version_type:
+          $ref: "#/components/schemas/VersionType"
+        storage_key:
+          type: string
+        storage_backend:
+          type: string
+        name:
+          type: string
+        mime_type:
+          type: string
+        checksum_md5:
+          type: string
+          nullable: true
+        checksum_sha256:
+          type: string
+          nullable: true
+        created_by_id:
+          type: string
+          format: uuid
+        change_summary:
+          type: string
+          nullable: true
+        is_current:
+          type: boolean
+        restored_from_id:
+          type: string
+          format: uuid
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_deleted:
+          type: boolean
+        size_bytes:
+          type: integer
+          format: int64
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateFileVersion:
+      type: object
+      required: [file_id, version_number, version_type, storage_key, storage_backend, name, mime_type, created_by_id, size_bytes, metadata]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        version_number:
+          type: integer
+          format: int32
+        version_type:
+          $ref: "#/components/schemas/VersionType"
+        storage_key:
+          type: string
+        storage_backend:
+          type: string
+        name:
+          type: string
+        mime_type:
+          type: string
+        checksum_md5:
+          type: string
+          nullable: true
+        checksum_sha256:
+          type: string
+          nullable: true
+        created_by_id:
+          type: string
+          format: uuid
+        change_summary:
+          type: string
+          nullable: true
+        is_current:
+          type: boolean
+          default: true
+        restored_from_id:
+          type: string
+          format: uuid
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_deleted:
+          type: boolean
+          default: false
+        size_bytes:
+          type: integer
+          format: int64
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchFileVersion:
+      type: object
+      properties:
+        version_type:
+          $ref: "#/components/schemas/VersionType"
+        name:
+          type: string
+        change_summary:
+          type: string
+        is_current:
+          type: boolean
+        is_deleted:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+
+    # --- Entity: FileShare ---
+    FileShare:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        token:
+          type: string
+          description: Unique share token for access
+        share_type:
+          $ref: "#/components/schemas/ShareType"
+        permission:
+          $ref: "#/components/schemas/SharePermission"
+        shared_with:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of user IDs with access
+        password_hash:
+          type: string
+          nullable: true
+        max_downloads:
+          type: integer
+          format: int32
+          nullable: true
+        download_count:
+          type: integer
+          format: int32
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        share_status:
+          $ref: "#/components/schemas/ShareStatus"
+        is_active:
+          type: boolean
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked_by:
+          type: string
+          format: uuid
+          nullable: true
+        message:
+          type: string
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateFileShare:
+      type: object
+      required: [file_id, owner_id, token, share_type, permission, shared_with, share_status, metadata]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        token:
+          type: string
+        share_type:
+          $ref: "#/components/schemas/ShareType"
+        permission:
+          $ref: "#/components/schemas/SharePermission"
+        shared_with:
+          type: array
+          items:
+            type: string
+            format: uuid
+        password_hash:
+          type: string
+          nullable: true
+        max_downloads:
+          type: integer
+          format: int32
+          nullable: true
+        download_count:
+          type: integer
+          format: int32
+          default: 0
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        share_status:
+          $ref: "#/components/schemas/ShareStatus"
+        is_active:
+          type: boolean
+          default: true
+        message:
+          type: string
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchFileShare:
+      type: object
+      properties:
+        share_type:
+          $ref: "#/components/schemas/ShareType"
+        permission:
+          $ref: "#/components/schemas/SharePermission"
+        shared_with:
+          type: array
+          items:
+            type: string
+            format: uuid
+        password_hash:
+          type: string
+        max_downloads:
+          type: integer
+          format: int32
+        expires_at:
+          type: string
+          format: date-time
+        share_status:
+          $ref: "#/components/schemas/ShareStatus"
+        is_active:
+          type: boolean
+        message:
+          type: string
+
+    # --- Entity: FileLock ---
+    FileLock:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        locked_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        refreshed_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/LockStatus"
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateFileLock:
+      type: object
+      required: [file_id, user_id, locked_at, expires_at, status, metadata]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        locked_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        refreshed_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/LockStatus"
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchFileLock:
+      type: object
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+        refreshed_at:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/LockStatus"
+
+    # --- Entity: FileComment ---
+    FileComment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        content:
+          type: string
+        annotation_region:
+          type: object
+          nullable: true
+          description: JSON region for annotation position
+        mentions:
+          type: array
+          items:
+            type: string
+            format: uuid
+        resolved:
+          type: boolean
+        resolved_by:
+          type: string
+          format: uuid
+          nullable: true
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/CommentStatus"
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateFileComment:
+      type: object
+      required: [file_id, user_id, content, status, metadata]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        content:
+          type: string
+        annotation_region:
+          type: object
+          nullable: true
+        mentions:
+          type: array
+          items:
+            type: string
+            format: uuid
+          default: []
+        resolved:
+          type: boolean
+          default: false
+        status:
+          $ref: "#/components/schemas/CommentStatus"
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchFileComment:
+      type: object
+      properties:
+        content:
+          type: string
+        annotation_region:
+          type: object
+        mentions:
+          type: array
+          items:
+            type: string
+            format: uuid
+        resolved:
+          type: boolean
+        resolved_by:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/CommentStatus"
+
+    # --- Entity: ContentHash ---
+    ContentHash:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        hash:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        storage_key:
+          type: string
+        storage_backend:
+          $ref: "#/components/schemas/StorageBackend"
+        reference_count:
+          type: integer
+          format: int32
+        first_uploaded_at:
+          type: string
+          format: date-time
+        last_referenced_at:
+          type: string
+          format: date-time
+        fingerprint:
+          type: string
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateContentHash:
+      type: object
+      required: [hash, size_bytes, storage_key, storage_backend, first_uploaded_at, last_referenced_at, metadata]
+      properties:
+        hash:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        storage_key:
+          type: string
+        storage_backend:
+          $ref: "#/components/schemas/StorageBackend"
+        reference_count:
+          type: integer
+          format: int32
+          default: 1
+        first_uploaded_at:
+          type: string
+          format: date-time
+        last_referenced_at:
+          type: string
+          format: date-time
+        fingerprint:
+          type: string
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchContentHash:
+      type: object
+      properties:
+        reference_count:
+          type: integer
+          format: int32
+        last_referenced_at:
+          type: string
+          format: date-time
+        fingerprint:
+          type: string
+
+    # --- Entity: UploadSession ---
+    UploadSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bucket_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        path:
+          type: string
+        filename:
+          type: string
+        mime_type:
+          type: string
+          nullable: true
+        file_size:
+          type: integer
+          format: int64
+        chunk_size:
+          type: integer
+          format: int32
+        total_chunks:
+          type: integer
+          format: int32
+        uploaded_chunks:
+          type: integer
+          format: int32
+        status:
+          $ref: "#/components/schemas/UploadStatus"
+        storage_backend:
+          $ref: "#/components/schemas/StorageBackend"
+        completed_parts:
+          type: array
+          items:
+            type: integer
+            format: int32
+        part_etags:
+          type: object
+          nullable: true
+          description: JSON map of part numbers to ETags
+        expires_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateUploadSession:
+      type: object
+      required: [bucket_id, user_id, path, filename, file_size, chunk_size, total_chunks, status, storage_backend, expires_at, metadata]
+      properties:
+        bucket_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        path:
+          type: string
+        filename:
+          type: string
+        mime_type:
+          type: string
+          nullable: true
+        file_size:
+          type: integer
+          format: int64
+        chunk_size:
+          type: integer
+          format: int32
+        total_chunks:
+          type: integer
+          format: int32
+        uploaded_chunks:
+          type: integer
+          format: int32
+          default: 0
+        status:
+          $ref: "#/components/schemas/UploadStatus"
+        storage_backend:
+          $ref: "#/components/schemas/StorageBackend"
+        completed_parts:
+          type: array
+          items:
+            type: integer
+            format: int32
+          default: []
+        part_etags:
+          type: object
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchUploadSession:
+      type: object
+      properties:
+        uploaded_chunks:
+          type: integer
+          format: int32
+        status:
+          $ref: "#/components/schemas/UploadStatus"
+        completed_parts:
+          type: array
+          items:
+            type: integer
+            format: int32
+        part_etags:
+          type: object
+        expires_at:
+          type: string
+          format: date-time
+
+    # --- Entity: ConversionJob ---
+    ConversionJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_file_id:
+          type: string
+          format: uuid
+        target_format:
+          type: string
+        status:
+          $ref: "#/components/schemas/ConversionStatus"
+        conversion_options:
+          type: object
+          nullable: true
+        result_file_id:
+          type: string
+          format: uuid
+          nullable: true
+        progress:
+          type: integer
+          format: int32
+          description: Progress percentage (0-100)
+        error_message:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateConversionJob:
+      type: object
+      required: [source_file_id, target_format, status, metadata]
+      properties:
+        source_file_id:
+          type: string
+          format: uuid
+        target_format:
+          type: string
+        status:
+          $ref: "#/components/schemas/ConversionStatus"
+        conversion_options:
+          type: object
+          nullable: true
+        result_file_id:
+          type: string
+          format: uuid
+          nullable: true
+        progress:
+          type: integer
+          format: int32
+          default: 0
+        error_message:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchConversionJob:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ConversionStatus"
+        result_file_id:
+          type: string
+          format: uuid
+        progress:
+          type: integer
+          format: int32
+        error_message:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    # --- Entity: ProcessingJob ---
+    ProcessingJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+          format: uuid
+        job_type:
+          $ref: "#/components/schemas/ProcessingJobType"
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        priority:
+          type: integer
+          format: int32
+        input_data:
+          type: object
+          nullable: true
+        result_data:
+          type: object
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        retry_count:
+          type: integer
+          format: int32
+        max_retries:
+          type: integer
+          format: int32
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateProcessingJob:
+      type: object
+      required: [file_id, job_type, status, metadata]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        job_type:
+          $ref: "#/components/schemas/ProcessingJobType"
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        priority:
+          type: integer
+          format: int32
+          default: 0
+        input_data:
+          type: object
+          nullable: true
+        result_data:
+          type: object
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        retry_count:
+          type: integer
+          format: int32
+          default: 0
+        max_retries:
+          type: integer
+          format: int32
+          default: 3
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchProcessingJob:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        priority:
+          type: integer
+          format: int32
+        result_data:
+          type: object
+        error_message:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        retry_count:
+          type: integer
+          format: int32
+
+    # --- Entity: Thumbnail ---
+    Thumbnail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+          format: uuid
+        size:
+          $ref: "#/components/schemas/ThumbnailSize"
+        width:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        storage_key:
+          type: string
+        storage_backend:
+          type: string
+        mime_type:
+          type: string
+        format:
+          type: string
+        quality:
+          type: integer
+          format: int32
+        size_bytes:
+          type: integer
+          format: int64
+        generated_at:
+          type: string
+          format: date-time
+        generation_time_ms:
+          type: integer
+          format: int32
+          nullable: true
+        source_version:
+          type: integer
+          format: int32
+        cdn_url:
+          type: string
+          nullable: true
+        cache_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_stale:
+          type: boolean
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateThumbnail:
+      type: object
+      required: [file_id, size, width, height, storage_key, storage_backend, mime_type, format, quality, size_bytes, generated_at, source_version, metadata]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        size:
+          $ref: "#/components/schemas/ThumbnailSize"
+        width:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        storage_key:
+          type: string
+        storage_backend:
+          type: string
+        mime_type:
+          type: string
+        format:
+          type: string
+        quality:
+          type: integer
+          format: int32
+        size_bytes:
+          type: integer
+          format: int64
+        generated_at:
+          type: string
+          format: date-time
+        generation_time_ms:
+          type: integer
+          format: int32
+          nullable: true
+        source_version:
+          type: integer
+          format: int32
+        cdn_url:
+          type: string
+          nullable: true
+        cache_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_stale:
+          type: boolean
+          default: false
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchThumbnail:
+      type: object
+      properties:
+        cdn_url:
+          type: string
+        cache_expires_at:
+          type: string
+          format: date-time
+        is_stale:
+          type: boolean
+
+    # --- Entity: UserQuota ---
+    UserQuota:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        limit_bytes:
+          type: integer
+          format: int64
+        used_bytes:
+          type: integer
+          format: int64
+        file_count:
+          type: integer
+          format: int32
+        max_file_size:
+          type: integer
+          format: int64
+          nullable: true
+        max_file_count:
+          type: integer
+          format: int32
+          nullable: true
+        tier:
+          type: string
+          description: "User tier: free, pro, enterprise, etc."
+        quota_status:
+          $ref: "#/components/schemas/QuotaStatus"
+        warning_threshold_percent:
+          type: integer
+          format: int32
+          description: Warning at this usage percentage
+        last_warning_sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        peak_usage_bytes:
+          type: integer
+          format: int64
+        peak_usage_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateUserQuota:
+      type: object
+      required: [user_id, limit_bytes, tier, quota_status, warning_threshold_percent, metadata]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        limit_bytes:
+          type: integer
+          format: int64
+        used_bytes:
+          type: integer
+          format: int64
+          default: 0
+        file_count:
+          type: integer
+          format: int32
+          default: 0
+        max_file_size:
+          type: integer
+          format: int64
+          nullable: true
+        max_file_count:
+          type: integer
+          format: int32
+          nullable: true
+        tier:
+          type: string
+        quota_status:
+          $ref: "#/components/schemas/QuotaStatus"
+        warning_threshold_percent:
+          type: integer
+          format: int32
+        last_warning_sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        peak_usage_bytes:
+          type: integer
+          format: int64
+          default: 0
+        peak_usage_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    PatchUserQuota:
+      type: object
+      properties:
+        limit_bytes:
+          type: integer
+          format: int64
+        used_bytes:
+          type: integer
+          format: int64
+        file_count:
+          type: integer
+          format: int32
+        max_file_size:
+          type: integer
+          format: int64
+        max_file_count:
+          type: integer
+          format: int32
+        tier:
+          type: string
+        quota_status:
+          $ref: "#/components/schemas/QuotaStatus"
+        warning_threshold_percent:
+          type: integer
+          format: int32
+
+    # --- Entity: AccessLog ---
+    AccessLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+          format: uuid
+        bucket_id:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          $ref: "#/components/schemas/AccessAction"
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        share_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_owner:
+          type: boolean
+        is_shared:
+          type: boolean
+        is_public:
+          type: boolean
+        ip_address:
+          type: string
+          nullable: true
+        user_agent:
+          type: string
+          nullable: true
+        referer:
+          type: string
+          nullable: true
+        country_code:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        bytes_transferred:
+          type: integer
+          format: int64
+          nullable: true
+        duration_ms:
+          type: integer
+          format: int32
+          nullable: true
+        success:
+          type: boolean
+        error_message:
+          type: string
+          nullable: true
+        accessed_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+    CreateAccessLog:
+      type: object
+      required: [file_id, action, accessed_at, metadata]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        bucket_id:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          $ref: "#/components/schemas/AccessAction"
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        share_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_owner:
+          type: boolean
+          default: false
+        is_shared:
+          type: boolean
+          default: false
+        is_public:
+          type: boolean
+          default: false
+        ip_address:
+          type: string
+          nullable: true
+        user_agent:
+          type: string
+          nullable: true
+        referer:
+          type: string
+          nullable: true
+        country_code:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        bytes_transferred:
+          type: integer
+          format: int64
+          nullable: true
+        duration_ms:
+          type: integer
+          format: int32
+          nullable: true
+        success:
+          type: boolean
+          default: true
+        error_message:
+          type: string
+          nullable: true
+        accessed_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: "#/components/schemas/AuditMetadata"
+
+# Global security
+security:
+  - BearerAuth: []
