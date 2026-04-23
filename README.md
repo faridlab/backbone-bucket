@@ -180,21 +180,49 @@ export DATABASE_URL="postgresql://root:password@localhost:5432/bucket"
 ### 3. Use the Module
 
 ```rust
-use backbone_bucket::BucketModule;
+use std::sync::Arc;
+use backbone_bucket::{BucketModule, storage::{ObjectStorage, S3Storage}};
 
 // Create module instance with builder pattern
+let storage: Arc<dyn ObjectStorage> = Arc::new(S3Storage::new(s3_cfg, serving_cfg)?);
 let module = BucketModule::builder()
     .with_database(pool)
-    .with_config(config)
+    .with_config(bucket_config)
+    .with_storage(storage)
     .build()?;
 
-// Get HTTP routes
-let routes = module.routes();
+// 12-endpoint CRUD router
+let crud = module.crud_router();
 
-// Get services
-let bucket_service = module.bucket_service();
-let file_service = module.stored_file_service();
+// Mode-B auth-aware file serving router (consumer supplies AuthExtractor + AuthzPolicy)
+let serving = module.serving_router::<MyUser>(Arc::new(MyPolicy))?;
 ```
+
+See [docs/serving.md](docs/serving.md) for the full serving surface
+(storage backends, config shape, pluggable auth, key naming).
+
+## File Serving
+
+Beyond CRUD, the module exposes a **mode-B serving router** that
+resolves pretty URLs like `bucket.example.com/product/image/foo.jpg`
+to auth-enforced redirects (or streamed bytes, or JSON). Three
+response strategies are supported via [`ServingMode`]:
+
+| Mode | Response | When to use |
+|---|---|---|
+| `Redirect` (default) | 302 → short-lived presigned URL | Production; lowest service bandwidth |
+| `Stream` | Bytes proxied through the service | `LocalStorage` dev, CORS-restricted clients |
+| `SignedUrl` | `{"url": "..."}` JSON | Clients that want the URL without a redirect |
+
+Storage is pluggable via `Arc<dyn ObjectStorage>`. Two backends ship:
+
+- **`LocalStorage`** — filesystem, module-signed HMAC URLs. Dev / single-node.
+- **`S3Storage`** — AWS S3 / MinIO via `aws-sdk-s3`, real SigV4 presigned URLs. Default `s3` feature.
+
+Auth is pluggable via `AuthExtractor` + `AuthzPolicy` traits — the
+module does not own identity. See [docs/serving.md](docs/serving.md)
+and [examples/serving/main.rs](examples/serving/main.rs) for the full
+wiring.
 
 ## API Endpoints
 
