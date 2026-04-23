@@ -4,6 +4,11 @@
 //!
 //! Manages CDN URL generation and caching for stored files.
 //! Provides signed URL generation with configurable expiry.
+//!
+//! The whole surface is `#[deprecated]` (see [`CdnService`]); allow
+//! directives below are narrowed to the `impl` that references the
+//! deprecated type to avoid self-referential warnings while still
+//! flagging any unrelated deprecated usage.
 
 use std::sync::Arc;
 
@@ -27,11 +32,25 @@ const CDN_SECRET_ENV: &str = "CDN_SIGNING_SECRET";
 const DEFAULT_CDN_SECRET: &str = "bucket-cdn-dev-secret-change-in-production";
 
 /// Service for managing CDN URLs for stored files.
+///
+/// # Deprecated
+///
+/// Signs URLs with a raw module-local HMAC scheme, which is not
+/// compatible with S3/MinIO clients and cannot be validated by a
+/// reverse proxy. Use [`crate::storage::ObjectStorage::presigned_get`]
+/// instead — it emits real SigV4 URLs for S3/MinIO and signed
+/// module-local URLs for `LocalStorage`.
+///
+/// Scheduled for removal in a later release (see `docs/serving.md`).
+#[deprecated(
+    note = "HMAC-signed CDN URLs are not S3-compatible. Use ObjectStorage::presigned_get for real SigV4 URLs."
+)]
 pub struct CdnService {
     file_repo: Arc<StoredFileRepository>,
     bucket_repo: Arc<BucketRepository>,
 }
 
+#[allow(deprecated)]
 impl CdnService {
     pub fn new(
         file_repo: Arc<StoredFileRepository>,

@@ -21,6 +21,24 @@ pub mod application;
 pub mod presentation;
 pub mod seeders;
 
+// <<< CUSTOM - bucket-serving surface (see docs/serving.md)
+pub mod error;
+pub mod storage;
+pub mod auth;
+pub mod config;
+
+pub use error::{BucketError, BucketResult};
+pub use config::{BucketConfig, S3Config, ServingConfig, ServingMode, StorageConfig};
+pub use storage::{ObjectMeta, ObjectStorage, LocalStorage};
+#[cfg(feature = "s3")]
+pub use storage::S3Storage;
+pub use auth::{
+    ArcAuthzPolicy, AuthExtractor, AuthzDecision, AuthzPolicy, DefaultOwnerOnlyPolicy, HasOwnerId,
+};
+pub use application::service::{FileMeta, FileService};
+pub use presentation::http::{lookup_by_key as lookup_file_by_key, serving_router, ServingContext};
+// END CUSTOM
+
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
 
@@ -55,6 +73,7 @@ pub use application::service::LockingService;
 pub use application::service::DeduplicationService;
 pub use application::service::MultipartUploadService;
 pub use application::service::ConversionService;
+#[allow(deprecated)]
 pub use application::service::CdnService;
 pub use application::service::VideoThumbnailService;
 pub use application::service::DocumentPreviewService;
@@ -104,9 +123,19 @@ pub struct BucketModule {
     pub deduplication_service: Arc<DeduplicationService>,
     pub multipart_upload_service: Arc<MultipartUploadService>,
     pub conversion_service: Arc<ConversionService>,
+    #[allow(deprecated)]
     pub cdn_service: Arc<CdnService>,
     pub video_thumbnail_service: Arc<VideoThumbnailService>,
     pub document_preview_service: Arc<DocumentPreviewService>,
+    /// Storage backend (mode-B serving + uploads). None until `.with_storage()` is called.
+    pub storage: Option<Arc<dyn ObjectStorage>>,
+    /// Bucket-module config (storage + serving). None until `.with_config()` is called.
+    pub bucket_config: Option<Arc<BucketConfig>>,
+    /// High-level file operations service, wired when both `storage` and `bucket_config` are set.
+    pub file_service: Option<Arc<FileService>>,
+    /// Direct handle to the StoredFile repository — used by the mode-B
+    /// serving handler to look up files by `storage_key`.
+    pub stored_file_repository: Arc<infrastructure::persistence::StoredFileRepository>,
     // END CUSTOM
 }
 
@@ -156,6 +185,10 @@ impl BucketModule {
 /// Builder for BucketModule
 pub struct BucketModuleBuilder {
     db_pool: Option<PgPool>,
+    // <<< CUSTOM - bucket-serving fields (see docs/serving.md)
+    storage: Option<Arc<dyn ObjectStorage>>,
+    bucket_config: Option<BucketConfig>,
+    // END CUSTOM
 }
 
 impl BucketModuleBuilder {
@@ -163,6 +196,10 @@ impl BucketModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
+            // <<< CUSTOM
+            storage: None,
+            bucket_config: None,
+            // END CUSTOM
         }
     }
 
@@ -171,6 +208,22 @@ impl BucketModuleBuilder {
         self.db_pool = Some(pool);
         self
     }
+
+    // <<< CUSTOM - bucket-serving builder methods (see docs/serving.md)
+
+    /// Attach the bucket-module runtime config (storage + serving).
+    pub fn with_config(mut self, config: BucketConfig) -> Self {
+        self.bucket_config = Some(config);
+        self
+    }
+
+    /// Attach the object-storage backend (`LocalStorage`, `S3Storage`, …).
+    pub fn with_storage(mut self, storage: Arc<dyn ObjectStorage>) -> Self {
+        self.storage = Some(storage);
+        self
+    }
+
+    // END CUSTOM
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<BucketModule> {
@@ -241,6 +294,7 @@ impl BucketModuleBuilder {
         let conversion_service = Arc::new(ConversionService::new(
             conversion_job_repository, stored_file_repository.clone(),
         ));
+        #[allow(deprecated)]
         let cdn_service = Arc::new(CdnService::new(
             stored_file_repository.clone(), bucket_repository,
         ));
@@ -248,11 +302,21 @@ impl BucketModuleBuilder {
             processing_job_repository.clone(), thumbnail_repository.clone(), stored_file_repository.clone(),
         ));
         let document_preview_service = Arc::new(DocumentPreviewService::new(
-            processing_job_repository, thumbnail_repository, stored_file_repository,
+            processing_job_repository, thumbnail_repository, stored_file_repository.clone(),
         ));
         // END CUSTOM
 
-        // <<< CUSTOM
+        // <<< CUSTOM - bucket-serving wiring (see docs/serving.md)
+        let bucket_config = self.bucket_config.map(Arc::new);
+        let storage = self.storage;
+        let file_service = match (&storage, &bucket_config) {
+            (Some(s), Some(c)) => Some(Arc::new(FileService::new(
+                s.clone(),
+                stored_file_repository.clone(),
+                c.clone(),
+            ))),
+            _ => None,
+        };
         // END CUSTOM
 
         Ok(BucketModule {
@@ -277,6 +341,10 @@ impl BucketModuleBuilder {
             cdn_service,
             video_thumbnail_service,
             document_preview_service,
+            storage,
+            bucket_config,
+            file_service,
+            stored_file_repository,
             // END CUSTOM
         })
     }
