@@ -20,6 +20,7 @@ pub mod upload_session_handler;
 pub mod user_quota_handler;
 
 // <<< CUSTOM
+pub mod serving;
 // END CUSTOM
 
 // Re-exports
@@ -37,4 +38,5 @@ pub use thumbnail_handler::create_thumbnail_routes;
 pub use upload_session_handler::create_upload_session_routes;
 pub use user_quota_handler::create_user_quota_routes;
 // <<< CUSTOM
+pub use serving::{lookup_by_key, serving_router, ServingContext};
 // END CUSTOM
