@@ -50,6 +50,15 @@ hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
 
+# Mode-B serving + ObjectStorage trait
+bytes = "1.5"
+url = { version = "2.5", features = ["serde"] }
+
+# AWS SigV4 signing (feature-gated via `s3`)
+aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
+aws-sdk-s3 = { version = "1.60", optional = true }
+aws-credential-types = { version = "1.2", optional = true }
+
 # Random generation
 rand = "0.8"
 
@@ -73,13 +82,15 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 async-graphql = { version = "7", optional = true }
 
 [features]
-default = []
+default = ["s3"]
 events = []
 auth = []
 grpc = []
 openapi = []
 validation = []
 graphql = ["dep:async-graphql"]
+# S3/MinIO backend via aws-sdk-s3 (real SigV4).
+s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:aws-credential-types"]
 
 [build-dependencies]
 tonic-build = "0.12"
