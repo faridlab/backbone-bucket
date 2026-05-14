@@ -25,7 +25,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{routing::get, Json, Router};
 use serde_json::json;
 
-use crate::auth::{ArcAuthzPolicy, AuthExtractor};
+use crate::auth::{ArcAuthzPolicy, AuthExtractor, HasOwnerId};
 use crate::config::{BucketConfig, ServingMode};
 use crate::domain::entity::StoredFile;
 use crate::error::{BucketError, BucketResult};
@@ -77,7 +77,7 @@ where
 /// request to produce the identity that flows into the authz policy.
 pub fn serving_router<A>(ctx: ServingContext<A>) -> Router
 where
-    A: AuthExtractor<()> + 'static,
+    A: AuthExtractor<()> + HasOwnerId + 'static,
     A::Rejection: IntoResponse,
 {
     Router::new()
@@ -91,7 +91,7 @@ async fn serve_file<A>(
     Path(key): Path<String>,
 ) -> Result<Response, BucketError>
 where
-    A: AuthExtractor<()> + 'static,
+    A: AuthExtractor<()> + HasOwnerId + 'static,
     A::Rejection: IntoResponse,
 {
     let file = lookup_by_key(&ctx.file_repo, &key).await?;
@@ -325,25 +325,44 @@ mod tests {
 
 impl IntoResponse for BucketError {
     fn into_response(self) -> Response {
-        let (status, body) = match &self {
-            BucketError::NotFound => (StatusCode::NOT_FOUND, "not found"),
-            BucketError::Forbidden => (StatusCode::FORBIDDEN, "forbidden"),
-            BucketError::Unauthenticated => (StatusCode::UNAUTHORIZED, "unauthenticated"),
-            BucketError::InvalidSignature => (StatusCode::FORBIDDEN, "invalid signature"),
-            BucketError::Unsupported(_) => {
-                (StatusCode::NOT_IMPLEMENTED, "operation not supported")
+        // 4xx variants carry caller-facing detail; 5xx variants are
+        // collapsed to a generic message to avoid leaking backend
+        // internals. The full error is captured in `tracing` for operators.
+        match &self {
+            BucketError::NotFound => (StatusCode::NOT_FOUND, "not found".to_string()).into_response(),
+            BucketError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".to_string()).into_response(),
+            BucketError::Unauthenticated => {
+                (StatusCode::UNAUTHORIZED, "unauthenticated".to_string()).into_response()
             }
-            // Internal-class errors: never leak backend details to callers.
-            // The full error is captured in tracing for operators.
+            BucketError::InvalidSignature => {
+                (StatusCode::FORBIDDEN, "invalid signature".to_string()).into_response()
+            }
+            BucketError::Unsupported(msg) => (
+                StatusCode::NOT_IMPLEMENTED,
+                format!("operation not supported: {msg}"),
+            )
+                .into_response(),
+            BucketError::InvalidInput(msg) => {
+                (StatusCode::BAD_REQUEST, msg.clone()).into_response()
+            }
+            BucketError::Conflict(msg) => {
+                (StatusCode::CONFLICT, msg.clone()).into_response()
+            }
+            BucketError::PayloadTooLarge(msg) => {
+                (StatusCode::PAYLOAD_TOO_LARGE, msg.clone()).into_response()
+            }
+            BucketError::UnsupportedMediaType(msg) => {
+                (StatusCode::UNSUPPORTED_MEDIA_TYPE, msg.clone()).into_response()
+            }
             BucketError::Config(_)
             | BucketError::Io(_)
             | BucketError::S3(_)
             | BucketError::Url(_)
             | BucketError::Other(_) => {
-                tracing::error!(error = %self, "bucket serving handler failed");
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
+                tracing::error!(error = %self, "bucket handler failed");
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_string())
+                    .into_response()
             }
-        };
-        (status, body).into_response()
+        }
     }
 }
