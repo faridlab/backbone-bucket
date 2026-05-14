@@ -8,5 +8,5 @@ pub mod bucket_config;
 
 pub use app_config::*;
 pub use bucket_config::{
-    BucketConfig, S3Config, ServingConfig, ServingMode, StorageConfig,
+    BucketConfig, ConfigEnvError, S3Config, ServingConfig, ServingMode, StorageConfig,
 };
