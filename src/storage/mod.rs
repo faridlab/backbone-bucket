@@ -38,6 +38,11 @@ pub mod s3;
 #[cfg(feature = "s3")]
 pub use s3::S3Storage;
 
+#[cfg(feature = "test-utils")]
+pub mod memory;
+#[cfg(feature = "test-utils")]
+pub use memory::InMemoryStorage;
+
 /// Metadata returned from `head` without fetching the body.
 #[derive(Debug, Clone)]
 pub struct ObjectMeta {
