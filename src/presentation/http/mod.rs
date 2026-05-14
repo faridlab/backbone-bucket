@@ -21,6 +21,7 @@ pub mod user_quota_handler;
 
 // <<< CUSTOM
 pub mod serving;
+pub mod upload;
 // END CUSTOM
 
 // Re-exports
@@ -39,4 +40,7 @@ pub use upload_session_handler::create_upload_session_routes;
 pub use user_quota_handler::create_user_quota_routes;
 // <<< CUSTOM
 pub use serving::{lookup_by_key, serving_router, ServingContext};
+pub use upload::{
+    upload_router, UploadConfig, UploadContext, DEFAULT_CHUNK_BODY_LIMIT, DEFAULT_UPLOAD_BODY_LIMIT,
+};
 // END CUSTOM
