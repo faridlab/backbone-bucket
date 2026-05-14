@@ -137,6 +137,26 @@ impl MultipartUploadService {
             )));
         }
 
+        // Quota gate. Best-effort: a quota row may not exist for every
+        // user (admin-provisioned, opt-in) — absence means "no limit",
+        // not "deny". When a row exists, hard-reject if completing would
+        // push `used_bytes` past `limit_bytes`. The actual increment
+        // happens in `record_completed_usage` after the bytes land.
+        if let Some(quota) = self
+            .quota_repo
+            .find_by_user_id(user_id)
+            .await
+            .map_err(|e| ServiceError::Repository(backbone_core::RepositoryError::DatabaseError(e.to_string())))?
+        {
+            let projected = quota.used_bytes.saturating_add(session.file_size);
+            if projected > quota.limit_bytes {
+                return Err(ServiceError::Validation(format!(
+                    "user quota exceeded: {} + {} > {} bytes",
+                    quota.used_bytes, session.file_size, quota.limit_bytes
+                )));
+            }
+        }
+
         session.status = UploadStatus::Completing;
         session.metadata.touch();
 
@@ -146,6 +166,63 @@ impl MultipartUploadService {
             .await
             .map_err(|e| ServiceError::Repository(backbone_core::RepositoryError::DatabaseError(e.to_string())))?
             .ok_or(ServiceError::NotFound)
+    }
+
+    /// Check (without mutating) whether `user_id` has capacity for
+    /// `bytes` more. Returns `Ok(())` when there is no quota row (no
+    /// limit configured) or when `used_bytes + bytes <= limit_bytes`.
+    ///
+    /// Called by the single-shot upload handler before writing to
+    /// storage. The resumable flow calls into [`Self::complete`] which
+    /// performs the same check.
+    pub async fn check_capacity(&self, user_id: Uuid, bytes: i64) -> ServiceResult<()> {
+        let Some(quota) = self
+            .quota_repo
+            .find_by_user_id(user_id)
+            .await
+            .map_err(|e| ServiceError::Repository(backbone_core::RepositoryError::DatabaseError(e.to_string())))?
+        else {
+            return Ok(());
+        };
+        let projected = quota.used_bytes.saturating_add(bytes);
+        if projected > quota.limit_bytes {
+            return Err(ServiceError::Validation(format!(
+                "user quota exceeded: {} + {} > {} bytes",
+                quota.used_bytes, bytes, quota.limit_bytes
+            )));
+        }
+        Ok(())
+    }
+
+    /// Record post-upload usage on the user's quota row. Best-effort:
+    /// when no quota row exists this is a no-op. Call AFTER the storage
+    /// `put` and DB row commit succeed.
+    pub async fn record_completed_usage(
+        &self,
+        user_id: Uuid,
+        bytes: i64,
+    ) -> ServiceResult<()> {
+        let Some(mut quota) = self
+            .quota_repo
+            .find_by_user_id(user_id)
+            .await
+            .map_err(|e| ServiceError::Repository(backbone_core::RepositoryError::DatabaseError(e.to_string())))?
+        else {
+            return Ok(());
+        };
+        quota.used_bytes = quota.used_bytes.saturating_add(bytes);
+        quota.file_count = quota.file_count.saturating_add(1);
+        if quota.used_bytes > quota.peak_usage_bytes {
+            quota.peak_usage_bytes = quota.used_bytes;
+            quota.peak_usage_at = Some(Utc::now());
+        }
+        quota.metadata.touch();
+        let id_str = quota.id.to_string();
+        self.quota_repo
+            .update(&id_str, &quota)
+            .await
+            .map_err(|e| ServiceError::Repository(backbone_core::RepositoryError::DatabaseError(e.to_string())))?;
+        Ok(())
     }
 
     pub async fn abort(&self, session_id: Uuid, user_id: Uuid) -> ServiceResult<()> {
