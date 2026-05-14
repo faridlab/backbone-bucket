@@ -51,6 +51,24 @@ pub enum BucketError {
     #[error("url error: {0}")]
     Url(String),
 
+    /// Request payload is invalid (missing required fields, malformed
+    /// input). Maps to HTTP 400.
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
+
+    /// Operation conflicts with current resource state (e.g. uploading
+    /// to a readonly/archived bucket). Maps to HTTP 409.
+    #[error("conflict: {0}")]
+    Conflict(String),
+
+    /// Payload exceeds the allowed size. Maps to HTTP 413.
+    #[error("payload too large: {0}")]
+    PayloadTooLarge(String),
+
+    /// MIME type is not in the bucket's allow-list. Maps to HTTP 415.
+    #[error("unsupported media type: {0}")]
+    UnsupportedMediaType(String),
+
     /// Catch-all for errors outside the above categories.
     #[error("{0}")]
     Other(String),
