@@ -10,9 +10,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Adds the file-serving surface so consumer workspaces (e.g.
 `bersihir-service`) can serve pretty-URL file downloads with auth
 enforcement and real SigV4-signed S3/MinIO URLs. See
-[`docs/serving.md`](docs/serving.md) for the reference.
+[`docs/serving.md`](docs/serving.md) for the reference. This release
+also adds the multipart HTTP upload surface and a set of
+consumer-ergonomics improvements (env-driven config, in-memory test
+double, merged router) drawn from a pre-commit audit.
 
-### Added
+### Added — Multipart HTTP upload
+
+- `BucketModule::upload_router::<A>(UploadConfig)` mounts five routes:
+  `POST /uploads` (single-shot `multipart/form-data`),
+  `POST /uploads/sessions` (initiate resumable),
+  `POST /uploads/sessions/:id/parts/:n` (chunk),
+  `POST /uploads/sessions/:id/complete`,
+  `DELETE /uploads/sessions/:id` (abort).
+- `UploadConfig`, `UploadContext`, `DEFAULT_UPLOAD_BODY_LIMIT` (256 MiB),
+  `DEFAULT_CHUNK_BODY_LIMIT` (16 MiB) re-exported at crate root.
+- `MultipartUploadService::check_capacity` and `record_completed_usage`
+  wire the previously-unused `quota_repo` into the upload lifecycle.
+- OpenAPI 3.0 operations under `/uploads/*` added to
+  `docs/openapi/bucket-v2.yaml`.
+- Hardened against bucket policy violations: every upload entry-point
+  rejects when the bucket is `Readonly` / `Archived` (409), the body
+  exceeds `max_file_size` (413), or the MIME type is not in
+  `allowed_mime_types` (415).
+- `#[tracing::instrument]` spans on every upload handler with body
+  bytes skipped — uploads are visible in production logs without
+  leaking content.
+- New `BucketError` variants `InvalidInput` (400), `Conflict` (409),
+  `PayloadTooLarge` (413), `UnsupportedMediaType` (415). The existing
+  `IntoResponse` mapping routes each variant to the correct status.
+
+### Added — Consumer ergonomics
+
+- `BucketConfig::from_env()` reads the `BUCKET_STORAGE_BACKEND`,
+  `BUCKET_STORAGE_ROOT`, `BUCKET_S3_*`, `BUCKET_SERVING_MODE`, … env
+  vars. `BucketConfig::default()` produces a `LocalStorage` dev shape.
+  Removes the biggest first-time wiring pain point.
+- `BucketModule::router::<A>(RouterOptions)` returns CRUD + upload +
+  serving merged into one Axum router with sensible defaults
+  (`/cdn` as the serving prefix). Granular `crud_router()` /
+  `upload_router()` / `serving_router()` remain for advanced
+  composition.
+- `InMemoryStorage` — full `ObjectStorage` impl backed by a `DashMap`,
+  gated behind the new `test-utils` Cargo feature. Lets consumers test
+  the upload / serving routers without touching the filesystem or S3.
+- `serving_router` now requires the same `AuthExtractor + HasOwnerId`
+  bound as `upload_router`. Consumers implement *one* identity-shape
+  trait, not two.
+- Crate-root re-exports grouped by tier (Essential / Storage / Auth /
+  File ops / HTTP surfaces) with section-header comments — first-time
+  readers can find the public API without grepping.
+- `examples/serving/main.rs` now demonstrates both the merged
+  `bucket.router()` flow and the granular three-call composition.
+
+### Added — File-serving surface (carried over from earlier work)
 
 - `ObjectStorage` trait (`storage::ObjectStorage`) — backend abstraction
   for `put` / `get` / `delete` / `head` / `presigned_get` /
