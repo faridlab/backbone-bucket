@@ -190,3 +190,19 @@ async fn test_user_quota_api() {
     }
 }
 
+// <<< CUSTOM - Multipart HTTP upload tests (custom routes; never regenerated)
+#[tokio::test]
+async fn test_upload_multipart_api() {
+    let mut test = UploadMultipartTest::new();
+    let results = test.run_all().await;
+
+    let failed: Vec<_> = results.iter().filter(|r| !r.success).collect();
+    if !failed.is_empty() {
+        for f in &failed {
+            eprintln!("FAILED: {} - {}", f.test_name, f.details);
+        }
+        panic!("{} tests failed", failed.len());
+    }
+}
+// END CUSTOM
+
