@@ -79,6 +79,8 @@ tags:
     description: Content deduplication
   - name: UploadSessions
     description: Multipart upload management
+  - name: Uploads
+    description: Multipart HTTP binary upload (single-shot and resumable)
   - name: ConversionJobs
     description: File format conversion
   - name: ProcessingJobs
@@ -1276,6 +1278,188 @@ paths:
       responses:
         "200":
           description: Session restored
+
+  # -------------------------------------------------------------------------
+  # Multipart HTTP Uploads (custom — see src/presentation/http/upload.rs)
+  # Routes are mounted by BucketModule::upload_router<A>(config) and are
+  # generic over the consumer's AuthExtractor + HasOwnerId identity. The
+  # examples below assume a Bearer-token auth scheme.
+  # -------------------------------------------------------------------------
+  /uploads:
+    post:
+      tags: [Uploads]
+      summary: Single-shot multipart upload
+      description: |
+        Upload one file in a single `multipart/form-data` request. The
+        whole body must fit under the configured single-shot body limit
+        (default 256 MiB; see `UploadConfig::single_shot_limit`).
+
+        `owner_id` is derived from the authenticated identity, NEVER
+        from the request body.
+      operationId: singleShotUpload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [bucket_id, path, file]
+              properties:
+                bucket_id:
+                  type: string
+                  format: uuid
+                path:
+                  type: string
+                  description: Logical path inside the bucket.
+                storage_key:
+                  type: string
+                  description: |
+                    Optional explicit object key. When omitted, a
+                    UUID-prefixed key is auto-generated.
+                owner_module:
+                  type: string
+                owner_entity:
+                  type: string
+                owner_entity_id:
+                  type: string
+                  format: uuid
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: File created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SingleShotUploadResponse"
+        "400":
+          description: Missing or invalid multipart fields
+        "401":
+          description: Unauthenticated
+        "413":
+          description: Payload exceeds single-shot body limit
+
+  /uploads/sessions:
+    post:
+      tags: [Uploads]
+      summary: Initiate a resumable upload session
+      description: |
+        Allocates an `UploadSession` row and returns the negotiated
+        `chunk_size` / `total_chunks`. The client then PUTs each chunk
+        via `/uploads/sessions/{id}/parts/{part_number}` and finalizes
+        with `/uploads/sessions/{id}/complete`.
+      operationId: initiateUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitiateUploadRequest"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InitiateUploadResponse"
+        "400":
+          description: Validation error (e.g. file_size <= 0)
+        "401":
+          description: Unauthenticated
+
+  /uploads/sessions/{id}/parts/{part_number}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: Upload session identifier.
+      - name: part_number
+        in: path
+        required: true
+        schema: { type: integer, format: int32, minimum: 1 }
+        description: 1-based part index.
+    post:
+      tags: [Uploads]
+      summary: Upload a single chunk
+      description: |
+        Stores the chunk under `sessions/{id}/parts/{part_number:08}` in
+        the configured object storage and records the part on the
+        session. Re-uploading an already-recorded part returns 400.
+      operationId: uploadPart
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [chunk]
+              properties:
+                chunk:
+                  type: string
+                  format: binary
+                  description: |
+                    Chunk bytes. Aliased as `file` for clients that
+                    cannot rename the form field.
+      responses:
+        "200":
+          description: Part accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadPartResponse"
+        "400":
+          description: Part number out of range, already uploaded, or chunk missing
+        "401":
+          description: Unauthenticated
+        "404":
+          description: Session not found or expired
+        "413":
+          description: Chunk exceeds per-chunk body limit
+
+  /uploads/sessions/{id}/complete:
+    parameters:
+      - $ref: "#/components/parameters/IdParam"
+    post:
+      tags: [Uploads]
+      summary: Finalize a resumable upload
+      description: |
+        Assembles the staged parts into the final object, persists a
+        `stored_files` row, deletes the staged parts (best-effort), and
+        marks the session `Completed`. The request body is optional.
+      operationId: completeUploadSession
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteUploadRequest"
+      responses:
+        "201":
+          description: File assembled and persisted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SingleShotUploadResponse"
+        "400":
+          description: Not all parts uploaded
+        "401":
+          description: Unauthenticated
+        "404":
+          description: Session not found or expired
+    delete:
+      tags: [Uploads]
+      summary: Abort a resumable upload
+      description: Marks the session `Failed`. Staged parts are not deleted by this call.
+      operationId: abortUploadSession
+      responses:
+        "204":
+          description: Session aborted
+        "401":
+          description: Unauthenticated
+        "404":
+          description: Session not found or expired
 
   # -------------------------------------------------------------------------
   # Conversion Jobs
@@ -3020,6 +3204,98 @@ components:
           format: date-time
         metadata:
           $ref: "#/components/schemas/AuditMetadata"
+
+    # -----------------------------------------------------------------------
+    # Multipart HTTP Upload schemas (see /uploads/* endpoints).
+    # -----------------------------------------------------------------------
+    SingleShotUploadResponse:
+      type: object
+      required: [id, storage_key, size_bytes, mime_type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        storage_key:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        mime_type:
+          type: string
+
+    InitiateUploadRequest:
+      type: object
+      required: [bucket_id, path, filename, file_size]
+      properties:
+        bucket_id:
+          type: string
+          format: uuid
+        path:
+          type: string
+        filename:
+          type: string
+        mime_type:
+          type: string
+          nullable: true
+        file_size:
+          type: integer
+          format: int64
+          minimum: 1
+        chunk_size:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Optional override; defaults to 5 MiB.
+
+    InitiateUploadResponse:
+      type: object
+      required: [session_id, chunk_size, total_chunks, expires_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        chunk_size:
+          type: integer
+          format: int32
+        total_chunks:
+          type: integer
+          format: int32
+        expires_at:
+          type: string
+          format: date-time
+
+    UploadPartResponse:
+      type: object
+      required: [session_id, part_number, uploaded_chunks, total_chunks]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        part_number:
+          type: integer
+          format: int32
+        uploaded_chunks:
+          type: integer
+          format: int32
+        total_chunks:
+          type: integer
+          format: int32
+
+    CompleteUploadRequest:
+      type: object
+      properties:
+        storage_key:
+          type: string
+          description: |
+            Optional explicit object key. When omitted, a UUID-prefixed
+            key is auto-generated.
+        owner_module:
+          type: string
+        owner_entity:
+          type: string
+        owner_entity_id:
+          type: string
+          format: uuid
 
     PatchUploadSession:
       type: object
