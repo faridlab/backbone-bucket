@@ -4,11 +4,15 @@
 //!
 //! 1. An [`AuthExtractor`] — an Axum [`FromRequestParts`] impl that reads
 //!    the consumer's session/JWT/cookie and yields a typed identity.
-//! 2. An [`AuthzPolicy`] — decides whether a given identity may read a
+//! 2. A [`HasOwnerId`] impl on that identity — required by both
+//!    `.serving_router()` and `.upload_router()` so `owner_id` is derived
+//!    from the authenticated caller, never trusted from the request body.
+//! 3. An [`AuthzPolicy`] — decides whether a given identity may read a
 //!    given [`StoredFile`].
-//! 3. Building the module with [`BucketConfig`] + an [`ObjectStorage`] +
+//! 4. Building the module with [`BucketConfig`] + an [`ObjectStorage`] +
 //!    the database pool.
-//! 4. Mounting `.crud_router()` and `.serving_router()` on the same Axum app.
+//! 5. Mounting the three routers on the same Axum app — or, when the
+//!    composition is straightforward, the merged `.router()` wrapper.
 //!
 //! This file intentionally does not start a server or hit a real database
 //! — its purpose is to type-check under CI and serve as a copy-paste
@@ -29,7 +33,8 @@ use backbone_bucket::auth::{AuthzDecision, AuthzPolicy, HasOwnerId};
 use backbone_bucket::config::{ServingConfig, ServingMode};
 use backbone_bucket::storage::{LocalStorage, ObjectStorage};
 use backbone_bucket::{
-    BucketConfig, BucketError, BucketModule, StorageConfig, StoredFile,
+    BucketConfig, BucketError, BucketModule, RouterOptions, StorageConfig, StoredFile,
+    UploadConfig,
 };
 
 // ─── 1. Identity ──────────────────────────────────────────────────────────
@@ -121,11 +126,38 @@ fn build_app(pool: sqlx::PgPool) -> anyhow::Result<Router> {
         .with_storage(storage)
         .build()?;
 
+    // Granular composition — keep when you need to nest each surface at
+    // a different prefix or apply different middleware per surface.
     let serving = module.serving_router::<ExampleUser>(Arc::new(ExamplePolicy))?;
+    let uploads = module.upload_router::<ExampleUser>(UploadConfig::default())?;
 
     Ok(Router::new()
         .merge(module.crud_router())
+        .merge(uploads)
         .nest("/cdn", serving))
+}
+
+/// Same shape as [`build_app`] using the merged convenience router.
+/// Picks sensible defaults: CRUD + upload at the root, serving under
+/// `/cdn`. Stored alongside `build_app` so consumers can see both flows.
+#[allow(dead_code)]
+fn build_app_merged(pool: sqlx::PgPool) -> anyhow::Result<Router> {
+    let storage: Arc<dyn ObjectStorage> = Arc::new(LocalStorage::new(
+        "/tmp/bucket-example",
+        Url::parse("http://localhost:8080/cdn/")?,
+        b"dev-signing-secret".to_vec(),
+    ));
+
+    let module = BucketModule::builder()
+        .with_database(pool)
+        // BucketConfig::default() is Local-storage dev shape; production
+        // wiring should use BucketConfig::from_env() or load from YAML.
+        .with_config(BucketConfig::default())
+        .with_storage(storage)
+        .build()?;
+
+    let opts = RouterOptions::new(Arc::new(ExamplePolicy));
+    Ok(module.router::<ExampleUser>(opts)?)
 }
 
 fn main() {
