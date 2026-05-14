@@ -11,7 +11,7 @@
 use std::sync::Arc;
 use axum::{response::IntoResponse, Router};
 
-use crate::auth::{ArcAuthzPolicy, AuthExtractor};
+use crate::auth::{ArcAuthzPolicy, AuthExtractor, HasOwnerId};
 use crate::error::{BucketError, BucketResult};
 use crate::presentation::http::{
     create_bucket_routes,
@@ -25,7 +25,10 @@ use crate::presentation::http::{
     create_upload_session_routes,
     create_user_quota_routes,
     serving_router as build_serving_router,
+    upload_router as build_upload_router,
     ServingContext,
+    UploadConfig,
+    UploadContext,
 };
 use crate::BucketModule;
 
@@ -69,7 +72,7 @@ impl BucketModule {
     /// both.
     pub fn serving_router<A>(&self, authz: ArcAuthzPolicy<A>) -> BucketResult<Router>
     where
-        A: AuthExtractor<()> + Clone + 'static,
+        A: AuthExtractor<()> + HasOwnerId + Clone + 'static,
         A::Rejection: IntoResponse,
     {
         let storage = self
@@ -87,5 +90,113 @@ impl BucketModule {
             config,
         };
         Ok(build_serving_router::<A>(ctx))
+    }
+
+    /// Build the multipart upload router.
+    ///
+    /// Mounts five routes (see [`crate::presentation::http::upload`]):
+    /// single-shot `POST /uploads`, and the resumable session lifecycle
+    /// under `/uploads/sessions`. The consumer's [`AuthExtractor`] `A`
+    /// must also implement [`HasOwnerId`] so `owner_id` is derived from
+    /// the authenticated identity instead of being trusted from input.
+    ///
+    /// Returns `Err` when `.with_storage()` / `.with_config()` were not
+    /// configured — uploads cannot run without an [`ObjectStorage`]
+    /// backend and the wired-up [`crate::FileService`].
+    pub fn upload_router<A>(&self, config: UploadConfig) -> BucketResult<Router>
+    where
+        A: AuthExtractor<()> + HasOwnerId + Clone + 'static,
+        A::Rejection: IntoResponse,
+    {
+        let storage = self
+            .storage
+            .clone()
+            .ok_or_else(|| BucketError::Config("storage backend not configured".into()))?;
+        let file_service = self
+            .file_service
+            .clone()
+            .ok_or_else(|| BucketError::Config("file service not configured (call .with_storage() and .with_config())".into()))?;
+        let ctx = UploadContext {
+            file_service,
+            multipart_service: self.multipart_upload_service.clone(),
+            bucket_service: self.bucket_service.clone(),
+            storage,
+        };
+        Ok(build_upload_router::<A>(ctx, config))
+    }
+
+    /// One-call composition: CRUD + upload + serving routers merged.
+    ///
+    /// Pick this when the consumer just wants "everything the module
+    /// exposes" under a single nest point. Each sub-router is still
+    /// reachable individually via [`Self::crud_router`] /
+    /// [`Self::upload_router`] / [`Self::serving_router`] for advanced
+    /// composition.
+    ///
+    /// The merged router pairs CRUD endpoints with the upload surface
+    /// at the same prefix the consumer chooses (e.g. `/api/v1/bucket`),
+    /// and nests the serving handler under `serving_prefix` (default
+    /// `/cdn`). Passing `RouterOptions::default()` plus a configured
+    /// `BucketModule` is the smallest possible wiring:
+    ///
+    /// ```ignore
+    /// let app = Router::new()
+    ///     .nest("/api/v1/bucket", bucket.router::<MyUser>(opts)?);
+    /// ```
+    ///
+    /// Returns `Err` for the same reasons [`Self::serving_router`] and
+    /// [`Self::upload_router`] do — `.with_storage()` and
+    /// `.with_config()` are required on the builder.
+    pub fn router<A>(&self, opts: RouterOptions<A>) -> BucketResult<Router>
+    where
+        A: AuthExtractor<()> + HasOwnerId + Clone + 'static,
+        A::Rejection: IntoResponse,
+    {
+        let RouterOptions {
+            upload_config,
+            authz,
+            serving_prefix,
+        } = opts;
+        let serving = self.serving_router::<A>(authz)?;
+        let uploads = self.upload_router::<A>(upload_config)?;
+        Ok(self
+            .crud_router()
+            .merge(uploads)
+            .nest(&serving_prefix, serving))
+    }
+}
+
+/// Options for [`BucketModule::router`].
+///
+/// `authz` is the only required field — the policy decides whether an
+/// authenticated caller may read a given file. Defaults: stock
+/// [`UploadConfig`] (256 MiB single-shot / 16 MiB per chunk) and
+/// `/cdn` as the serving prefix.
+pub struct RouterOptions<A> {
+    pub upload_config: UploadConfig,
+    pub authz: ArcAuthzPolicy<A>,
+    pub serving_prefix: String,
+}
+
+impl<A> RouterOptions<A> {
+    /// Construct with the policy and module-default values.
+    pub fn new(authz: ArcAuthzPolicy<A>) -> Self {
+        Self {
+            upload_config: UploadConfig::default(),
+            authz,
+            serving_prefix: "/cdn".to_string(),
+        }
+    }
+
+    /// Override the single-shot / chunk body limits.
+    pub fn with_upload_config(mut self, cfg: UploadConfig) -> Self {
+        self.upload_config = cfg;
+        self
+    }
+
+    /// Override the serving-router mount path (default `/cdn`).
+    pub fn with_serving_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.serving_prefix = prefix.into();
+        self
     }
 }
