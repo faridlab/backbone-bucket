@@ -1,415 +1,577 @@
 # Bucket Module
 
-**Domain:** File Storage & Content Management (Bucket)
+**Domain:** File Storage & Content Management
+**Type:** Backbone domain module (library crate)
+**Architecture:** Domain-Driven Design — 4 layers (`domain` / `application` / `infrastructure` / `presentation`)
+**Source of truth:** YAML schemas under [`schema/models/`](schema/models)
 
-A complete Domain-Driven Design (DDD) bounded context module built on **Backbone Framework**. This module follows Clean Architecture principles with a **schema-first** approach where YAML schema files are the single source of truth.
+Most of this crate is generated from the schemas. Hand-written
+additions live behind `// <<< CUSTOM` markers (for generated files) or
+in sibling `*_custom.rs` files that the generator never touches.
 
-## Module Overview
+---
 
-The Bucket module provides comprehensive file storage and content management capabilities:
+## Table of contents
 
-- **File Storage:** Upload, download, streaming, versioning
-- **Organization:** Buckets, folders, collections, metadata
-- **Access Control:** Permissions, sharing, locks, ACLs
-- **Content Processing:** Conversions, thumbnails, processing jobs
-- **Security:** Hash verification, access logs, quotas
-- **Collaboration:** Comments, shares, notifications
+1. [What you get](#what-you-get)
+2. [Module setup](#module-setup)
+3. [Bucket usage — step by step](#bucket-usage--step-by-step)
+   - [1. Create a bucket](#1-create-a-bucket)
+   - [2. Read a bucket](#2-read-a-bucket)
+   - [3. List & search buckets](#3-list--search-buckets)
+   - [4. Update a bucket](#4-update-a-bucket)
+   - [5. Soft-delete, restore, empty trash](#5-soft-delete-restore-empty-trash)
+   - [6. State transitions](#6-state-transitions-lock--unlock--archive--)
+   - [7. Bulk & upsert](#7-bulk--upsert)
+   - [8. Counts](#8-counts)
+4. [File upload (multipart HTTP)](#file-upload-multipart-http)
+5. [File serving](#file-serving)
+6. [Configuration](#configuration)
+7. [Architecture](#architecture)
+8. [Testing](#testing)
+9. [Regeneration & custom code](#regeneration--custom-code)
+10. [Documentation index](#documentation-index)
 
-### Key Statistics
+---
 
-- **13 Core Entities** - Focused file management domain
-- **15 Migration Files** - Complete database schema evolution
-- **Generated Code** - Full CRUD, gRPC, webapp support
+## What you get
 
-## Core Domain Entities
+| Surface | Description | Where it lives |
+|---|---|---|
+| **CRUD router** | 12+ standard endpoints per entity (list, create, get, update, patch, soft delete, bulk, upsert, trash, restore, empty, count) | `BucketModule::crud_router()` |
+| **Upload router** | `multipart/form-data` HTTP entry — single-shot + resumable (initiate → parts → complete) | `BucketModule::upload_router::<A>()` |
+| **Serving router** | Auth-aware delivery: 302 to presigned URL, byte stream, or JSON | `BucketModule::serving_router::<A>()` |
+| **gRPC** (feature `grpc`) | Mirror of the CRUD surface | `presentation::grpc` |
 
-### Storage Organization
-| Entity | Description | Key Features |
-|---------|-------------|---------------|
-| **Bucket** | Container for files | Folders, collections, metadata |
-| **StoredFile** | File storage | Versions, hashes, thumbnails |
-| **UploadSession** | Chunked uploads | Progress tracking, resumability |
-| **FileVersion** | File versioning | History, diffs, restoration |
-| **Thumbnail** | Image thumbnails | Multiple sizes, generation |
-| **ProcessingJob** | Async processing | Status, results, errors |
+**13 generated entities:** Bucket, StoredFile, FileVersion, FileShare,
+FileLock, FileComment, ContentHash, UploadSession, ConversionJob,
+ProcessingJob, Thumbnail, UserQuota, AccessLog.
 
-### Access & Security
-| Entity | Description | Key Features |
-|---------|-------------|---------------|
-| **FileShare** | Shared links | Expiration, permissions, password protection |
-| **FileLock** | File locking | Exclusive access, timeout, automatic release |
-| **FileComment** | File comments | Mentions, threading, notifications |
-| **FileAccessLog** | Access tracking | Audit trail, user, action, timestamp |
-| **UserQuota** | Storage quotas | Limits, usage, enforcement |
+**7 custom services** (regen-safe): `LockingService`,
+`DeduplicationService`, `MultipartUploadService`, `ConversionService`,
+`CdnService`, `VideoThumbnailService`, `DocumentPreviewService`.
 
-### Content Management
-| Entity | Description | Key Features |
-|---------|-------------|---------------|
-| **ContentHash** | Content deduplication | SHA-256, verification, dedup |
-| **ConversionJob** | Format conversion | PDF, images, video, status |
-| **AccessAction** | Access tracking | View, download, share, delete |
+---
 
-## Architecture Overview
-
-```
-bucket/
-├── schema/                          # SCHEMA DEFINITIONS
-│   ├── models/                     # Entity schema definitions
-│   │   ├── bucket.model.yaml
-│   │   ├── stored_file.model.yaml
-│   │   ├── upload_session.model.yaml
-│   │   └── ...
-│   ├── hooks/
-│   ├── workflows/
-│   └── openapi/
-│
-├── proto/                        # PROTOBUF DEFINITIONS
-│   ├── domain/
-│   │   ├── entity/              # Bucket, StoredFile, UploadSession...
-│   │   ├── value_object/         # Metadata, Hash, Quota...
-│   │   ├── repository/           # Repository interfaces
-│   │   ├── usecase/              # CQRS commands & queries
-│   │   ├── service/              # Domain services
-│   │   ├── event/                # Domain events
-│   │   └── ...
-│   └── services/                  # Service definitions
-│
-├── src/
-│   ├── domain/
-│   │   ├── entity/               # 13 entity implementations
-│   │   ├── value_object/         # Metadata, ContentHash, Thumbnail...
-│   │   ├── event/                # Domain events
-│   │   ├── repositories/          # Repository traits
-│   │   ├── services/             # Domain services
-│   │   ├── specifications/        # Business rules
-│   │   └── mod.rs
-│   │
-│   ├── application/
-│   │   ├── commands/             # 13 command handlers
-│   │   ├── queries/              # 13 query handlers
-│   │   ├── services/             # 13 application services
-│   │   ├── bulk_operations/      # 6 bulk operation files
-│   │   ├── triggers/             # 3 trigger files
-│   │   ├── validation/           # 6 validator files
-│   │   ├── workflows/            # 3 workflow files
-│   │   └── mod.rs
-│   │
-│   ├── infrastructure/
-│   │   ├── persistence/          # 13 repository implementations
-│   │   ├── projections/         # 13 projection files
-│   │   ├── event_store/         # Event store
-│   │   └── mod.rs
-│   │
-│   ├── presentation/
-│   │   ├── http/                # 13 HTTP handlers
-│   │   ├── dto/                 # 13 DTO files
-│   │   ├── grpc/                # gRPC services
-│   │   ├── auth/                # 6 auth files
-│   │   └── mod.rs
-│   │
-│   ├── integration/
-│   │   ├── context_map.rs        # Integration context
-│   │   └── mod.rs
-│   │
-│   ├── routes/                   # HTTP routes
-│   ├── exports/                  # Public API
-│   └── lib.rs
-│
-├── migrations/                   # DATABASE MIGRATIONS
-│   ├── 001_create_enums.up.sql
-│   ├── 003_create_bucket_table.up.sql
-│   ├── ...
-│   ├── 015_create_user_quota_table.up.sql
-│   └── down.sql
-│
-├── tests/
-│   ├── integration/
-│   └── integration_tests.rs
-│
-├── config/
-│   ├── application.yml
-│   └── openapi/
-│
-├── Cargo.toml
-└── README.md
-```
-
-## Database
-
-**Database:** `bucket` (configured per module)
-**Tables:** 13 main tables
-**Migrations:** 15 migration files
-
-### Connection Configuration
-
-```bash
-# Uses app-level database or module-specific override
-# Via config/application.yml
-database:
-  url: postgresql://root:password@localhost:5432/bucket
-
-# Or via environment
-DATABASE_URL=postgresql://root:password@localhost:5432/bucket
-```
-
-## Quick Start
-
-### 1. Generate Code from Schema
-
-```bash
-# Build the schema generator
-cargo build --release --bin backbone-schema
-
-# Generate all code (31 targets)
-./target/release/backbone-schema schema generate bucket --target all --force
-```
-
-### 2. Run Database Migrations
-
-```bash
-# Set database URL
-export DATABASE_URL="postgresql://root:password@localhost:5432/bucket"
-
-# Run migrations
-./target/debug/backbone migration run --module bucket
-
-# Check migration status
-./target/debug/backbone migration status --module bucket
-```
-
-### 3. Use the Module
+## Module setup
 
 ```rust
 use std::sync::Arc;
-use backbone_bucket::{BucketModule, storage::{ObjectStorage, S3Storage}};
+use sqlx::PgPool;
+use backbone_bucket::{
+    BucketModule, BucketConfig, StorageConfig, ServingConfig, ServingMode,
+    UploadConfig,
+    storage::{ObjectStorage, S3Storage, LocalStorage},
+    auth::{HasOwnerId, AuthzPolicy, DefaultOwnerOnlyPolicy},
+};
+use url::Url;
+use std::time::Duration;
 
-// Create module instance with builder pattern
-let storage: Arc<dyn ObjectStorage> = Arc::new(S3Storage::new(s3_cfg, serving_cfg)?);
-let module = BucketModule::builder()
+// 1. Database
+let pool: PgPool = sqlx::PgPool::connect(&std::env::var("DATABASE_URL")?).await?;
+
+// 2. Storage backend — LocalStorage for dev, S3Storage in prod
+let storage: Arc<dyn ObjectStorage> = Arc::new(
+    LocalStorage::new(
+        "/var/data/bucket".into(),
+        Url::parse("http://localhost:3000/cdn/")?,
+        "BUCKET_SIGNING_SECRET",   // env var name
+    )?
+);
+
+// 3. Bucket-module runtime config
+let config = BucketConfig {
+    enabled: true,
+    storage: StorageConfig::Local {
+        root: "/var/data/bucket".into(),
+        base_url: Url::parse("http://localhost:3000/cdn/")?,
+        signing_secret_env: "BUCKET_SIGNING_SECRET".into(),
+    },
+    serving: ServingConfig {
+        default_mode: ServingMode::Redirect,
+        public_prefix: "public/".into(),
+        presigned_ttl: Duration::from_secs(300),
+    },
+};
+
+// 4. Build the module
+let bucket = BucketModule::builder()
     .with_database(pool)
-    .with_config(bucket_config)
     .with_storage(storage)
+    .with_config(config)
     .build()?;
 
-// 12-endpoint CRUD router
-let crud = module.crud_router();
+// 5a. Simple wiring — one merged router (CRUD + upload + serving).
+//     `MyUser` must implement Axum's `FromRequestParts` (so it's an
+//     `AuthExtractor`) AND `HasOwnerId` (so `owner_id` is derived from
+//     auth, never trusted from the request body).
+let policy = Arc::new(DefaultOwnerOnlyPolicy);
+let opts = RouterOptions::new(policy);
+let app = axum::Router::new()
+    .nest("/api/v1/bucket", bucket.router::<MyUser>(opts)?);
 
-// Mode-B auth-aware file serving router (consumer supplies AuthExtractor + AuthzPolicy)
-let serving = module.serving_router::<MyUser>(Arc::new(MyPolicy))?;
+// 5b. Advanced wiring — mount each surface independently when you need
+//     different prefixes, middleware, or auth policies per router.
+let app = axum::Router::new()
+    .nest("/api/v1/bucket", bucket.crud_router())
+    .nest("/api/v1/bucket", bucket.upload_router::<MyUser>(UploadConfig::default())?)
+    .nest("/cdn",           bucket.serving_router::<MyUser>(policy)?);
 ```
 
-See [docs/serving.md](docs/serving.md) for the full serving surface
-(storage backends, config shape, pluggable auth, key naming).
+### Loading config from the environment
 
-## File Serving
+For first-time wiring, prefer `BucketConfig::from_env()` over
+hand-building the struct:
 
-Beyond CRUD, the module exposes a **mode-B serving router** that
-resolves pretty URLs like `bucket.example.com/product/image/foo.jpg`
-to auth-enforced redirects (or streamed bytes, or JSON). Three
-response strategies are supported via [`ServingMode`]:
+```rust
+// Reads BUCKET_STORAGE_BACKEND, BUCKET_STORAGE_ROOT, BUCKET_BASE_URL, …
+// (S3 path) BUCKET_S3_ENDPOINT, BUCKET_S3_REGION, BUCKET_S3_PRIVATE_BUCKET, …
+// See `BucketConfig::from_env` rustdoc for the full list.
+let config = BucketConfig::from_env()?;
+```
 
-| Mode | Response | When to use |
+`BucketConfig::default()` produces a `LocalStorage` dev shape rooted at
+`/tmp/bucket` with redirect-mode serving — useful for tests and the
+example project.
+
+---
+
+## Bucket usage — step by step
+
+All examples use `BASE = http://localhost:3000/api/v1/bucket` (matches
+the `nest` above). Swap in your own prefix. Auth is whatever your
+`AuthExtractor` requires; the examples assume `Authorization: Bearer
+<jwt>`.
+
+### Bucket fields (cheat sheet)
+
+| Field | Type | Notes |
 |---|---|---|
-| `Redirect` (default) | 302 → short-lived presigned URL | Production; lowest service bandwidth |
-| `Stream` | Bytes proxied through the service | `LocalStorage` dev, CORS-restricted clients |
-| `SignedUrl` | `{"url": "..."}` JSON | Clients that want the URL without a redirect |
+| `name` | string (req, ≤ 255) | Display name |
+| `slug` | string (req, unique, ≤ 255, lowercased) | URL-safe identifier — **how you usually look it up** |
+| `description` | string? | Free text |
+| `owner_id` | uuid (req) | FK → User |
+| `bucket_type` | enum | `user` (default) / `shared` / `system` / `temp` |
+| `status` | enum | `active` (default) / `readonly` / `locked` / `archived` / `deleted` |
+| `storage_backend` | enum | `local` (default) / `s3` / … |
+| `root_path` | string (req, ≤ 1024) | Path inside the backend |
+| `max_file_size` | int64? | bytes; `null` = no limit |
+| `allowed_mime_types` | string[] | empty = all |
+| `auto_delete_after_days` | int? | for `temp` buckets |
+| `enable_cdn` / `enable_versioning` / `enable_deduplication` | bool | toggles |
 
-Storage is pluggable via `Arc<dyn ObjectStorage>`. Two backends ship:
+Full schema: [schema/models/bucket.model.yaml](schema/models/bucket.model.yaml).
 
-- **`LocalStorage`** — filesystem, module-signed HMAC URLs. Dev / single-node.
-- **`S3Storage`** — AWS S3 / MinIO via `aws-sdk-s3`, real SigV4 presigned URLs. Default `s3` feature.
-
-Auth is pluggable via `AuthExtractor` + `AuthzPolicy` traits — the
-module does not own identity. See [docs/serving.md](docs/serving.md)
-and [examples/serving/main.rs](examples/serving/main.rs) for the full
-wiring.
-
-## API Endpoints
-
-All entities have 11 standard CRUD endpoints under `/api/v1/bucket/{collection}`:
-
-| Method | Endpoint | Description |
-|--------|------------|-------------|
-| `GET` | `/api/v1/bucket/buckets` | List buckets |
-| `POST` | `/api/v1/bucket/buckets` | Create bucket |
-| `GET` | `/api/v1/bucket/files` | List files (with filters) |
-| `POST` | `/api/v1/bucket/files` | Upload file |
-| `GET` | `/api/v1/bucket/files/:id` | Get file metadata |
-| `PATCH` | `/api/v1/bucket/files/:id` | Update file |
-| `DELETE` | `/api/v1/bucket/files/:id` | Soft delete file |
-| `POST` | `/api/v1/bucket/files/bulk` | Batch upload |
-| `GET` | `/api/v1/bucket/files/trash` | List deleted files |
-| `POST` | `/api/v1/bucket/files/:id/restore` | Restore file |
-| `DELETE` | `/api/v1/bucket/files/empty` | Empty trash |
-
-### Key Features
-
-#### Chunked File Upload
-
-Supports large file uploads through chunked sessions:
+### 1. Create a bucket
 
 ```bash
-# 1. Create upload session
-POST /api/v1/bucket/uploads
+curl -X POST "$BASE/buckets" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Product Images",
+    "slug": "product-images",
+    "description": "Public marketing imagery",
+    "owner_id": "00000000-0000-0000-0000-000000000001",
+    "bucket_type": "shared",
+    "storage_backend": "s3",
+    "root_path": "product-images",
+    "enable_cdn": true,
+    "enable_versioning": true,
+    "enable_deduplication": true,
+    "metadata": {}
+  }'
+```
+
+Response: `201 Created` + the persisted bucket (UUID `id`, audit metadata, defaults filled in).
+
+### 2. Read a bucket
+
+By `id`:
+```bash
+curl -H "Authorization: Bearer $TOKEN" "$BASE/buckets/<id>"
+```
+
+By `slug` (no dedicated endpoint — slug is unique, so filter the list):
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$BASE/buckets?search=product-images&page_size=1"
+```
+
+### 3. List & search buckets
+
+The list endpoint accepts these query parameters (all optional):
+
+| Param | Default | Meaning |
+|---|---|---|
+| `page` | 1 | 1-based page index |
+| `page_size` | 20 | Items per page (≤ 100) |
+| `sort_by` | `created_at` | Column name |
+| `sort_direction` | `desc` | `asc` / `desc` |
+| `search` | — | Substring match against text fields (`name`, `slug`, `description`) |
+| `status` | — | Filter by status enum |
+| `tags` | — | Comma-separated tag filter |
+| `created_by` | — | Filter by creator user id |
+
+```bash
+# Page 2, 50 per page, alphabetical by name
+curl -H "Authorization: Bearer $TOKEN" \
+  "$BASE/buckets?page=2&page_size=50&sort_by=name&sort_direction=asc"
+
+# All active 'shared' buckets owned by a user, name contains "image"
+curl -H "Authorization: Bearer $TOKEN" \
+  "$BASE/buckets?status=active&search=image&created_by=00000000-0000-0000-0000-000000000001"
+```
+
+Response shape:
+```json
 {
-  "file_name": "large-video.mp4",
-  "file_size": 1073741824,
-  "content_type": "video/mp4",
-  "chunk_size": 5242880  # 5MB chunks
+  "success": true,
+  "data": [ /* bucket objects */ ],
+  "pagination": { "page": 2, "page_size": 50, "total": 137, "total_pages": 3 }
 }
-
-# 2. Upload chunks
-PUT /api/v1/bucket/uploads/{session_id}/chunks/{chunk_index}
-Content-Range: bytes {start}-{end}
-
-# 3. Complete upload
-POST /api/v1/bucket/uploads/{session_id}/complete
 ```
 
-#### Content Deduplication
+### 4. Update a bucket
 
-Automatic content deduplication using SHA-256 hashes:
-
-```yaml
-# ContentHash entity tracks file content
-models:
-  - name: ContentHash
-    fields:
-      hash:
-        type: string
-        attributes: ["@unique"]  # SHA-256
-      algorithm:
-        type: string
-        attributes: ["@default(sha-256)"]
-      size:
-        type: int64
+Full update (`PUT` — send the whole representation):
+```bash
+curl -X PUT "$BASE/buckets/<id>" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{ "name": "Product Images (v2)", "slug": "product-images", "...": "..." }'
 ```
 
-#### File Versioning
-
-Track all changes to files:
-
-```yaml
-# FileVersion entity
-models:
-  - name: FileVersion
-    fields:
-      file_id:           # Reference to StoredFile
-      version_number:    # Sequential version
-      change_reason:      # Why changed
-      storage_path:       # Location of this version
-      created_at:         # When created
+Partial update (`PATCH` — send only the changed fields):
+```bash
+curl -X PATCH "$BASE/buckets/<id>" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{ "enable_cdn": false, "max_file_size": 104857600 }'
 ```
 
-## Development Workflow
+### 5. Soft-delete, restore, empty trash
 
-### Schema Example (Stored File)
+```bash
+# Soft delete — sets metadata.deleted_at; bucket disappears from list
+curl -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/buckets/<id>"
 
-```yaml
-models:
-  - name: StoredFile
-    collection: files
-    soft_delete: true
-    extends: [Metadata]
+# Browse the trash
+curl -H "Authorization: Bearer $TOKEN" "$BASE/buckets/trash"
 
-    fields:
-      id:
-        type: uuid
-        attributes: ["@id", "@default(uuid)"]
+# Bring it back
+curl -X POST -H "Authorization: Bearer $TOKEN" "$BASE/buckets/<id>/restore"
 
-      bucket_id:
-        type: uuid
-        attributes: ["@required", "@foreign_key(Bucket.id)", "@on_delete(cascade)"]
+# Permanent delete one bucket from trash
+curl -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/buckets/trash/<id>"
 
-      file_name:
-        type: string
-        attributes: ["@required", "@max(255)"]
-
-      file_path:
-        type: string
-        attributes: ["@required"]  # Internal storage path
-
-      content_hash:
-        type: string
-        attributes: ["@foreign_key(ContentHash.id)"]
-
-      file_size:
-        type: int64
-        attributes: ["@non_negative"]
-
-      mime_type:
-        type: string
-        attributes: ["@max(100)"]
-
-    relations:
-      bucket:
-        type: Bucket
-        attributes: ["@one", "@foreign_key(bucket_id)", "@on_delete(cascade)"]
-
-      versions:
-        type: FileVersion[]
-        attributes: ["@one_to_many", "@on_delete(cascade)"]
-
-      thumbnails:
-        type: Thumbnail[]
-        attributes: ["@one_to_many", "@on_delete(cascade)"]
-
-    indexes:
-      - type: index
-        fields: [bucket_id]
-      - type: index
-        fields: [content_hash]
-      - type: index
-        fields: [file_name]
+# Permanent delete EVERYTHING in trash
+curl -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/buckets/empty"
 ```
+
+### 6. State transitions (lock / unlock / archive / …)
+
+The Bucket state machine adds explicit transitions on top of CRUD.
+They live under `/buckets/:id/transitions/<action>`:
+
+| Action | Effect |
+|---|---|
+| `lock` | `active` → `locked` (no writes) |
+| `unlock` | `locked` → `active` |
+| `archive` | `active` → `archived` (read-only, hidden from default list) |
+| `restore` | `archived` → `active` |
+| `delete` | Triggers state-machine-managed delete (audited) |
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  "$BASE/buckets/<id>/transitions/archive"
+```
+
+### 7. Bulk & upsert
+
+```bash
+# Bulk create (one round-trip, transactional)
+curl -X POST "$BASE/buckets/bulk" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{ "items": [ { "name": "A", "slug": "a", ... }, { "name": "B", "slug": "b", ... } ] }'
+
+# Upsert by slug (or whatever unique key the schema declares)
+curl -X POST "$BASE/buckets/upsert" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{ "slug": "product-images", "name": "Product Images", ... }'
+```
+
+### 8. Counts
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" "$BASE/buckets/count"          # active
+curl -H "Authorization: Bearer $TOKEN" "$BASE/buckets/trash/count"    # in trash
+```
+
+> The same 12-endpoint shape applies to every other entity: just swap
+> `buckets` for `stored-files`, `file-shares`, `file-locks`,
+> `upload-sessions`, etc. See the OpenAPI spec
+> ([docs/openapi/bucket-v2.yaml](docs/openapi/bucket-v2.yaml)) for the
+> per-entity field lists.
+
+---
+
+## File upload (multipart HTTP)
+
+Two flows, both mounted by `upload_router::<A>(UploadConfig)`. `A` must
+implement `AuthExtractor + HasOwnerId` — the authenticated identity
+supplies `owner_id` (never trusted from the request body).
+
+### Single-shot (one request)
+
+```bash
+curl -X POST "$BASE/uploads" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "bucket_id=<bucket-uuid>" \
+  -F "path=images/2026/hero.png" \
+  -F "file=@./hero.png;type=image/png"
+```
+
+Body limit defaults to 256 MiB (override via `UploadConfig::single_shot_limit`).
+
+### Resumable (initiate → parts → complete)
+
+```bash
+# 1. Initiate
+SESSION=$(curl -s -X POST "$BASE/uploads/sessions" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "bucket_id": "<bucket-uuid>",
+    "path": "videos/raw/large.mp4",
+    "filename": "large.mp4",
+    "mime_type": "video/mp4",
+    "file_size": 1073741824,
+    "chunk_size": 5242880
+  }' | jq -r '.session_id')
+
+# 2. Upload parts (1-based, in any order)
+curl -X POST "$BASE/uploads/sessions/$SESSION/parts/1" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "chunk=@./part-1.bin;type=application/octet-stream"
+# ... part 2, 3, …
+
+# 3. Finalize — assembles, persists stored_files row, deletes staged parts
+curl -X POST "$BASE/uploads/sessions/$SESSION/complete" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{}'
+
+# Or abort
+curl -X DELETE -H "Authorization: Bearer $TOKEN" \
+  "$BASE/uploads/sessions/$SESSION"
+```
+
+Chunk limit defaults to 16 MiB; tune via `UploadConfig::chunk_limit`.
+
+Full OpenAPI: see the `/uploads/*` operations in
+[docs/openapi/bucket-v2.yaml](docs/openapi/bucket-v2.yaml).
+
+---
+
+## File serving
+
+Mount `serving_router` to deliver bytes under pretty URLs:
+
+```rust
+let policy = Arc::new(DefaultOwnerOnlyPolicy);
+let app = app.nest("/cdn", bucket.serving_router::<MyUser>(policy)?);
+```
+
+Three response strategies, configured via `ServingConfig::default_mode`:
+
+| Mode | What the handler returns |
+|---|---|
+| `Redirect` (default) | `302` to a short-lived presigned URL |
+| `Stream` | `200` with the bytes proxied through the service |
+| `SignedUrl` | `200 {"url": "..."}` JSON |
+
+Full reference (storage backends, key naming, public-prefix routing,
+auth slots): [docs/serving.md](docs/serving.md).
+
+---
 
 ## Configuration
 
-### Application Configuration
+### `application.yml`
 
 ```yaml
-# config/application.yml
 database:
   url: postgresql://root:password@localhost:5432/bucket
   max_connections: 20
   min_connections: 5
 
-entities:
-  bucket:
-    enabled: true
-    collection: buckets
-    cache_ttl: 300
+bucket:
+  enabled: true
+  storage:
+    backend: local         # or s3
+    root: /var/data/bucket
+    base_url: http://localhost:3000/cdn/
+    signing_secret_env: BUCKET_SIGNING_SECRET
+  serving:
+    default_mode: redirect # redirect | stream | signed_url
+    public_prefix: "public/"
+    presigned_ttl_secs: 300
 ```
 
-### Environment Variables
+### Environment
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Overrides the configured database URL |
+| `BUCKET_SIGNING_SECRET` | HMAC secret for `LocalStorage` presigned URLs (name is configurable) |
+| `AWS_*` | Picked up by `S3Storage` via `aws-config` |
+
+Knobs and their defaults are documented in
+[docs/CONFIGURATION_THRESHOLDS.md](docs/CONFIGURATION_THRESHOLDS.md).
+
+---
+
+## Architecture
+
+```
+bucket/
+├── schema/                    SOURCE OF TRUTH
+│   ├── models/*.model.yaml    entity DSL (generated → everything else)
+│   ├── hooks/                 lifecycle hooks
+│   ├── workflows/             saga / flow definitions
+│   └── openapi/               generated index
+│
+├── src/
+│   ├── domain/                entities, value objects, state machines, repos (traits)
+│   ├── application/
+│   │   ├── service/           {entity}_service.rs (type alias) + {entity}_service_custom.rs
+│   │   ├── workflows/         multipart upload, file processing, share creation, …
+│   │   └── triggers/ validator/ usecases/ events/
+│   ├── infrastructure/
+│   │   └── persistence/       newtype repos over GenericCrudRepository
+│   ├── presentation/
+│   │   └── http/
+│   │       ├── {entity}_handler.rs   BackboneCrudHandler-driven CRUD
+│   │       ├── serving.rs            custom — mode-B file delivery
+│   │       └── upload.rs             custom — multipart HTTP upload
+│   ├── storage/               ObjectStorage trait + Local/S3 backends (custom)
+│   ├── auth/                  AuthExtractor / AuthzPolicy / HasOwnerId (custom)
+│   ├── config/                BucketConfig (custom)
+│   ├── bucket_module.rs       custom — crud_router / upload_router / serving_router
+│   └── lib.rs                 generated re-exports + custom `// <<<` block
+│
+├── migrations/                NNN_*.up.sql / .down.sql
+├── docs/                      human-maintained docs (this README + serving.md + bucket-spec.md …)
+├── tests/                     integration + workflow + bench tests
+└── examples/serving/          runnable wiring example
+```
+
+Why this shape: the [project CLAUDE.md](CLAUDE.md) has the
+non-negotiable rules and naming conventions.
+
+---
+
+## Testing
 
 ```bash
-# Override database URL
-DATABASE_URL=postgresql://user:pass@localhost:5432/bucket
+# Unit tests (lib)
+cargo test --lib
 
-# Override storage path
-STORAGE_PATH=/data/storage
+# Unit + handler-level tests for the upload module
+cargo test --lib upload::
 
-# Override max file size
-MAX_FILE_SIZE=1073741824  # 1GB default
+# HTTP integration suite — points reqwest at a running server
+API_BASE_URL=http://localhost:3000 \
+API_AUTH_TOKEN=$(jwt-mint) \
+BUCKET_TEST_BUCKET_ID=00000000-0000-0000-0000-000000000001 \
+  cargo test --test integration_tests
 ```
 
-## Dependencies
+Integration tests skip (rather than fail) when `API_BASE_URL` is
+unreachable, so they are safe to leave on in CI without a deployed
+backend.
 
-This module depends on:
-- `backbone-core` - Core framework utilities
-- `backbone-orm` - ORM and database traits
-- `backbone-auth` - Authentication and authorization
-- `backbone-messaging` - Event messaging
-- `backbone-storage` - Storage abstraction layer
+### In-process tests via `InMemoryStorage`
 
-## Documentation
+Consumers writing their own tests against the upload / serving routers
+should avoid `LocalStorage` (filesystem) and S3 (credentials). Turn on
+the `test-utils` feature instead — it ships an `InMemoryStorage` that
+implements `ObjectStorage` against a `DashMap`:
 
-- [Framework Documentation](../../docs/technical/FRAMEWORK.md)
-- [Schema Reference](../../docs/technical/SCHEMA_REFERENCE.md)
-- [API Reference](../../docs/api/API_REFERENCE.md)
-- [Relation Attributes](../../docs/technical/RELATION_ATTRIBUTES.md)
+```toml
+# consumer Cargo.toml
+[dev-dependencies]
+backbone-bucket = { version = "*", features = ["test-utils"] }
+```
+
+```rust
+use backbone_bucket::InMemoryStorage;
+use std::sync::Arc;
+
+let storage: Arc<dyn backbone_bucket::ObjectStorage> = Arc::new(InMemoryStorage::new());
+// ... wire into BucketModule::builder().with_storage(storage)
+```
+
+`InMemoryStorage::len()`, `.contains_key(k)`, and `.clear()` are
+available for assertions and per-test isolation. Presigned URLs are
+synthetic (`memory://...`) and never call out to the network.
+
+---
+
+## Regeneration & custom code
+
+Two rules keep custom code safe across regeneration:
+
+1. **Inside generated files**, put hand-written code between
+   `// <<< CUSTOM` and `// END CUSTOM` markers. Everything outside is
+   overwritten by `metaphor schema generate` / `backbone schema generate`.
+2. **For larger surfaces**, create a sibling file like
+   `account_service_custom.rs` — files that don't match the generated
+   filename pattern are never touched.
+
+The custom-safe surfaces in this module today:
+
+- [`src/bucket_module.rs`](src/bucket_module.rs) — `crud_router`, `upload_router`, `serving_router`
+- [`src/presentation/http/upload.rs`](src/presentation/http/upload.rs) — multipart HTTP handler
+- [`src/presentation/http/serving.rs`](src/presentation/http/serving.rs) — mode-B serving handler
+- [`src/storage/`](src/storage/), [`src/auth/`](src/auth/), [`src/config/`](src/config/)
+- `application/service/*_custom.rs` files
+- `tests/integration/tests/upload_multipart_test.rs` (registered via a `// <<< CUSTOM` block in `tests/integration/tests/mod.rs`)
+
+Regenerate everything:
+
+```bash
+metaphor schema validate
+metaphor make entity <Name>           # add a new entity from schema
+metaphor migration create <name>      # new migration
+metaphor dev test                     # run the suite
+metaphor lint check
+```
+
+---
+
+## Documentation index
+
+| File | What's inside |
+|---|---|
+| [`docs/README.md`](docs/README.md) | Doc map |
+| [`docs/brd.md`](docs/brd.md) | Business requirements (917 lines) |
+| [`docs/bucket-spec.md`](docs/bucket-spec.md) | Module specification |
+| [`docs/bucket-plan.md`](docs/bucket-plan.md) | Implementation plan |
+| [`docs/domain.md`](docs/domain.md) | Entity reference (generated from schemas) |
+| [`docs/serving.md`](docs/serving.md) | File serving — storage + auth + URL shapes |
+| [`docs/CONFIGURATION_THRESHOLDS.md`](docs/CONFIGURATION_THRESHOLDS.md) | Tunable defaults |
+| [`docs/MIGRATION_V2.md`](docs/MIGRATION_V2.md) | V1 → V2 migration notes |
+| [`docs/code-quality.md`](docs/code-quality.md) | Quality / lint conventions |
+| [`docs/TRAIT_ABSTRACTION_ANALYSIS.md`](docs/TRAIT_ABSTRACTION_ANALYSIS.md) | Design rationale for the trait surface |
+| [`docs/openapi/bucket-v2.yaml`](docs/openapi/bucket-v2.yaml) | Authoritative OpenAPI 3.0 spec (CRUD + uploads) |
+| [`schema/models/`](schema/models) | Per-entity schema YAML (the actual source of truth) |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history |
+| [`CLAUDE.md`](CLAUDE.md) | Conventions / rules for AI-assisted edits |
+
+---
 
 ## License
 
-Part of Backbone Framework.
+Part of the Backbone Framework.
