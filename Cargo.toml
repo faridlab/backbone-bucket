@@ -66,7 +66,7 @@ rand = "0.8"
 image = "0.24"
 
 # HTTP Framework (Axum)
-axum = { version = "0.7", features = ["macros"] }
+axum = { version = "0.7", features = ["macros", "multipart"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
@@ -81,6 +81,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # GraphQL (optional)
 async-graphql = { version = "7", optional = true }
 
+# In-memory storage backend for tests (test-utils feature)
+dashmap = { version = "5", optional = true }
+
 [features]
 default = ["s3"]
 events = []
@@ -91,6 +94,9 @@ validation = []
 graphql = ["dep:async-graphql"]
 # S3/MinIO backend via aws-sdk-s3 (real SigV4).
 s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:aws-credential-types"]
+# Test fixtures: InMemoryStorage and other in-process doubles for consumer
+# tests. Not for production builds.
+test-utils = ["dep:dashmap"]
 
 [build-dependencies]
 tonic-build = "0.12"
@@ -102,7 +108,7 @@ mockall = "0.12"
 pretty_assertions = "1.0"
 
 # Integration testing framework
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "multipart"] }
 jsonwebtoken = "9.3"
 rand = "0.8"
 
