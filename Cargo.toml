@@ -1,6 +1,6 @@
 [package]
 name = "backbone-bucket"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 description = "Bucket Bounded Context: File Storage Module for Backbone Framework"
 
