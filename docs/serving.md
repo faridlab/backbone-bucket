@@ -86,9 +86,13 @@ pub trait ObjectStorage: Send + Sync {
   Fine for dev and single-node deployments; **not S3-compatible**.
 - **`S3Storage`** — AWS S3 / MinIO via `aws-sdk-s3`. Real SigV4
   presigned URLs. Gated behind the default `s3` feature.
+- **`InMemoryStorage`** — backed by a `DashMap<String, Bytes>`. Gated
+  behind the `test-utils` feature. For consumer tests that exercise the
+  upload / serving routers without touching the filesystem or network.
+  Presigned URLs are synthetic (`memory://…`).
 
-Both backends reject path-traversal keys (`..` path segments) but
-allow `..` inside a filename, e.g. `reports/report..v2.pdf`.
+Both production backends reject path-traversal keys (`..` path segments)
+but allow `..` inside a filename, e.g. `reports/report..v2.pdf`.
 
 ### Buffering
 
@@ -99,8 +103,19 @@ post-beta.
 
 ## Configuration
 
-Loaded via the existing Backbone config overlay chain (YAML + env) —
-no new config system.
+Loaded via the existing Backbone config overlay chain (YAML + env), or
+directly through `BucketConfig::from_env()` / `BucketConfig::default()`
+for the simple cases:
+
+```rust
+// Dev: LocalStorage at /tmp/bucket, redirect mode.
+let cfg = BucketConfig::default();
+
+// Prod / staging: read the BUCKET_* env vars listed in
+// `BucketConfig::from_env` rustdoc (BUCKET_STORAGE_BACKEND,
+// BUCKET_S3_ENDPOINT, BUCKET_S3_REGION, BUCKET_S3_PRIVATE_BUCKET, …).
+let cfg = BucketConfig::from_env()?;
+```
 
 ```rust
 pub struct BucketConfig {
