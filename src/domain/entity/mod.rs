@@ -128,6 +128,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 #[cfg(feature = "openapi")]
+#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
 /// Audit metadata stored as JSONB in the database
