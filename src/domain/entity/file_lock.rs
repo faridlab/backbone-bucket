@@ -9,7 +9,6 @@ use super::AuditMetadata;
 use super::*;
 
 use crate::domain::state_machine::{FileLockStateMachine, FileLockState, StateMachineError};
-use backbone_core::state_machine::StateMachineBehavior;
 
 use thiserror::Error;
 

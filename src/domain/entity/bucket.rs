@@ -11,7 +11,6 @@ use super::AuditMetadata;
 use super::*;
 
 use crate::domain::state_machine::{BucketStateMachine, BucketState, StateMachineError};
-use backbone_core::state_machine::StateMachineBehavior;
 
 /// Strongly-typed ID for Bucket
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

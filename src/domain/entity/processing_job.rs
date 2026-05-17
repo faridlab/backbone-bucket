@@ -10,7 +10,6 @@ use super::AuditMetadata;
 use super::*;
 
 use crate::domain::state_machine::{ProcessingJobStateMachine, ProcessingJobState, StateMachineError};
-use backbone_core::state_machine::StateMachineBehavior;
 
 use thiserror::Error;
 
