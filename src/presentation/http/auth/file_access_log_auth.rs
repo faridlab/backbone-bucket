@@ -8,8 +8,10 @@
 //! - Auth middleware configuration
 
 use std::sync::Arc;
+use super::AuthContextExt;
 
-use backbone_auth::{AuthContext, AuthMiddleware};
+use backbone_auth::middleware::AuthContext;
+use backbone_auth::{AuthMiddleware};
 use axum::{
     extract::{Request, State},
     http::StatusCode,
