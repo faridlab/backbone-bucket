@@ -5,9 +5,6 @@
 //! These handlers use Axum and backbone-core's BackboneCrudHandler
 //! to provide all 12 standard Backbone CRUD endpoints.
 
-#[cfg(feature = "auth")]
-pub mod auth;
-
 pub mod access_log_handler;
 pub mod bucket_handler;
 pub mod content_hash_handler;
@@ -22,6 +19,8 @@ pub mod thumbnail_handler;
 pub mod upload_session_handler;
 pub mod user_quota_handler;
 // <<< CUSTOM
+#[cfg(feature = "auth")]
+pub mod auth;
 pub mod serving;
 pub mod upload;
 // END CUSTOM
