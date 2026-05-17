@@ -1,0 +1,22 @@
+-- Down: drop enum types for bucket module
+DROP TYPE IF EXISTS quota_status CASCADE;
+DROP TYPE IF EXISTS upload_status CASCADE;
+DROP TYPE IF EXISTS thumbnail_size CASCADE;
+DROP TYPE IF EXISTS processing_status CASCADE;
+DROP TYPE IF EXISTS access_action CASCADE;
+DROP TYPE IF EXISTS threat_level CASCADE;
+DROP TYPE IF EXISTS file_status CASCADE;
+DROP TYPE IF EXISTS job_status CASCADE;
+DROP TYPE IF EXISTS processing_job_type CASCADE;
+DROP TYPE IF EXISTS version_type CASCADE;
+DROP TYPE IF EXISTS share_permission CASCADE;
+DROP TYPE IF EXISTS share_status CASCADE;
+DROP TYPE IF EXISTS share_type CASCADE;
+DROP TYPE IF EXISTS lock_status CASCADE;
+DROP TYPE IF EXISTS comment_status CASCADE;
+DROP TYPE IF EXISTS conversion_type CASCADE;
+DROP TYPE IF EXISTS conversion_status CASCADE;
+DROP TYPE IF EXISTS hash_algorithm CASCADE;
+DROP TYPE IF EXISTS storage_backend CASCADE;
+DROP TYPE IF EXISTS bucket_status CASCADE;
+DROP TYPE IF EXISTS bucket_type CASCADE;
