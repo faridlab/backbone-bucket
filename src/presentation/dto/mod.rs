@@ -129,6 +129,7 @@ pub use user_quota_dto::{
 use serde::Serialize;
 
 #[cfg(feature = "openapi")]
+#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
 /// Pagination parameters for list requests

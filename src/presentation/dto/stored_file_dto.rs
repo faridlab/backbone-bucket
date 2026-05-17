@@ -10,6 +10,7 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
 #[cfg(feature = "openapi")]
+#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
 #[cfg(feature = "validation")]
