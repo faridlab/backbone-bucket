@@ -4,6 +4,12 @@
 //!
 //! This module provides permission guards and auth configuration.
 
+pub mod auth_context_ext;
+pub use auth_context_ext::AuthContextExt;
+
+pub mod request_token;
+pub use request_token::extract_bearer_token;
+
 pub mod access_log_auth;
 pub mod bucket_auth;
 pub mod content_hash_auth;
