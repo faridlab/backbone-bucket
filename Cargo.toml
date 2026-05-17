@@ -81,6 +81,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # GraphQL (optional)
 async-graphql = { version = "7", optional = true }
 
+# OpenAPI schema derive. The schema generator emits ungated `use utoipa::ToSchema;`
+# in every entity and DTO file, so the dep is unconditional even though the
+# `derive(ToSchema)` itself is feature-gated to `openapi`.
+utoipa = { version = "5", features = ["chrono", "uuid"] }
+
 # In-memory storage backend for tests (test-utils feature)
 dashmap = { version = "5", optional = true }
 
