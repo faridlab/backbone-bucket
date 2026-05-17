@@ -19,10 +19,10 @@ pub mod stored_file_api_test;
 pub mod thumbnail_api_test;
 pub mod upload_session_api_test;
 pub mod user_quota_api_test;
+
 // <<< CUSTOM - Hand-written multipart HTTP upload tests (custom routes)
 pub mod upload_multipart_test;
 // END CUSTOM
-
 // Re-exports for convenience
 pub use crud_test_base::*;
 pub use access_log_api_test::*;

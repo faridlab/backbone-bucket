@@ -6,6 +6,7 @@
 
 pub mod error;
 pub use error::{ServiceError, ServiceResult};
+
 // <<< CUSTOM - Custom business logic services
 mod locking_service;
 mod deduplication_service;
@@ -26,7 +27,6 @@ pub use video_thumbnail_service::VideoThumbnailService;
 pub use document_preview_service::DocumentPreviewService;
 pub use file_service::{FileMeta, FileService};
 // END CUSTOM
-
 pub mod access_log_service;
 pub mod bucket_service;
 pub mod content_hash_service;
