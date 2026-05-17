@@ -20,6 +20,7 @@ pub mod infrastructure;
 pub mod application;
 pub mod presentation;
 pub mod seeders;
+
 // <<< CUSTOM - bucket-serving surface (see docs/serving.md)
 pub mod error;
 pub mod storage;
@@ -53,7 +54,6 @@ pub use presentation::http::{
     upload_router, UploadConfig, UploadContext, DEFAULT_CHUNK_BODY_LIMIT, DEFAULT_UPLOAD_BODY_LIMIT,
 };
 // END CUSTOM
-
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
 
@@ -83,6 +83,7 @@ pub use application::service::StoredFileService;
 pub use application::service::ThumbnailService;
 pub use application::service::UploadSessionService;
 pub use application::service::UserQuotaService;
+
 // <<< CUSTOM - Custom service re-exports
 pub use application::service::LockingService;
 pub use application::service::DeduplicationService;
@@ -95,7 +96,6 @@ pub use application::service::DocumentPreviewService;
 mod bucket_module; // Phase 6: http_routes() — regeneration-safe BucketModule extensions
 pub use bucket_module::RouterOptions;
 // END CUSTOM
-
 // Re-exports - Validation
 pub use application::validator::{ValidationError, ValidationResult};
 
@@ -297,6 +297,7 @@ impl BucketModuleBuilder {
         // UserQuota service
         let user_quota_repository = Arc::new(UserQuotaRepository::new(db_pool.clone()));
         let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()));
+
         // <<< CUSTOM - Custom business logic services
         let locking_service = Arc::new(LockingService::new(
             file_lock_repository, stored_file_repository.clone(),
@@ -320,6 +321,7 @@ impl BucketModuleBuilder {
         let document_preview_service = Arc::new(DocumentPreviewService::new(
             processing_job_repository, thumbnail_repository, stored_file_repository.clone(),
         ));
+
         // <<< CUSTOM - bucket-serving wiring (see docs/serving.md)
         let bucket_config = self.bucket_config.map(Arc::new);
         let storage = self.storage;
@@ -332,10 +334,6 @@ impl BucketModuleBuilder {
             _ => None,
         };
         // END CUSTOM
-
-        // <<< CUSTOM
-        // END CUSTOM
-
         Ok(BucketModule {
             access_log_service,
             bucket_service,
