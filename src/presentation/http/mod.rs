@@ -43,8 +43,6 @@ pub use thumbnail_handler::{create_thumbnail_routes, create_thumbnail_read_route
 pub use upload_session_handler::{create_upload_session_routes, create_upload_session_read_routes, create_upload_session_write_routes};
 pub use user_quota_handler::{create_user_quota_routes, create_user_quota_read_routes, create_user_quota_write_routes};
 // <<< CUSTOM
-// END CUSTOM
-// <<< CUSTOM
 pub use serving::{lookup_by_key, serving_router, ServingContext};
 pub use upload::{
     upload_router, UploadConfig, UploadContext, DEFAULT_CHUNK_BODY_LIMIT, DEFAULT_UPLOAD_BODY_LIMIT,

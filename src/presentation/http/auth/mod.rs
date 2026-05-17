@@ -42,4 +42,4 @@ pub use user_quota_auth::*;
 // Common auth utilities from backbone-auth
 // Note: Don't re-export AuthContext as it conflicts with application::middleware::auth::AuthContext
 pub use backbone_auth::AuthMiddleware;
-pub use backbone_auth::AuthContext as BackboneAuthContext;
+pub use backbone_auth::middleware::AuthContext as BackboneAuthContext;

@@ -5,8 +5,9 @@
 pub mod dto;
 pub mod http;
 // grpc and graphql modules are orphans — their generators are disabled in
-// schema/models/index.model.yaml. Re-add `pub mod grpc;` / `pub mod graphql;`
-// here after re-enabling and regenerating from schema.
+// schema/models/index.model.yaml. routes-composer / handlers-module still
+// emit module references for them; strip after every regen until upstream
+// respects the disabled list.
 
 // <<< CUSTOM
 // END CUSTOM
