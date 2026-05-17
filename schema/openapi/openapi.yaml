@@ -31,8 +31,6 @@ tags:
     description: ProcessingJob management endpoints
   - name: StoredFiles
     description: StoredFile management endpoints
-  - name: FileAccessLogs
-    description: FileAccessLog management endpoints
   - name: Thumbnails
     description: Thumbnail management endpoints
   - name: UploadSessions
@@ -2281,230 +2279,6 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/file_access_logs:
-    get:
-      tags:
-        - FileAccessLogs
-      summary: List FileAccessLogs
-      description: Get a paginated list of FileAccessLogs with optional filtering and sorting
-      operationId: listFileAccessLogs
-      parameters:
-        - $ref: '#/components/parameters/PageParam'
-        - $ref: '#/components/parameters/PerPageParam'
-        - $ref: '#/components/parameters/SortByParam'
-        - $ref: '#/components/parameters/SortOrderParam'
-      responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLogList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      tags:
-        - FileAccessLogs
-      summary: Create FileAccessLog
-      description: Create a new FileAccessLog
-      operationId: createFileAccessLog
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateFileAccessLogRequest'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLog'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/file_access_logs/{id}:
-    parameters:
-      - $ref: '#/components/parameters/IdParam'
-
-    get:
-      tags:
-        - FileAccessLogs
-      summary: Get FileAccessLog by ID
-      operationId: getFileAccessLog
-      responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLog'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    put:
-      tags:
-        - FileAccessLogs
-      summary: Update FileAccessLog (full)
-      operationId: updateFileAccessLog
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateFileAccessLogRequest'
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLog'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    patch:
-      tags:
-        - FileAccessLogs
-      summary: Update FileAccessLog (partial)
-      operationId: patchFileAccessLog
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchFileAccessLogRequest'
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLog'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    delete:
-      tags:
-        - FileAccessLogs
-      summary: Delete FileAccessLog (soft)
-      operationId: deleteFileAccessLog
-      responses:
-        '204':
-          description: Deleted
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/file_access_logs/bulk:
-    post:
-      tags:
-        - FileAccessLogs
-      summary: Bulk create FileAccessLogs
-      operationId: bulkCreateFileAccessLogs
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/CreateFileAccessLogRequest'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/FileAccessLog'
-
-  /api/v1/file_access_logs/upsert:
-    post:
-      tags:
-        - FileAccessLogs
-      summary: Upsert FileAccessLog
-      operationId: upsertFileAccessLog
-      parameters:
-        - name: key_field
-          in: query
-          schema:
-            type: string
-        - name: key_value
-          in: query
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateFileAccessLogRequest'
-      responses:
-        '200':
-          description: Upserted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLog'
-
-  /api/v1/file_access_logs/trash:
-    get:
-      tags:
-        - FileAccessLogs
-      summary: List deleted FileAccessLogs
-      operationId: listDeletedFileAccessLogs
-      parameters:
-        - $ref: '#/components/parameters/PageParam'
-        - $ref: '#/components/parameters/PerPageParam'
-      responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLogList'
-
-  /api/v1/file_access_logs/{id}/restore:
-    parameters:
-      - $ref: '#/components/parameters/IdParam'
-    post:
-      tags:
-        - FileAccessLogs
-      summary: Restore deleted FileAccessLog
-      operationId: restoreFileAccessLog
-      responses:
-        '200':
-          description: Restored
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileAccessLog'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/file_access_logs/empty:
-    delete:
-      tags:
-        - FileAccessLogs
-      summary: Empty trash for FileAccessLogs
-      operationId: emptyTrashFileAccessLogs
-      responses:
-        '200':
-          description: Trash emptied
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  deleted_count:
-                    type: integer
-
   /api/v1/thumbnails:
     get:
       tags:
@@ -3278,22 +3052,11 @@ components:
       required:
         - id
         - file_id
-        - bucket_id
         - action
-        - user_id
-        - share_id
         - is_owner
         - is_shared
         - is_public
-        - ip_address
-        - user_agent
-        - referer
-        - country_code
-        - city
-        - bytes_transferred
-        - duration_ms
         - success
-        - error_message
         - accessed_at
         - metadata
       properties:
@@ -3304,14 +3067,17 @@ components:
           type: string
           format: uuid
         bucket_id:
+          nullable: true
           type: string
           format: uuid
         action:
           type: string
         user_id:
+          nullable: true
           type: string
           format: uuid
         share_id:
+          nullable: true
           type: string
           format: uuid
         is_owner:
@@ -3321,29 +3087,37 @@ components:
         is_public:
           type: boolean
         ip_address:
+          nullable: true
           type: string
           maxLength: 45
         user_agent:
+          nullable: true
           type: string
           maxLength: 500
         referer:
+          nullable: true
           type: string
           maxLength: 500
         country_code:
+          nullable: true
           type: string
           maxLength: 2
         city:
+          nullable: true
           type: string
           maxLength: 100
         bytes_transferred:
+          nullable: true
           type: integer
           format: int64
         duration_ms:
+          nullable: true
           type: integer
           format: int32
         success:
           type: boolean
         error_message:
+          nullable: true
           type: string
           maxLength: 500
         accessed_at:
@@ -3356,22 +3130,11 @@ components:
       type: object
       required:
         - file_id
-        - bucket_id
         - action
-        - user_id
-        - share_id
         - is_owner
         - is_shared
         - is_public
-        - ip_address
-        - user_agent
-        - referer
-        - country_code
-        - city
-        - bytes_transferred
-        - duration_ms
         - success
-        - error_message
         - accessed_at
         - metadata
       properties:
@@ -3379,14 +3142,17 @@ components:
           type: string
           format: uuid
         bucket_id:
+          nullable: true
           type: string
           format: uuid
         action:
           type: string
         user_id:
+          nullable: true
           type: string
           format: uuid
         share_id:
+          nullable: true
           type: string
           format: uuid
         is_owner:
@@ -3396,29 +3162,37 @@ components:
         is_public:
           type: boolean
         ip_address:
+          nullable: true
           type: string
           maxLength: 45
         user_agent:
+          nullable: true
           type: string
           maxLength: 500
         referer:
+          nullable: true
           type: string
           maxLength: 500
         country_code:
+          nullable: true
           type: string
           maxLength: 2
         city:
+          nullable: true
           type: string
           maxLength: 100
         bytes_transferred:
+          nullable: true
           type: integer
           format: int64
         duration_ms:
+          nullable: true
           type: integer
           format: int32
         success:
           type: boolean
         error_message:
+          nullable: true
           type: string
           maxLength: 500
         accessed_at:
@@ -3431,22 +3205,11 @@ components:
       type: object
       required:
         - file_id
-        - bucket_id
         - action
-        - user_id
-        - share_id
         - is_owner
         - is_shared
         - is_public
-        - ip_address
-        - user_agent
-        - referer
-        - country_code
-        - city
-        - bytes_transferred
-        - duration_ms
         - success
-        - error_message
         - accessed_at
         - metadata
       properties:
@@ -3454,14 +3217,17 @@ components:
           type: string
           format: uuid
         bucket_id:
+          nullable: true
           type: string
           format: uuid
         action:
           type: string
         user_id:
+          nullable: true
           type: string
           format: uuid
         share_id:
+          nullable: true
           type: string
           format: uuid
         is_owner:
@@ -3471,29 +3237,37 @@ components:
         is_public:
           type: boolean
         ip_address:
+          nullable: true
           type: string
           maxLength: 45
         user_agent:
+          nullable: true
           type: string
           maxLength: 500
         referer:
+          nullable: true
           type: string
           maxLength: 500
         country_code:
+          nullable: true
           type: string
           maxLength: 2
         city:
+          nullable: true
           type: string
           maxLength: 100
         bytes_transferred:
+          nullable: true
           type: integer
           format: int64
         duration_ms:
+          nullable: true
           type: integer
           format: int32
         success:
           type: boolean
         error_message:
+          nullable: true
           type: string
           maxLength: 500
         accessed_at:
@@ -3509,14 +3283,17 @@ components:
           type: string
           format: uuid
         bucket_id:
+          nullable: true
           type: string
           format: uuid
         action:
           type: string
         user_id:
+          nullable: true
           type: string
           format: uuid
         share_id:
+          nullable: true
           type: string
           format: uuid
         is_owner:
@@ -3526,29 +3303,37 @@ components:
         is_public:
           type: boolean
         ip_address:
+          nullable: true
           type: string
           maxLength: 45
         user_agent:
+          nullable: true
           type: string
           maxLength: 500
         referer:
+          nullable: true
           type: string
           maxLength: 500
         country_code:
+          nullable: true
           type: string
           maxLength: 2
         city:
+          nullable: true
           type: string
           maxLength: 100
         bytes_transferred:
+          nullable: true
           type: integer
           format: int64
         duration_ms:
+          nullable: true
           type: integer
           format: int32
         success:
           type: boolean
         error_message:
+          nullable: true
           type: string
           maxLength: 500
         accessed_at:
@@ -3591,7 +3376,6 @@ components:
           format: uuid
         name:
           type: string
-          minLength: 1
           maxLength: 255
         slug:
           type: string
@@ -3656,7 +3440,6 @@ components:
       properties:
         name:
           type: string
-          minLength: 1
           maxLength: 255
         slug:
           type: string
@@ -3721,7 +3504,6 @@ components:
       properties:
         name:
           type: string
-          minLength: 1
           maxLength: 255
         slug:
           type: string
@@ -3771,7 +3553,6 @@ components:
       properties:
         name:
           type: string
-          minLength: 1
           maxLength: 255
         slug:
           type: string
@@ -3837,6 +3618,7 @@ components:
         - reference_count
         - first_uploaded_at
         - last_referenced_at
+        - metadata
       properties:
         id:
           type: string
@@ -3866,7 +3648,6 @@ components:
           type: string
           maxLength: 128
         metadata:
-          nullable: true
           type: object
 
     CreateContentHashRequest:
@@ -3879,6 +3660,7 @@ components:
         - reference_count
         - first_uploaded_at
         - last_referenced_at
+        - metadata
       properties:
         hash:
           type: string
@@ -3905,7 +3687,6 @@ components:
           type: string
           maxLength: 128
         metadata:
-          nullable: true
           type: object
 
     UpdateContentHashRequest:
@@ -3918,6 +3699,7 @@ components:
         - reference_count
         - first_uploaded_at
         - last_referenced_at
+        - metadata
       properties:
         hash:
           type: string
@@ -3944,7 +3726,6 @@ components:
           type: string
           maxLength: 128
         metadata:
-          nullable: true
           type: object
 
     PatchContentHashRequest:
@@ -3975,7 +3756,6 @@ components:
           type: string
           maxLength: 128
         metadata:
-          nullable: true
           type: object
 
     ContentHashList:
@@ -3996,6 +3776,7 @@ components:
         - target_format
         - status
         - progress
+        - metadata
       properties:
         id:
           type: string
@@ -4030,7 +3811,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     CreateConversionJobRequest:
@@ -4040,6 +3820,7 @@ components:
         - target_format
         - status
         - progress
+        - metadata
       properties:
         source_file_id:
           type: string
@@ -4071,7 +3852,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     UpdateConversionJobRequest:
@@ -4081,6 +3861,7 @@ components:
         - target_format
         - status
         - progress
+        - metadata
       properties:
         source_file_id:
           type: string
@@ -4112,7 +3893,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     PatchConversionJobRequest:
@@ -4148,7 +3928,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     ConversionJobList:
@@ -4170,6 +3949,8 @@ components:
         - content
         - mentions
         - resolved
+        - status
+        - metadata
       properties:
         id:
           type: string
@@ -4202,8 +3983,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     CreateFileCommentRequest:
@@ -4214,6 +3996,8 @@ components:
         - content
         - mentions
         - resolved
+        - status
+        - metadata
       properties:
         file_id:
           type: string
@@ -4243,8 +4027,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     UpdateFileCommentRequest:
@@ -4255,6 +4040,8 @@ components:
         - content
         - mentions
         - resolved
+        - status
+        - metadata
       properties:
         file_id:
           type: string
@@ -4284,8 +4071,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     PatchFileCommentRequest:
@@ -4319,8 +4107,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     FileCommentList:
@@ -4341,6 +4130,8 @@ components:
         - user_id
         - locked_at
         - expires_at
+        - status
+        - metadata
       properties:
         id:
           type: string
@@ -4361,8 +4152,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     CreateFileLockRequest:
@@ -4372,6 +4164,8 @@ components:
         - user_id
         - locked_at
         - expires_at
+        - status
+        - metadata
       properties:
         file_id:
           type: string
@@ -4389,8 +4183,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     UpdateFileLockRequest:
@@ -4400,6 +4195,8 @@ components:
         - user_id
         - locked_at
         - expires_at
+        - status
+        - metadata
       properties:
         file_id:
           type: string
@@ -4417,8 +4214,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     PatchFileLockRequest:
@@ -4440,8 +4238,9 @@ components:
           nullable: true
           type: string
           format: date-time
+        status:
+          type: string
         metadata:
-          nullable: true
           type: object
 
     FileLockList:
@@ -4465,6 +4264,7 @@ components:
         - permission
         - shared_with
         - download_count
+        - share_status
         - is_active
         - metadata
       properties:
@@ -4501,6 +4301,8 @@ components:
           nullable: true
           type: string
           format: date-time
+        share_status:
+          type: string
         is_active:
           type: boolean
         revoked_at:
@@ -4527,6 +4329,7 @@ components:
         - permission
         - shared_with
         - download_count
+        - share_status
         - is_active
         - metadata
       properties:
@@ -4560,6 +4363,8 @@ components:
           nullable: true
           type: string
           format: date-time
+        share_status:
+          type: string
         is_active:
           type: boolean
         revoked_at:
@@ -4586,6 +4391,7 @@ components:
         - permission
         - shared_with
         - download_count
+        - share_status
         - is_active
         - metadata
       properties:
@@ -4619,6 +4425,8 @@ components:
           nullable: true
           type: string
           format: date-time
+        share_status:
+          type: string
         is_active:
           type: boolean
         revoked_at:
@@ -4668,6 +4476,8 @@ components:
           nullable: true
           type: string
           format: date-time
+        share_status:
+          type: string
         is_active:
           type: boolean
         revoked_at:
@@ -4697,9 +4507,6 @@ components:
     FileVersion:
       type: object
       required:
-        - created_at
-        - updated_at
-        - size_bytes
         - id
         - file_id
         - version_number
@@ -4708,24 +4515,12 @@ components:
         - storage_backend
         - name
         - mime_type
-        - checksum_md5
-        - checksum_sha256
         - created_by_id
-        - change_summary
         - is_current
-        - restored_from_id
-        - expires_at
         - is_deleted
+        - size_bytes
+        - metadata
       properties:
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        size_bytes:
-          type: integer
-          format: int64
         id:
           type: string
           format: uuid
@@ -4747,35 +4542,45 @@ components:
         mime_type:
           type: string
         checksum_md5:
+          nullable: true
           type: string
           maxLength: 32
         checksum_sha256:
+          nullable: true
           type: string
           maxLength: 64
         created_by_id:
           type: string
           format: uuid
         change_summary:
+          nullable: true
           type: string
           maxLength: 500
         is_current:
           type: boolean
         restored_from_id:
+          nullable: true
           type: string
           format: uuid
         expires_at:
+          nullable: true
           type: string
           format: date-time
         is_deleted:
           type: boolean
         deleted_at:
+          nullable: true
           type: string
           format: date-time
+        size_bytes:
+          type: integer
+          format: int64
+        metadata:
+          type: object
 
     CreateFileVersionRequest:
       type: object
       required:
-        - size_bytes
         - file_id
         - version_number
         - version_type
@@ -4783,18 +4588,12 @@ components:
         - storage_backend
         - name
         - mime_type
-        - checksum_md5
-        - checksum_sha256
         - created_by_id
-        - change_summary
         - is_current
-        - restored_from_id
-        - expires_at
         - is_deleted
+        - size_bytes
+        - metadata
       properties:
-        size_bytes:
-          type: integer
-          format: int64
         file_id:
           type: string
           format: uuid
@@ -4813,32 +4612,41 @@ components:
         mime_type:
           type: string
         checksum_md5:
+          nullable: true
           type: string
           maxLength: 32
         checksum_sha256:
+          nullable: true
           type: string
           maxLength: 64
         created_by_id:
           type: string
           format: uuid
         change_summary:
+          nullable: true
           type: string
           maxLength: 500
         is_current:
           type: boolean
         restored_from_id:
+          nullable: true
           type: string
           format: uuid
         expires_at:
+          nullable: true
           type: string
           format: date-time
         is_deleted:
           type: boolean
+        size_bytes:
+          type: integer
+          format: int64
+        metadata:
+          type: object
 
     UpdateFileVersionRequest:
       type: object
       required:
-        - size_bytes
         - file_id
         - version_number
         - version_type
@@ -4846,18 +4654,12 @@ components:
         - storage_backend
         - name
         - mime_type
-        - checksum_md5
-        - checksum_sha256
         - created_by_id
-        - change_summary
         - is_current
-        - restored_from_id
-        - expires_at
         - is_deleted
+        - size_bytes
+        - metadata
       properties:
-        size_bytes:
-          type: integer
-          format: int64
         file_id:
           type: string
           format: uuid
@@ -4876,34 +4678,41 @@ components:
         mime_type:
           type: string
         checksum_md5:
+          nullable: true
           type: string
           maxLength: 32
         checksum_sha256:
+          nullable: true
           type: string
           maxLength: 64
         created_by_id:
           type: string
           format: uuid
         change_summary:
+          nullable: true
           type: string
           maxLength: 500
         is_current:
           type: boolean
         restored_from_id:
+          nullable: true
           type: string
           format: uuid
         expires_at:
+          nullable: true
           type: string
           format: date-time
         is_deleted:
           type: boolean
+        size_bytes:
+          type: integer
+          format: int64
+        metadata:
+          type: object
 
     PatchFileVersionRequest:
       type: object
       properties:
-        size_bytes:
-          type: integer
-          format: int64
         file_id:
           type: string
           format: uuid
@@ -4922,27 +4731,37 @@ components:
         mime_type:
           type: string
         checksum_md5:
+          nullable: true
           type: string
           maxLength: 32
         checksum_sha256:
+          nullable: true
           type: string
           maxLength: 64
         created_by_id:
           type: string
           format: uuid
         change_summary:
+          nullable: true
           type: string
           maxLength: 500
         is_current:
           type: boolean
         restored_from_id:
+          nullable: true
           type: string
           format: uuid
         expires_at:
+          nullable: true
           type: string
           format: date-time
         is_deleted:
           type: boolean
+        size_bytes:
+          type: integer
+          format: int64
+        metadata:
+          type: object
 
     FileVersionList:
       type: object
@@ -4964,6 +4783,7 @@ components:
         - priority
         - retry_count
         - max_retries
+        - metadata
       properties:
         id:
           type: string
@@ -5002,7 +4822,6 @@ components:
           type: integer
           format: int32
         metadata:
-          nullable: true
           type: object
 
     CreateProcessingJobRequest:
@@ -5014,6 +4833,7 @@ components:
         - priority
         - retry_count
         - max_retries
+        - metadata
       properties:
         file_id:
           type: string
@@ -5049,7 +4869,6 @@ components:
           type: integer
           format: int32
         metadata:
-          nullable: true
           type: object
 
     UpdateProcessingJobRequest:
@@ -5061,6 +4880,7 @@ components:
         - priority
         - retry_count
         - max_retries
+        - metadata
       properties:
         file_id:
           type: string
@@ -5096,7 +4916,6 @@ components:
           type: integer
           format: int32
         metadata:
-          nullable: true
           type: object
 
     PatchProcessingJobRequest:
@@ -5136,7 +4955,6 @@ components:
           type: integer
           format: int32
         metadata:
-          nullable: true
           type: object
 
     ProcessingJobList:
@@ -5164,6 +4982,7 @@ components:
         - has_thumbnail
         - has_video_thumbnail
         - has_document_preview
+        - sort_order
         - status
         - storage_key
         - version
@@ -5235,6 +5054,25 @@ components:
           nullable: true
           type: string
           format: date-time
+        owner_module:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity_id:
+          nullable: true
+          type: string
+          format: uuid
+        field_name:
+          nullable: true
+          type: string
+          maxLength: 100
+        sort_order:
+          type: integer
+          format: int32
         status:
           type: string
         storage_key:
@@ -5271,6 +5109,7 @@ components:
         - has_thumbnail
         - has_video_thumbnail
         - has_document_preview
+        - sort_order
         - status
         - storage_key
         - version
@@ -5339,6 +5178,25 @@ components:
           nullable: true
           type: string
           format: date-time
+        owner_module:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity_id:
+          nullable: true
+          type: string
+          format: uuid
+        field_name:
+          nullable: true
+          type: string
+          maxLength: 100
+        sort_order:
+          type: integer
+          format: int32
         status:
           type: string
         storage_key:
@@ -5375,6 +5233,7 @@ components:
         - has_thumbnail
         - has_video_thumbnail
         - has_document_preview
+        - sort_order
         - status
         - storage_key
         - version
@@ -5443,6 +5302,25 @@ components:
           nullable: true
           type: string
           format: date-time
+        owner_module:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity_id:
+          nullable: true
+          type: string
+          format: uuid
+        field_name:
+          nullable: true
+          type: string
+          maxLength: 100
+        sort_order:
+          type: integer
+          format: int32
         status:
           type: string
         storage_key:
@@ -5530,6 +5408,25 @@ components:
           nullable: true
           type: string
           format: date-time
+        owner_module:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity:
+          nullable: true
+          type: string
+          maxLength: 100
+        owner_entity_id:
+          nullable: true
+          type: string
+          format: uuid
+        field_name:
+          nullable: true
+          type: string
+          maxLength: 100
+        sort_order:
+          type: integer
+          format: int32
         status:
           type: string
         storage_key:
@@ -5562,141 +5459,9 @@ components:
         meta:
           $ref: '#/components/schemas/PaginationMeta'
 
-    FileAccessLog:
-      type: object
-      required:
-        - id
-        - file_id
-        - action
-        - accessed_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        file_id:
-          type: string
-          format: uuid
-        user_id:
-          nullable: true
-          type: string
-          format: uuid
-        share_id:
-          nullable: true
-          type: string
-          format: uuid
-        action:
-          type: string
-        ip_address:
-          nullable: true
-          type: string
-        user_agent:
-          nullable: true
-          type: string
-        accessed_at:
-          type: string
-          format: date-time
-
-    CreateFileAccessLogRequest:
-      type: object
-      required:
-        - file_id
-        - action
-        - accessed_at
-      properties:
-        file_id:
-          type: string
-          format: uuid
-        user_id:
-          nullable: true
-          type: string
-          format: uuid
-        share_id:
-          nullable: true
-          type: string
-          format: uuid
-        action:
-          type: string
-        ip_address:
-          nullable: true
-          type: string
-        user_agent:
-          nullable: true
-          type: string
-        accessed_at:
-          type: string
-          format: date-time
-
-    UpdateFileAccessLogRequest:
-      type: object
-      required:
-        - file_id
-        - action
-        - accessed_at
-      properties:
-        file_id:
-          type: string
-          format: uuid
-        user_id:
-          nullable: true
-          type: string
-          format: uuid
-        share_id:
-          nullable: true
-          type: string
-          format: uuid
-        action:
-          type: string
-        ip_address:
-          nullable: true
-          type: string
-        user_agent:
-          nullable: true
-          type: string
-        accessed_at:
-          type: string
-          format: date-time
-
-    PatchFileAccessLogRequest:
-      type: object
-      properties:
-        file_id:
-          type: string
-          format: uuid
-        user_id:
-          nullable: true
-          type: string
-          format: uuid
-        share_id:
-          nullable: true
-          type: string
-          format: uuid
-        action:
-          type: string
-        ip_address:
-          nullable: true
-          type: string
-        user_agent:
-          nullable: true
-          type: string
-        accessed_at:
-          type: string
-          format: date-time
-
-    FileAccessLogList:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/FileAccessLog'
-        meta:
-          $ref: '#/components/schemas/PaginationMeta'
-
     Thumbnail:
       type: object
       required:
-        - created_at
-        - updated_at
         - id
         - file_id
         - size
@@ -5709,22 +5474,10 @@ components:
         - quality
         - size_bytes
         - generated_at
-        - generation_time_ms
         - source_version
-        - cdn_url
-        - cache_expires_at
         - is_stale
+        - metadata
       properties:
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        deleted_at:
-          nullable: true
-          type: string
-          format: date-time
         id:
           type: string
           format: uuid
@@ -5757,18 +5510,23 @@ components:
           type: string
           format: date-time
         generation_time_ms:
+          nullable: true
           type: integer
           format: int32
         source_version:
           type: integer
           format: int32
         cdn_url:
+          nullable: true
           type: string
         cache_expires_at:
+          nullable: true
           type: string
           format: date-time
         is_stale:
           type: boolean
+        metadata:
+          type: object
 
     CreateThumbnailRequest:
       type: object
@@ -5784,11 +5542,9 @@ components:
         - quality
         - size_bytes
         - generated_at
-        - generation_time_ms
         - source_version
-        - cdn_url
-        - cache_expires_at
         - is_stale
+        - metadata
       properties:
         file_id:
           type: string
@@ -5819,18 +5575,23 @@ components:
           type: string
           format: date-time
         generation_time_ms:
+          nullable: true
           type: integer
           format: int32
         source_version:
           type: integer
           format: int32
         cdn_url:
+          nullable: true
           type: string
         cache_expires_at:
+          nullable: true
           type: string
           format: date-time
         is_stale:
           type: boolean
+        metadata:
+          type: object
 
     UpdateThumbnailRequest:
       type: object
@@ -5846,11 +5607,9 @@ components:
         - quality
         - size_bytes
         - generated_at
-        - generation_time_ms
         - source_version
-        - cdn_url
-        - cache_expires_at
         - is_stale
+        - metadata
       properties:
         file_id:
           type: string
@@ -5881,18 +5640,23 @@ components:
           type: string
           format: date-time
         generation_time_ms:
+          nullable: true
           type: integer
           format: int32
         source_version:
           type: integer
           format: int32
         cdn_url:
+          nullable: true
           type: string
         cache_expires_at:
+          nullable: true
           type: string
           format: date-time
         is_stale:
           type: boolean
+        metadata:
+          type: object
 
     PatchThumbnailRequest:
       type: object
@@ -5926,18 +5690,23 @@ components:
           type: string
           format: date-time
         generation_time_ms:
+          nullable: true
           type: integer
           format: int32
         source_version:
           type: integer
           format: int32
         cdn_url:
+          nullable: true
           type: string
         cache_expires_at:
+          nullable: true
           type: string
           format: date-time
         is_stale:
           type: boolean
+        metadata:
+          type: object
 
     ThumbnailList:
       type: object
@@ -5965,6 +5734,7 @@ components:
         - storage_backend
         - completed_parts
         - expires_at
+        - metadata
       properties:
         id:
           type: string
@@ -6010,7 +5780,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     CreateUploadSessionRequest:
@@ -6028,6 +5797,7 @@ components:
         - storage_backend
         - completed_parts
         - expires_at
+        - metadata
       properties:
         bucket_id:
           type: string
@@ -6070,7 +5840,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     UpdateUploadSessionRequest:
@@ -6088,6 +5857,7 @@ components:
         - storage_backend
         - completed_parts
         - expires_at
+        - metadata
       properties:
         bucket_id:
           type: string
@@ -6130,7 +5900,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     PatchUploadSessionRequest:
@@ -6177,7 +5946,6 @@ components:
           type: string
           format: date-time
         metadata:
-          nullable: true
           type: object
 
     UploadSessionList:
@@ -6199,6 +5967,7 @@ components:
         - used_bytes
         - file_count
         - tier
+        - quota_status
         - warning_threshold_percent
         - peak_usage_bytes
         - metadata
@@ -6229,6 +5998,8 @@ components:
         tier:
           type: string
           maxLength: 50
+        quota_status:
+          type: string
         warning_threshold_percent:
           type: integer
           format: int32
@@ -6254,6 +6025,7 @@ components:
         - used_bytes
         - file_count
         - tier
+        - quota_status
         - warning_threshold_percent
         - peak_usage_bytes
         - metadata
@@ -6281,6 +6053,8 @@ components:
         tier:
           type: string
           maxLength: 50
+        quota_status:
+          type: string
         warning_threshold_percent:
           type: integer
           format: int32
@@ -6306,6 +6080,7 @@ components:
         - used_bytes
         - file_count
         - tier
+        - quota_status
         - warning_threshold_percent
         - peak_usage_bytes
         - metadata
@@ -6333,6 +6108,8 @@ components:
         tier:
           type: string
           maxLength: 50
+        quota_status:
+          type: string
         warning_threshold_percent:
           type: integer
           format: int32
@@ -6376,6 +6153,8 @@ components:
         tier:
           type: string
           maxLength: 50
+        quota_status:
+          type: string
         warning_threshold_percent:
           type: integer
           format: int32

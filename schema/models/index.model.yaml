@@ -64,18 +64,32 @@ config:
   audit: true
   default_timestamps: true
   generators:
+    # enabled:
+    #   - sql
+    #   - rust
+    #   - repository
+    #   - handler
+    #   - service
+    #   - module
+    #   - config
+    #   - repository-trait
+    #   - domain-service
+    #   - events
+    #   - state-machine
+    #   - validator
+    #   - trigger
+    #   - flow
+    #   - seeder
+    #   - audit-triggers
+    #   - export
+    #   - app-state
+    #   - routes-composer
+    #   - handlers-module
     disabled:
       - graphql
       - grpc
       - proto
       - openapi
-      # Protects presentation/http/routes.rs, presentation/http/mod.rs, and routes/mod.rs
-      # from being regenerated with the 3 collapsed child entities (Thumbnail, FileVersion,
-      # AccessLog). These files were manually patched after adding generators.disabled to
-      # those model yamls. Re-enable only after the routes-composer generator respects
-      # per-model disabled flags.
-      - routes-composer
-      - handlers-module
 
 # =============================================================================
 # IMPORTS - Model files in this module
