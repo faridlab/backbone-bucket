@@ -18,7 +18,8 @@ use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 // Auth integration (optional)
 #[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
-use backbone_auth::{AuthMiddleware};
+#[cfg(feature = "auth")]
+use backbone_auth::AuthMiddleware;
 
 // Domain imports
 use crate::domain::entity::*;
@@ -185,7 +186,12 @@ pub fn create_protected_stored_file_routes<A: AuthMiddleware + Send + Sync + 'st
         .layer(middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
             let auth = auth_layer.clone();
             async move {
-                match auth.authenticate(crate::presentation::http::auth::extract_bearer_token(&req)).await {
+                let token = req.headers()
+                    .get(axum::http::header::AUTHORIZATION)
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|raw| raw.strip_prefix("Bearer ").or_else(|| raw.strip_prefix("bearer ")))
+                    .unwrap_or("");
+                match auth.authenticate(token).await {
                     Ok(ctx) => {
                         req.extensions_mut().insert(ctx);
                         next.run(req).await
@@ -214,7 +220,7 @@ pub fn create_protected_stored_file_routes<A: AuthMiddleware + Send + Sync + 'st
 pub async fn complete_upload_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -229,9 +235,9 @@ pub async fn complete_upload_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = StoredFileTransition::CompleteUpload.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "stored_file:transition:complete_upload");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "stored_file:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:complete_upload");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for complete_upload transition")));
         }
@@ -265,7 +271,7 @@ pub async fn complete_upload_transition(
 pub async fn mark_safe_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -280,9 +286,9 @@ pub async fn mark_safe_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = StoredFileTransition::MarkSafe.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "stored_file:transition:mark_safe");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "stored_file:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe transition")));
         }
@@ -316,7 +322,7 @@ pub async fn mark_safe_transition(
 pub async fn quarantine_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -331,9 +337,9 @@ pub async fn quarantine_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = StoredFileTransition::Quarantine.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "stored_file:transition:quarantine");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "stored_file:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:quarantine");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for quarantine transition")));
         }
@@ -367,7 +373,7 @@ pub async fn quarantine_transition(
 pub async fn mark_safe_by_admin_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -382,9 +388,9 @@ pub async fn mark_safe_by_admin_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = StoredFileTransition::MarkSafeByAdmin.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "stored_file:transition:mark_safe_by_admin");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "stored_file:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe_by_admin");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe_by_admin transition")));
         }
@@ -418,7 +424,7 @@ pub async fn mark_safe_by_admin_transition(
 pub async fn soft_delete_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -433,9 +439,9 @@ pub async fn soft_delete_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = StoredFileTransition::SoftDelete.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "stored_file:transition:soft_delete");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "stored_file:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:soft_delete");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for soft_delete transition")));
         }
@@ -469,7 +475,7 @@ pub async fn soft_delete_transition(
 pub async fn restore_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -484,9 +490,9 @@ pub async fn restore_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = StoredFileTransition::Restore.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "stored_file:transition:restore");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "stored_file:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:restore");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for restore transition")));
         }
@@ -520,7 +526,7 @@ pub async fn restore_transition(
 pub async fn purge_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -535,9 +541,9 @@ pub async fn purge_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = StoredFileTransition::Purge.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "stored_file:transition:purge");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "stored_file:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:purge");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for purge transition")));
         }

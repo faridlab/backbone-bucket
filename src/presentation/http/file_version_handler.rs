@@ -18,7 +18,8 @@ use backbone_core::http::BackboneCrudHandler;
 // Auth integration (optional)
 #[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
-use backbone_auth::{AuthMiddleware};
+#[cfg(feature = "auth")]
+use backbone_auth::AuthMiddleware;
 
 // Domain imports
 use crate::domain::entity::*;
@@ -155,7 +156,12 @@ pub fn create_protected_file_version_routes<A: AuthMiddleware + Send + Sync + 's
         .layer(middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
             let auth = auth_layer.clone();
             async move {
-                match auth.authenticate(crate::presentation::http::auth::extract_bearer_token(&req)).await {
+                let token = req.headers()
+                    .get(axum::http::header::AUTHORIZATION)
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|raw| raw.strip_prefix("Bearer ").or_else(|| raw.strip_prefix("bearer ")))
+                    .unwrap_or("");
+                match auth.authenticate(token).await {
                     Ok(ctx) => {
                         req.extensions_mut().insert(ctx);
                         next.run(req).await

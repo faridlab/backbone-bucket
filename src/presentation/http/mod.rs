@@ -18,14 +18,12 @@ pub mod stored_file_handler;
 pub mod thumbnail_handler;
 pub mod upload_session_handler;
 pub mod user_quota_handler;
+
 // <<< CUSTOM
 #[cfg(feature = "auth")]
 pub mod auth;
 pub mod serving;
 pub mod upload;
-// END CUSTOM
-
-// <<< CUSTOM
 // END CUSTOM
 
 // Re-exports

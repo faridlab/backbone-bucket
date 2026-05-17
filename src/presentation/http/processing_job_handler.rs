@@ -18,7 +18,8 @@ use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 // Auth integration (optional)
 #[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
-use backbone_auth::{AuthMiddleware};
+#[cfg(feature = "auth")]
+use backbone_auth::AuthMiddleware;
 
 // Domain imports
 use crate::domain::entity::*;
@@ -189,7 +190,12 @@ pub fn create_protected_processing_job_routes<A: AuthMiddleware + Send + Sync + 
         .layer(middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
             let auth = auth_layer.clone();
             async move {
-                match auth.authenticate(crate::presentation::http::auth::extract_bearer_token(&req)).await {
+                let token = req.headers()
+                    .get(axum::http::header::AUTHORIZATION)
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|raw| raw.strip_prefix("Bearer ").or_else(|| raw.strip_prefix("bearer ")))
+                    .unwrap_or("");
+                match auth.authenticate(token).await {
                     Ok(ctx) => {
                         req.extensions_mut().insert(ctx);
                         next.run(req).await
@@ -218,7 +224,7 @@ pub fn create_protected_processing_job_routes<A: AuthMiddleware + Send + Sync + 
 pub async fn start_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -233,9 +239,9 @@ pub async fn start_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = ProcessingJobTransition::Start.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "processing_job:transition:start");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "processing_job:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:start");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for start transition")));
         }
@@ -269,7 +275,7 @@ pub async fn start_transition(
 pub async fn complete_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -284,9 +290,9 @@ pub async fn complete_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = ProcessingJobTransition::Complete.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "processing_job:transition:complete");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "processing_job:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:complete");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for complete transition")));
         }
@@ -320,7 +326,7 @@ pub async fn complete_transition(
 pub async fn fail_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -335,9 +341,9 @@ pub async fn fail_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = ProcessingJobTransition::Fail.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "processing_job:transition:fail");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "processing_job:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:fail");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for fail transition")));
         }
@@ -371,7 +377,7 @@ pub async fn fail_transition(
 pub async fn cancel_pending_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -386,9 +392,9 @@ pub async fn cancel_pending_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = ProcessingJobTransition::CancelPending.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "processing_job:transition:cancel_pending");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "processing_job:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_pending");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_pending transition")));
         }
@@ -422,7 +428,7 @@ pub async fn cancel_pending_transition(
 pub async fn cancel_running_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -437,9 +443,9 @@ pub async fn cancel_running_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = ProcessingJobTransition::CancelRunning.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "processing_job:transition:cancel_running");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "processing_job:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_running");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_running transition")));
         }
@@ -473,7 +479,7 @@ pub async fn cancel_running_transition(
 pub async fn retry_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -488,9 +494,9 @@ pub async fn retry_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = ProcessingJobTransition::Retry.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "processing_job:transition:retry");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "processing_job:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:retry");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for retry transition")));
         }
@@ -524,7 +530,7 @@ pub async fn retry_transition(
 pub async fn reprocess_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -539,9 +545,9 @@ pub async fn reprocess_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = ProcessingJobTransition::Reprocess.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "processing_job:transition:reprocess");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "processing_job:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:reprocess");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for reprocess transition")));
         }

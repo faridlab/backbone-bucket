@@ -17,7 +17,8 @@ use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 // Auth integration (optional)
 #[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
-use backbone_auth::{AuthMiddleware};
+#[cfg(feature = "auth")]
+use backbone_auth::AuthMiddleware;
 
 // Domain imports
 use crate::domain::entity::*;
@@ -192,7 +193,12 @@ pub fn create_protected_bucket_routes<A: AuthMiddleware + Send + Sync + 'static>
         .layer(middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
             let auth = auth_layer.clone();
             async move {
-                match auth.authenticate(crate::presentation::http::auth::extract_bearer_token(&req)).await {
+                let token = req.headers()
+                    .get(axum::http::header::AUTHORIZATION)
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|raw| raw.strip_prefix("Bearer ").or_else(|| raw.strip_prefix("bearer ")))
+                    .unwrap_or("");
+                match auth.authenticate(token).await {
                     Ok(ctx) => {
                         req.extensions_mut().insert(ctx);
                         next.run(req).await
@@ -221,7 +227,7 @@ pub fn create_protected_bucket_routes<A: AuthMiddleware + Send + Sync + 'static>
 pub async fn lock_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -236,9 +242,9 @@ pub async fn lock_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = BucketTransition::Lock.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "bucket:transition:lock");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "bucket:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:lock");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for lock transition")));
         }
@@ -272,7 +278,7 @@ pub async fn lock_transition(
 pub async fn unlock_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -287,9 +293,9 @@ pub async fn unlock_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = BucketTransition::Unlock.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "bucket:transition:unlock");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "bucket:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:unlock");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for unlock transition")));
         }
@@ -323,7 +329,7 @@ pub async fn unlock_transition(
 pub async fn archive_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -338,9 +344,9 @@ pub async fn archive_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = BucketTransition::Archive.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "bucket:transition:archive");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "bucket:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:archive");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for archive transition")));
         }
@@ -374,7 +380,7 @@ pub async fn archive_transition(
 pub async fn restore_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -389,9 +395,9 @@ pub async fn restore_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = BucketTransition::Restore.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "bucket:transition:restore");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "bucket:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:restore");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for restore transition")));
         }
@@ -425,7 +431,7 @@ pub async fn restore_transition(
 pub async fn delete_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -440,9 +446,9 @@ pub async fn delete_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = BucketTransition::Delete.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "bucket:transition:delete");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "bucket:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:delete");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for delete transition")));
         }

@@ -18,7 +18,8 @@ use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 // Auth integration (optional)
 #[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
-use backbone_auth::{AuthMiddleware};
+#[cfg(feature = "auth")]
+use backbone_auth::AuthMiddleware;
 
 // Domain imports
 use crate::domain::entity::*;
@@ -193,7 +194,12 @@ pub fn create_protected_file_share_routes<A: AuthMiddleware + Send + Sync + 'sta
         .layer(middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
             let auth = auth_layer.clone();
             async move {
-                match auth.authenticate(crate::presentation::http::auth::extract_bearer_token(&req)).await {
+                let token = req.headers()
+                    .get(axum::http::header::AUTHORIZATION)
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|raw| raw.strip_prefix("Bearer ").or_else(|| raw.strip_prefix("bearer ")))
+                    .unwrap_or("");
+                match auth.authenticate(token).await {
                     Ok(ctx) => {
                         req.extensions_mut().insert(ctx);
                         next.run(req).await
@@ -222,7 +228,7 @@ pub fn create_protected_file_share_routes<A: AuthMiddleware + Send + Sync + 'sta
 pub async fn expire_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -237,9 +243,9 @@ pub async fn expire_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = FileShareTransition::Expire.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "file_share:transition:expire");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "file_share:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:expire");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "file_share:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileShareResponseDto>::error("Insufficient permissions for expire transition")));
         }
@@ -273,7 +279,7 @@ pub async fn expire_transition(
 pub async fn exhaust_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -288,9 +294,9 @@ pub async fn exhaust_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = FileShareTransition::Exhaust.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "file_share:transition:exhaust");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "file_share:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:exhaust");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "file_share:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileShareResponseDto>::error("Insufficient permissions for exhaust transition")));
         }
@@ -324,7 +330,7 @@ pub async fn exhaust_transition(
 pub async fn revoke_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] auth: axum::Extension<AuthContext>,
+    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -339,9 +345,9 @@ pub async fn revoke_transition(
     #[cfg(feature = "auth")]
     {
         let allowed_roles = FileShareTransition::Revoke.allowed_roles();
-        let has_specific_perm = auth.0.permissions.iter().any(|p| p == "file_share:transition:revoke");
-        let has_update_perm = auth.0.permissions.iter().any(|p| p == "file_share:update");
-        let has_role = auth.0.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:revoke");
+        let has_update_perm = auth.permissions.iter().any(|p| p == "file_share:update");
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_update_perm && !has_role {
             return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileShareResponseDto>::error("Insufficient permissions for revoke transition")));
         }
