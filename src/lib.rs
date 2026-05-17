@@ -332,7 +332,6 @@ impl BucketModuleBuilder {
             _ => None,
         };
         // END CUSTOM
-        // END CUSTOM
 
         // <<< CUSTOM
         // END CUSTOM
