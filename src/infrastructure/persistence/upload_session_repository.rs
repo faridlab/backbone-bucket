@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::UploadSession;
 
 /// Table name for UploadSession entities
-pub const TABLE_NAME: &str = "upload_sessions";
+pub const TABLE_NAME: &str = "bucket.upload_sessions";
 
 /// Repository for UploadSession entities.
 ///

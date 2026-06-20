@@ -40,8 +40,8 @@ impl Seeder for SeedFileCommentSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if file_comments table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM file_comments")
+        // Check if bucket.file_comments table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.file_comments")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedFileCommentSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM file_comments")
+        sqlx::query("DELETE FROM bucket.file_comments")
             .execute(pool)
             .await?;
         Ok(())

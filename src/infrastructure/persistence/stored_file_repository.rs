@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::StoredFile;
 
 /// Table name for StoredFile entities
-pub const TABLE_NAME: &str = "stored_files";
+pub const TABLE_NAME: &str = "bucket.stored_files";
 
 /// Repository for StoredFile entities.
 ///

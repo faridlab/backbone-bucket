@@ -40,8 +40,8 @@ impl Seeder for SeedThumbnailSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if thumbnails table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM thumbnails")
+        // Check if bucket.thumbnails table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.thumbnails")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedThumbnailSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM thumbnails")
+        sqlx::query("DELETE FROM bucket.thumbnails")
             .execute(pool)
             .await?;
         Ok(())

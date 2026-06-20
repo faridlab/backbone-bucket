@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::ProcessingJob;
 
 /// Table name for ProcessingJob entities
-pub const TABLE_NAME: &str = "processing_jobs";
+pub const TABLE_NAME: &str = "bucket.processing_jobs";
 
 /// Repository for ProcessingJob entities.
 ///

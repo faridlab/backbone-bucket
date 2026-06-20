@@ -40,8 +40,8 @@ impl Seeder for SeedFileVersionSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if file_versions table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM file_versions")
+        // Check if bucket.file_versions table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.file_versions")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedFileVersionSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM file_versions")
+        sqlx::query("DELETE FROM bucket.file_versions")
             .execute(pool)
             .await?;
         Ok(())

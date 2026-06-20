@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::FileShare;
 
 /// Table name for FileShare entities
-pub const TABLE_NAME: &str = "file_shares";
+pub const TABLE_NAME: &str = "bucket.file_shares";
 
 /// Repository for FileShare entities.
 ///

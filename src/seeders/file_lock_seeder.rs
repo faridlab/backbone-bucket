@@ -40,8 +40,8 @@ impl Seeder for SeedFileLockSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if file_locks table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM file_locks")
+        // Check if bucket.file_locks table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.file_locks")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedFileLockSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM file_locks")
+        sqlx::query("DELETE FROM bucket.file_locks")
             .execute(pool)
             .await?;
         Ok(())

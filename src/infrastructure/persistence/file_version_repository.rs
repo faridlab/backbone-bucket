@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::FileVersion;
 
 /// Table name for FileVersion entities
-pub const TABLE_NAME: &str = "file_versions";
+pub const TABLE_NAME: &str = "bucket.file_versions";
 
 /// Repository for FileVersion entities.
 ///

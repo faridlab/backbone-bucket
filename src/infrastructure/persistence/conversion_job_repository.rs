@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::ConversionJob;
 
 /// Table name for ConversionJob entities
-pub const TABLE_NAME: &str = "conversion_jobs";
+pub const TABLE_NAME: &str = "bucket.conversion_jobs";
 
 /// Repository for ConversionJob entities.
 ///

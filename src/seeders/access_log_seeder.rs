@@ -40,8 +40,8 @@ impl Seeder for SeedAccessLogSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if access_logs table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM access_logs")
+        // Check if bucket.access_logs table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.access_logs")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedAccessLogSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM access_logs")
+        sqlx::query("DELETE FROM bucket.access_logs")
             .execute(pool)
             .await?;
         Ok(())

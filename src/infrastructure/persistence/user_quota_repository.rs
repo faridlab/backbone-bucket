@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::domain::entity::UserQuota;
 
 /// Table name for UserQuota entities
-pub const TABLE_NAME: &str = "user_quotas";
+pub const TABLE_NAME: &str = "bucket.user_quotas";
 
 /// Repository for UserQuota entities.
 ///

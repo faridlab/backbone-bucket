@@ -40,8 +40,8 @@ impl Seeder for SeedBucketSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if buckets table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM buckets")
+        // Check if bucket.buckets table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.buckets")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedBucketSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM buckets")
+        sqlx::query("DELETE FROM bucket.buckets")
             .execute(pool)
             .await?;
         Ok(())

@@ -40,8 +40,8 @@ impl Seeder for SeedFileShareSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if file_shares table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM file_shares")
+        // Check if bucket.file_shares table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.file_shares")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedFileShareSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM file_shares")
+        sqlx::query("DELETE FROM bucket.file_shares")
             .execute(pool)
             .await?;
         Ok(())

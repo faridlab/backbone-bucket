@@ -40,8 +40,8 @@ impl Seeder for SeedConversionJobSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if conversion_jobs table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM conversion_jobs")
+        // Check if bucket.conversion_jobs table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.conversion_jobs")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedConversionJobSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM conversion_jobs")
+        sqlx::query("DELETE FROM bucket.conversion_jobs")
             .execute(pool)
             .await?;
         Ok(())

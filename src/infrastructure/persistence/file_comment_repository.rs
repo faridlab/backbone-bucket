@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::FileComment;
 
 /// Table name for FileComment entities
-pub const TABLE_NAME: &str = "file_comments";
+pub const TABLE_NAME: &str = "bucket.file_comments";
 
 /// Repository for FileComment entities.
 ///

@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::AccessLog;
 
 /// Table name for AccessLog entities
-pub const TABLE_NAME: &str = "access_logs";
+pub const TABLE_NAME: &str = "bucket.access_logs";
 
 /// Repository for AccessLog entities.
 ///

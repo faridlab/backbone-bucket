@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::ContentHash;
 
 /// Table name for ContentHash entities
-pub const TABLE_NAME: &str = "content_hashes";
+pub const TABLE_NAME: &str = "bucket.content_hashes";
 
 /// Repository for ContentHash entities.
 ///

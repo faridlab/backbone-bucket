@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::Thumbnail;
 
 /// Table name for Thumbnail entities
-pub const TABLE_NAME: &str = "thumbnails";
+pub const TABLE_NAME: &str = "bucket.thumbnails";
 
 /// Repository for Thumbnail entities.
 ///

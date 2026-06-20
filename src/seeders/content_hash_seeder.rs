@@ -40,8 +40,8 @@ impl Seeder for SeedContentHashSeeder {
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
-        // Check if content_hashes table has any data
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM content_hashes")
+        // Check if bucket.content_hashes table has any data
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM bucket.content_hashes")
             .fetch_one(pool)
             .await?;
         Ok(count.0 == 0)
@@ -55,7 +55,7 @@ impl Seeder for SeedContentHashSeeder {
     }
 
     async fn rollback(&self, pool: &PgPool) -> Result<()> {
-        sqlx::query("DELETE FROM content_hashes")
+        sqlx::query("DELETE FROM bucket.content_hashes")
             .execute(pool)
             .await?;
         Ok(())

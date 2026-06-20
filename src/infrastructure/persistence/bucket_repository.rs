@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use crate::domain::entity::Bucket;
 
 /// Table name for Bucket entities
-pub const TABLE_NAME: &str = "buckets";
+pub const TABLE_NAME: &str = "bucket.buckets";
 
 /// Repository for Bucket entities.
 ///

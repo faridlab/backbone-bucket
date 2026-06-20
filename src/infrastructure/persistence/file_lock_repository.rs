@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::domain::entity::FileLock;
 
 /// Table name for FileLock entities
-pub const TABLE_NAME: &str = "file_locks";
+pub const TABLE_NAME: &str = "bucket.file_locks";
 
 /// Repository for FileLock entities.
 ///
