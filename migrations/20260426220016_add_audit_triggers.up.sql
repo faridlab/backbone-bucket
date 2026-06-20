@@ -9,11 +9,11 @@
 --   - metadata->'updated_at' on INSERT and UPDATE
 
 -- ==============================================================================
--- Table: AccessLog (access_logs)
+-- Table: AccessLog (bucket.access_logs)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION access_logs_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.access_logs_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -26,21 +26,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS access_logs_insert_audit ON access_logs;
-CREATE TRIGGER access_logs_insert_audit BEFORE INSERT ON access_logs
-    FOR EACH ROW EXECUTE FUNCTION access_logs_audit_timestamp();
+DROP TRIGGER IF EXISTS access_logs_insert_audit ON bucket.access_logs;
+CREATE TRIGGER access_logs_insert_audit BEFORE INSERT ON bucket.access_logs
+    FOR EACH ROW EXECUTE FUNCTION bucket.access_logs_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS access_logs_update_audit ON access_logs;
-CREATE TRIGGER access_logs_update_audit BEFORE UPDATE ON access_logs
-    FOR EACH ROW EXECUTE FUNCTION access_logs_audit_timestamp();
+DROP TRIGGER IF EXISTS access_logs_update_audit ON bucket.access_logs;
+CREATE TRIGGER access_logs_update_audit BEFORE UPDATE ON bucket.access_logs
+    FOR EACH ROW EXECUTE FUNCTION bucket.access_logs_audit_timestamp();
 
 -- ==============================================================================
--- Table: Bucket (buckets)
+-- Table: Bucket (bucket.buckets)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION buckets_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.buckets_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -53,21 +53,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS buckets_insert_audit ON buckets;
-CREATE TRIGGER buckets_insert_audit BEFORE INSERT ON buckets
-    FOR EACH ROW EXECUTE FUNCTION buckets_audit_timestamp();
+DROP TRIGGER IF EXISTS buckets_insert_audit ON bucket.buckets;
+CREATE TRIGGER buckets_insert_audit BEFORE INSERT ON bucket.buckets
+    FOR EACH ROW EXECUTE FUNCTION bucket.buckets_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS buckets_update_audit ON buckets;
-CREATE TRIGGER buckets_update_audit BEFORE UPDATE ON buckets
-    FOR EACH ROW EXECUTE FUNCTION buckets_audit_timestamp();
+DROP TRIGGER IF EXISTS buckets_update_audit ON bucket.buckets;
+CREATE TRIGGER buckets_update_audit BEFORE UPDATE ON bucket.buckets
+    FOR EACH ROW EXECUTE FUNCTION bucket.buckets_audit_timestamp();
 
 -- ==============================================================================
--- Table: ContentHash (content_hashes)
+-- Table: ContentHash (bucket.content_hashes)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION content_hashes_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.content_hashes_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -80,21 +80,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS content_hashes_insert_audit ON content_hashes;
-CREATE TRIGGER content_hashes_insert_audit BEFORE INSERT ON content_hashes
-    FOR EACH ROW EXECUTE FUNCTION content_hashes_audit_timestamp();
+DROP TRIGGER IF EXISTS content_hashes_insert_audit ON bucket.content_hashes;
+CREATE TRIGGER content_hashes_insert_audit BEFORE INSERT ON bucket.content_hashes
+    FOR EACH ROW EXECUTE FUNCTION bucket.content_hashes_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS content_hashes_update_audit ON content_hashes;
-CREATE TRIGGER content_hashes_update_audit BEFORE UPDATE ON content_hashes
-    FOR EACH ROW EXECUTE FUNCTION content_hashes_audit_timestamp();
+DROP TRIGGER IF EXISTS content_hashes_update_audit ON bucket.content_hashes;
+CREATE TRIGGER content_hashes_update_audit BEFORE UPDATE ON bucket.content_hashes
+    FOR EACH ROW EXECUTE FUNCTION bucket.content_hashes_audit_timestamp();
 
 -- ==============================================================================
--- Table: ConversionJob (conversion_jobs)
+-- Table: ConversionJob (bucket.conversion_jobs)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION conversion_jobs_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.conversion_jobs_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -107,21 +107,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS conversion_jobs_insert_audit ON conversion_jobs;
-CREATE TRIGGER conversion_jobs_insert_audit BEFORE INSERT ON conversion_jobs
-    FOR EACH ROW EXECUTE FUNCTION conversion_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS conversion_jobs_insert_audit ON bucket.conversion_jobs;
+CREATE TRIGGER conversion_jobs_insert_audit BEFORE INSERT ON bucket.conversion_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.conversion_jobs_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS conversion_jobs_update_audit ON conversion_jobs;
-CREATE TRIGGER conversion_jobs_update_audit BEFORE UPDATE ON conversion_jobs
-    FOR EACH ROW EXECUTE FUNCTION conversion_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS conversion_jobs_update_audit ON bucket.conversion_jobs;
+CREATE TRIGGER conversion_jobs_update_audit BEFORE UPDATE ON bucket.conversion_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.conversion_jobs_audit_timestamp();
 
 -- ==============================================================================
--- Table: FileComment (file_comments)
+-- Table: FileComment (bucket.file_comments)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION file_comments_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_comments_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -134,21 +134,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_comments_insert_audit ON file_comments;
-CREATE TRIGGER file_comments_insert_audit BEFORE INSERT ON file_comments
-    FOR EACH ROW EXECUTE FUNCTION file_comments_audit_timestamp();
+DROP TRIGGER IF EXISTS file_comments_insert_audit ON bucket.file_comments;
+CREATE TRIGGER file_comments_insert_audit BEFORE INSERT ON bucket.file_comments
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_comments_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_comments_update_audit ON file_comments;
-CREATE TRIGGER file_comments_update_audit BEFORE UPDATE ON file_comments
-    FOR EACH ROW EXECUTE FUNCTION file_comments_audit_timestamp();
+DROP TRIGGER IF EXISTS file_comments_update_audit ON bucket.file_comments;
+CREATE TRIGGER file_comments_update_audit BEFORE UPDATE ON bucket.file_comments
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_comments_audit_timestamp();
 
 -- ==============================================================================
--- Table: FileLock (file_locks)
+-- Table: FileLock (bucket.file_locks)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION file_locks_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_locks_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -161,21 +161,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_locks_insert_audit ON file_locks;
-CREATE TRIGGER file_locks_insert_audit BEFORE INSERT ON file_locks
-    FOR EACH ROW EXECUTE FUNCTION file_locks_audit_timestamp();
+DROP TRIGGER IF EXISTS file_locks_insert_audit ON bucket.file_locks;
+CREATE TRIGGER file_locks_insert_audit BEFORE INSERT ON bucket.file_locks
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_locks_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_locks_update_audit ON file_locks;
-CREATE TRIGGER file_locks_update_audit BEFORE UPDATE ON file_locks
-    FOR EACH ROW EXECUTE FUNCTION file_locks_audit_timestamp();
+DROP TRIGGER IF EXISTS file_locks_update_audit ON bucket.file_locks;
+CREATE TRIGGER file_locks_update_audit BEFORE UPDATE ON bucket.file_locks
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_locks_audit_timestamp();
 
 -- ==============================================================================
--- Table: FileShare (file_shares)
+-- Table: FileShare (bucket.file_shares)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION file_shares_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_shares_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -188,21 +188,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_shares_insert_audit ON file_shares;
-CREATE TRIGGER file_shares_insert_audit BEFORE INSERT ON file_shares
-    FOR EACH ROW EXECUTE FUNCTION file_shares_audit_timestamp();
+DROP TRIGGER IF EXISTS file_shares_insert_audit ON bucket.file_shares;
+CREATE TRIGGER file_shares_insert_audit BEFORE INSERT ON bucket.file_shares
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_shares_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_shares_update_audit ON file_shares;
-CREATE TRIGGER file_shares_update_audit BEFORE UPDATE ON file_shares
-    FOR EACH ROW EXECUTE FUNCTION file_shares_audit_timestamp();
+DROP TRIGGER IF EXISTS file_shares_update_audit ON bucket.file_shares;
+CREATE TRIGGER file_shares_update_audit BEFORE UPDATE ON bucket.file_shares
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_shares_audit_timestamp();
 
 -- ==============================================================================
--- Table: FileVersion (file_versions)
+-- Table: FileVersion (bucket.file_versions)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION file_versions_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_versions_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -215,21 +215,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_versions_insert_audit ON file_versions;
-CREATE TRIGGER file_versions_insert_audit BEFORE INSERT ON file_versions
-    FOR EACH ROW EXECUTE FUNCTION file_versions_audit_timestamp();
+DROP TRIGGER IF EXISTS file_versions_insert_audit ON bucket.file_versions;
+CREATE TRIGGER file_versions_insert_audit BEFORE INSERT ON bucket.file_versions
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_versions_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_versions_update_audit ON file_versions;
-CREATE TRIGGER file_versions_update_audit BEFORE UPDATE ON file_versions
-    FOR EACH ROW EXECUTE FUNCTION file_versions_audit_timestamp();
+DROP TRIGGER IF EXISTS file_versions_update_audit ON bucket.file_versions;
+CREATE TRIGGER file_versions_update_audit BEFORE UPDATE ON bucket.file_versions
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_versions_audit_timestamp();
 
 -- ==============================================================================
--- Table: ProcessingJob (processing_jobs)
+-- Table: ProcessingJob (bucket.processing_jobs)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION processing_jobs_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.processing_jobs_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -242,21 +242,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS processing_jobs_insert_audit ON processing_jobs;
-CREATE TRIGGER processing_jobs_insert_audit BEFORE INSERT ON processing_jobs
-    FOR EACH ROW EXECUTE FUNCTION processing_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS processing_jobs_insert_audit ON bucket.processing_jobs;
+CREATE TRIGGER processing_jobs_insert_audit BEFORE INSERT ON bucket.processing_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.processing_jobs_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS processing_jobs_update_audit ON processing_jobs;
-CREATE TRIGGER processing_jobs_update_audit BEFORE UPDATE ON processing_jobs
-    FOR EACH ROW EXECUTE FUNCTION processing_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS processing_jobs_update_audit ON bucket.processing_jobs;
+CREATE TRIGGER processing_jobs_update_audit BEFORE UPDATE ON bucket.processing_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.processing_jobs_audit_timestamp();
 
 -- ==============================================================================
--- Table: StoredFile (stored_files)
+-- Table: StoredFile (bucket.stored_files)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION stored_files_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.stored_files_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -269,21 +269,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS stored_files_insert_audit ON stored_files;
-CREATE TRIGGER stored_files_insert_audit BEFORE INSERT ON stored_files
-    FOR EACH ROW EXECUTE FUNCTION stored_files_audit_timestamp();
+DROP TRIGGER IF EXISTS stored_files_insert_audit ON bucket.stored_files;
+CREATE TRIGGER stored_files_insert_audit BEFORE INSERT ON bucket.stored_files
+    FOR EACH ROW EXECUTE FUNCTION bucket.stored_files_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS stored_files_update_audit ON stored_files;
-CREATE TRIGGER stored_files_update_audit BEFORE UPDATE ON stored_files
-    FOR EACH ROW EXECUTE FUNCTION stored_files_audit_timestamp();
+DROP TRIGGER IF EXISTS stored_files_update_audit ON bucket.stored_files;
+CREATE TRIGGER stored_files_update_audit BEFORE UPDATE ON bucket.stored_files
+    FOR EACH ROW EXECUTE FUNCTION bucket.stored_files_audit_timestamp();
 
 -- ==============================================================================
--- Table: Thumbnail (thumbnails)
+-- Table: Thumbnail (bucket.thumbnails)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION thumbnails_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.thumbnails_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -296,21 +296,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS thumbnails_insert_audit ON thumbnails;
-CREATE TRIGGER thumbnails_insert_audit BEFORE INSERT ON thumbnails
-    FOR EACH ROW EXECUTE FUNCTION thumbnails_audit_timestamp();
+DROP TRIGGER IF EXISTS thumbnails_insert_audit ON bucket.thumbnails;
+CREATE TRIGGER thumbnails_insert_audit BEFORE INSERT ON bucket.thumbnails
+    FOR EACH ROW EXECUTE FUNCTION bucket.thumbnails_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS thumbnails_update_audit ON thumbnails;
-CREATE TRIGGER thumbnails_update_audit BEFORE UPDATE ON thumbnails
-    FOR EACH ROW EXECUTE FUNCTION thumbnails_audit_timestamp();
+DROP TRIGGER IF EXISTS thumbnails_update_audit ON bucket.thumbnails;
+CREATE TRIGGER thumbnails_update_audit BEFORE UPDATE ON bucket.thumbnails
+    FOR EACH ROW EXECUTE FUNCTION bucket.thumbnails_audit_timestamp();
 
 -- ==============================================================================
--- Table: UploadSession (upload_sessions)
+-- Table: UploadSession (bucket.upload_sessions)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION upload_sessions_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.upload_sessions_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -323,21 +323,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS upload_sessions_insert_audit ON upload_sessions;
-CREATE TRIGGER upload_sessions_insert_audit BEFORE INSERT ON upload_sessions
-    FOR EACH ROW EXECUTE FUNCTION upload_sessions_audit_timestamp();
+DROP TRIGGER IF EXISTS upload_sessions_insert_audit ON bucket.upload_sessions;
+CREATE TRIGGER upload_sessions_insert_audit BEFORE INSERT ON bucket.upload_sessions
+    FOR EACH ROW EXECUTE FUNCTION bucket.upload_sessions_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS upload_sessions_update_audit ON upload_sessions;
-CREATE TRIGGER upload_sessions_update_audit BEFORE UPDATE ON upload_sessions
-    FOR EACH ROW EXECUTE FUNCTION upload_sessions_audit_timestamp();
+DROP TRIGGER IF EXISTS upload_sessions_update_audit ON bucket.upload_sessions;
+CREATE TRIGGER upload_sessions_update_audit BEFORE UPDATE ON bucket.upload_sessions
+    FOR EACH ROW EXECUTE FUNCTION bucket.upload_sessions_audit_timestamp();
 
 -- ==============================================================================
--- Table: UserQuota (user_quotas)
+-- Table: UserQuota (bucket.user_quotas)
 -- ==============================================================================
 
 -- Function to set metadata timestamps
-CREATE OR REPLACE FUNCTION user_quotas_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.user_quotas_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -350,12 +350,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS user_quotas_insert_audit ON user_quotas;
-CREATE TRIGGER user_quotas_insert_audit BEFORE INSERT ON user_quotas
-    FOR EACH ROW EXECUTE FUNCTION user_quotas_audit_timestamp();
+DROP TRIGGER IF EXISTS user_quotas_insert_audit ON bucket.user_quotas;
+CREATE TRIGGER user_quotas_insert_audit BEFORE INSERT ON bucket.user_quotas
+    FOR EACH ROW EXECUTE FUNCTION bucket.user_quotas_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS user_quotas_update_audit ON user_quotas;
-CREATE TRIGGER user_quotas_update_audit BEFORE UPDATE ON user_quotas
-    FOR EACH ROW EXECUTE FUNCTION user_quotas_audit_timestamp();
+DROP TRIGGER IF EXISTS user_quotas_update_audit ON bucket.user_quotas;
+CREATE TRIGGER user_quotas_update_audit BEFORE UPDATE ON bucket.user_quotas
+    FOR EACH ROW EXECUTE FUNCTION bucket.user_quotas_audit_timestamp();
 
