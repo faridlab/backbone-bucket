@@ -180,6 +180,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AccessLog'
+    put:
+      tags:
+        - AccessLogs
+      summary: Bulk update AccessLogs (full, atomic)
+      operationId: bulkUpdateAccessLogs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateAccessLogRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessLogBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - AccessLogs
+      summary: Bulk partial-update AccessLogs (atomic)
+      operationId: bulkPatchAccessLogs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessLogBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/access_logs/upsert:
     post:
@@ -262,6 +330,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/access_logs/delete/bulk:
+    post:
+      tags:
+        - AccessLogs
+      summary: Bulk soft-delete AccessLogs by ids (atomic)
+      operationId: bulkDeleteAccessLogs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/access_logs/restore/bulk:
+    post:
+      tags:
+        - AccessLogs
+      summary: Bulk restore AccessLogs by ids (atomic)
+      operationId: bulkRestoreAccessLogs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessLogBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/access_logs/restore/all:
+    post:
+      tags:
+        - AccessLogs
+      summary: Restore all soft-deleted AccessLogs
+      operationId: restoreAllAccessLogs
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/access_logs/trash/bulk:
+    delete:
+      tags:
+        - AccessLogs
+      summary: Bulk permanently-delete AccessLogs from trash by ids (atomic)
+      operationId: bulkPermanentDeleteAccessLogs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/buckets:
     get:
@@ -404,6 +546,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Bucket'
+    put:
+      tags:
+        - Buckets
+      summary: Bulk update Buckets (full, atomic)
+      operationId: bulkUpdateBuckets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateBucketRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - Buckets
+      summary: Bulk partial-update Buckets (atomic)
+      operationId: bulkPatchBuckets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/buckets/upsert:
     post:
@@ -486,6 +696,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/buckets/delete/bulk:
+    post:
+      tags:
+        - Buckets
+      summary: Bulk soft-delete Buckets by ids (atomic)
+      operationId: bulkDeleteBuckets
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/buckets/restore/bulk:
+    post:
+      tags:
+        - Buckets
+      summary: Bulk restore Buckets by ids (atomic)
+      operationId: bulkRestoreBuckets
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/buckets/restore/all:
+    post:
+      tags:
+        - Buckets
+      summary: Restore all soft-deleted Buckets
+      operationId: restoreAllBuckets
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/buckets/trash/bulk:
+    delete:
+      tags:
+        - Buckets
+      summary: Bulk permanently-delete Buckets from trash by ids (atomic)
+      operationId: bulkPermanentDeleteBuckets
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/content_hashes:
     get:
@@ -628,6 +912,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ContentHash'
+    put:
+      tags:
+        - ContentHashes
+      summary: Bulk update ContentHashes (full, atomic)
+      operationId: bulkUpdateContentHashes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateContentHashRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentHashBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - ContentHashes
+      summary: Bulk partial-update ContentHashes (atomic)
+      operationId: bulkPatchContentHashes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentHashBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/content_hashes/upsert:
     post:
@@ -710,6 +1062,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/content_hashes/delete/bulk:
+    post:
+      tags:
+        - ContentHashes
+      summary: Bulk soft-delete ContentHashes by ids (atomic)
+      operationId: bulkDeleteContentHashes
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/content_hashes/restore/bulk:
+    post:
+      tags:
+        - ContentHashes
+      summary: Bulk restore ContentHashes by ids (atomic)
+      operationId: bulkRestoreContentHashes
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentHashBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/content_hashes/restore/all:
+    post:
+      tags:
+        - ContentHashes
+      summary: Restore all soft-deleted ContentHashes
+      operationId: restoreAllContentHashes
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/content_hashes/trash/bulk:
+    delete:
+      tags:
+        - ContentHashes
+      summary: Bulk permanently-delete ContentHashes from trash by ids (atomic)
+      operationId: bulkPermanentDeleteContentHashes
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/conversion_jobs:
     get:
@@ -852,6 +1278,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ConversionJob'
+    put:
+      tags:
+        - ConversionJobs
+      summary: Bulk update ConversionJobs (full, atomic)
+      operationId: bulkUpdateConversionJobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateConversionJobRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionJobBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - ConversionJobs
+      summary: Bulk partial-update ConversionJobs (atomic)
+      operationId: bulkPatchConversionJobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionJobBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/conversion_jobs/upsert:
     post:
@@ -934,6 +1428,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/conversion_jobs/delete/bulk:
+    post:
+      tags:
+        - ConversionJobs
+      summary: Bulk soft-delete ConversionJobs by ids (atomic)
+      operationId: bulkDeleteConversionJobs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/conversion_jobs/restore/bulk:
+    post:
+      tags:
+        - ConversionJobs
+      summary: Bulk restore ConversionJobs by ids (atomic)
+      operationId: bulkRestoreConversionJobs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionJobBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/conversion_jobs/restore/all:
+    post:
+      tags:
+        - ConversionJobs
+      summary: Restore all soft-deleted ConversionJobs
+      operationId: restoreAllConversionJobs
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/conversion_jobs/trash/bulk:
+    delete:
+      tags:
+        - ConversionJobs
+      summary: Bulk permanently-delete ConversionJobs from trash by ids (atomic)
+      operationId: bulkPermanentDeleteConversionJobs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_comments:
     get:
@@ -1076,6 +1644,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FileComment'
+    put:
+      tags:
+        - FileComments
+      summary: Bulk update FileComments (full, atomic)
+      operationId: bulkUpdateFileComments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateFileCommentRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileCommentBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - FileComments
+      summary: Bulk partial-update FileComments (atomic)
+      operationId: bulkPatchFileComments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileCommentBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_comments/upsert:
     post:
@@ -1158,6 +1794,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/file_comments/delete/bulk:
+    post:
+      tags:
+        - FileComments
+      summary: Bulk soft-delete FileComments by ids (atomic)
+      operationId: bulkDeleteFileComments
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_comments/restore/bulk:
+    post:
+      tags:
+        - FileComments
+      summary: Bulk restore FileComments by ids (atomic)
+      operationId: bulkRestoreFileComments
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileCommentBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_comments/restore/all:
+    post:
+      tags:
+        - FileComments
+      summary: Restore all soft-deleted FileComments
+      operationId: restoreAllFileComments
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/file_comments/trash/bulk:
+    delete:
+      tags:
+        - FileComments
+      summary: Bulk permanently-delete FileComments from trash by ids (atomic)
+      operationId: bulkPermanentDeleteFileComments
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_locks:
     get:
@@ -1300,6 +2010,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FileLock'
+    put:
+      tags:
+        - FileLocks
+      summary: Bulk update FileLocks (full, atomic)
+      operationId: bulkUpdateFileLocks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateFileLockRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileLockBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - FileLocks
+      summary: Bulk partial-update FileLocks (atomic)
+      operationId: bulkPatchFileLocks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileLockBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_locks/upsert:
     post:
@@ -1382,6 +2160,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/file_locks/delete/bulk:
+    post:
+      tags:
+        - FileLocks
+      summary: Bulk soft-delete FileLocks by ids (atomic)
+      operationId: bulkDeleteFileLocks
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_locks/restore/bulk:
+    post:
+      tags:
+        - FileLocks
+      summary: Bulk restore FileLocks by ids (atomic)
+      operationId: bulkRestoreFileLocks
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileLockBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_locks/restore/all:
+    post:
+      tags:
+        - FileLocks
+      summary: Restore all soft-deleted FileLocks
+      operationId: restoreAllFileLocks
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/file_locks/trash/bulk:
+    delete:
+      tags:
+        - FileLocks
+      summary: Bulk permanently-delete FileLocks from trash by ids (atomic)
+      operationId: bulkPermanentDeleteFileLocks
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_shares:
     get:
@@ -1524,6 +2376,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FileShare'
+    put:
+      tags:
+        - FileShares
+      summary: Bulk update FileShares (full, atomic)
+      operationId: bulkUpdateFileShares
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateFileShareRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileShareBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - FileShares
+      summary: Bulk partial-update FileShares (atomic)
+      operationId: bulkPatchFileShares
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileShareBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_shares/upsert:
     post:
@@ -1606,6 +2526,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/file_shares/delete/bulk:
+    post:
+      tags:
+        - FileShares
+      summary: Bulk soft-delete FileShares by ids (atomic)
+      operationId: bulkDeleteFileShares
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_shares/restore/bulk:
+    post:
+      tags:
+        - FileShares
+      summary: Bulk restore FileShares by ids (atomic)
+      operationId: bulkRestoreFileShares
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileShareBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_shares/restore/all:
+    post:
+      tags:
+        - FileShares
+      summary: Restore all soft-deleted FileShares
+      operationId: restoreAllFileShares
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/file_shares/trash/bulk:
+    delete:
+      tags:
+        - FileShares
+      summary: Bulk permanently-delete FileShares from trash by ids (atomic)
+      operationId: bulkPermanentDeleteFileShares
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_versions:
     get:
@@ -1748,6 +2742,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FileVersion'
+    put:
+      tags:
+        - FileVersions
+      summary: Bulk update FileVersions (full, atomic)
+      operationId: bulkUpdateFileVersions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateFileVersionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileVersionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - FileVersions
+      summary: Bulk partial-update FileVersions (atomic)
+      operationId: bulkPatchFileVersions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileVersionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/file_versions/upsert:
     post:
@@ -1830,6 +2892,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/file_versions/delete/bulk:
+    post:
+      tags:
+        - FileVersions
+      summary: Bulk soft-delete FileVersions by ids (atomic)
+      operationId: bulkDeleteFileVersions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_versions/restore/bulk:
+    post:
+      tags:
+        - FileVersions
+      summary: Bulk restore FileVersions by ids (atomic)
+      operationId: bulkRestoreFileVersions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileVersionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/file_versions/restore/all:
+    post:
+      tags:
+        - FileVersions
+      summary: Restore all soft-deleted FileVersions
+      operationId: restoreAllFileVersions
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/file_versions/trash/bulk:
+    delete:
+      tags:
+        - FileVersions
+      summary: Bulk permanently-delete FileVersions from trash by ids (atomic)
+      operationId: bulkPermanentDeleteFileVersions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/processing_jobs:
     get:
@@ -1972,6 +3108,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProcessingJob'
+    put:
+      tags:
+        - ProcessingJobs
+      summary: Bulk update ProcessingJobs (full, atomic)
+      operationId: bulkUpdateProcessingJobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateProcessingJobRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingJobBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - ProcessingJobs
+      summary: Bulk partial-update ProcessingJobs (atomic)
+      operationId: bulkPatchProcessingJobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingJobBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/processing_jobs/upsert:
     post:
@@ -2054,6 +3258,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/processing_jobs/delete/bulk:
+    post:
+      tags:
+        - ProcessingJobs
+      summary: Bulk soft-delete ProcessingJobs by ids (atomic)
+      operationId: bulkDeleteProcessingJobs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/processing_jobs/restore/bulk:
+    post:
+      tags:
+        - ProcessingJobs
+      summary: Bulk restore ProcessingJobs by ids (atomic)
+      operationId: bulkRestoreProcessingJobs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingJobBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/processing_jobs/restore/all:
+    post:
+      tags:
+        - ProcessingJobs
+      summary: Restore all soft-deleted ProcessingJobs
+      operationId: restoreAllProcessingJobs
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/processing_jobs/trash/bulk:
+    delete:
+      tags:
+        - ProcessingJobs
+      summary: Bulk permanently-delete ProcessingJobs from trash by ids (atomic)
+      operationId: bulkPermanentDeleteProcessingJobs
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/stored_files:
     get:
@@ -2196,6 +3474,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StoredFile'
+    put:
+      tags:
+        - StoredFiles
+      summary: Bulk update StoredFiles (full, atomic)
+      operationId: bulkUpdateStoredFiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateStoredFileRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredFileBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - StoredFiles
+      summary: Bulk partial-update StoredFiles (atomic)
+      operationId: bulkPatchStoredFiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredFileBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/stored_files/upsert:
     post:
@@ -2278,6 +3624,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/stored_files/delete/bulk:
+    post:
+      tags:
+        - StoredFiles
+      summary: Bulk soft-delete StoredFiles by ids (atomic)
+      operationId: bulkDeleteStoredFiles
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/stored_files/restore/bulk:
+    post:
+      tags:
+        - StoredFiles
+      summary: Bulk restore StoredFiles by ids (atomic)
+      operationId: bulkRestoreStoredFiles
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredFileBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/stored_files/restore/all:
+    post:
+      tags:
+        - StoredFiles
+      summary: Restore all soft-deleted StoredFiles
+      operationId: restoreAllStoredFiles
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/stored_files/trash/bulk:
+    delete:
+      tags:
+        - StoredFiles
+      summary: Bulk permanently-delete StoredFiles from trash by ids (atomic)
+      operationId: bulkPermanentDeleteStoredFiles
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/thumbnails:
     get:
@@ -2420,6 +3840,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Thumbnail'
+    put:
+      tags:
+        - Thumbnails
+      summary: Bulk update Thumbnails (full, atomic)
+      operationId: bulkUpdateThumbnails
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateThumbnailRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThumbnailBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - Thumbnails
+      summary: Bulk partial-update Thumbnails (atomic)
+      operationId: bulkPatchThumbnails
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThumbnailBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/thumbnails/upsert:
     post:
@@ -2502,6 +3990,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/thumbnails/delete/bulk:
+    post:
+      tags:
+        - Thumbnails
+      summary: Bulk soft-delete Thumbnails by ids (atomic)
+      operationId: bulkDeleteThumbnails
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/thumbnails/restore/bulk:
+    post:
+      tags:
+        - Thumbnails
+      summary: Bulk restore Thumbnails by ids (atomic)
+      operationId: bulkRestoreThumbnails
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThumbnailBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/thumbnails/restore/all:
+    post:
+      tags:
+        - Thumbnails
+      summary: Restore all soft-deleted Thumbnails
+      operationId: restoreAllThumbnails
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/thumbnails/trash/bulk:
+    delete:
+      tags:
+        - Thumbnails
+      summary: Bulk permanently-delete Thumbnails from trash by ids (atomic)
+      operationId: bulkPermanentDeleteThumbnails
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/upload_sessions:
     get:
@@ -2644,6 +4206,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UploadSession'
+    put:
+      tags:
+        - UploadSessions
+      summary: Bulk update UploadSessions (full, atomic)
+      operationId: bulkUpdateUploadSessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateUploadSessionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSessionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - UploadSessions
+      summary: Bulk partial-update UploadSessions (atomic)
+      operationId: bulkPatchUploadSessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSessionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/upload_sessions/upsert:
     post:
@@ -2726,6 +4356,80 @@ paths:
                 properties:
                   deleted_count:
                     type: integer
+
+  /api/v1/upload_sessions/delete/bulk:
+    post:
+      tags:
+        - UploadSessions
+      summary: Bulk soft-delete UploadSessions by ids (atomic)
+      operationId: bulkDeleteUploadSessions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/upload_sessions/restore/bulk:
+    post:
+      tags:
+        - UploadSessions
+      summary: Bulk restore UploadSessions by ids (atomic)
+      operationId: bulkRestoreUploadSessions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSessionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/upload_sessions/restore/all:
+    post:
+      tags:
+        - UploadSessions
+      summary: Restore all soft-deleted UploadSessions
+      operationId: restoreAllUploadSessions
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/upload_sessions/trash/bulk:
+    delete:
+      tags:
+        - UploadSessions
+      summary: Bulk permanently-delete UploadSessions from trash by ids (atomic)
+      operationId: bulkPermanentDeleteUploadSessions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/user_quotas:
     get:
@@ -2868,6 +4572,74 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UserQuota'
+    put:
+      tags:
+        - UserQuotas
+      summary: Bulk update UserQuotas (full, atomic)
+      operationId: bulkUpdateUserQuotas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateUserQuotaRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserQuotaBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - UserQuotas
+      summary: Bulk partial-update UserQuotas (atomic)
+      operationId: bulkPatchUserQuotas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserQuotaBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/user_quotas/upsert:
     post:
@@ -2951,102 +4723,82 @@ paths:
                   deleted_count:
                     type: integer
 
+  /api/v1/user_quotas/delete/bulk:
+    post:
+      tags:
+        - UserQuotas
+      summary: Bulk soft-delete UserQuotas by ids (atomic)
+      operationId: bulkDeleteUserQuotas
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/user_quotas/restore/bulk:
+    post:
+      tags:
+        - UserQuotas
+      summary: Bulk restore UserQuotas by ids (atomic)
+      operationId: bulkRestoreUserQuotas
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserQuotaBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/user_quotas/restore/all:
+    post:
+      tags:
+        - UserQuotas
+      summary: Restore all soft-deleted UserQuotas
+      operationId: restoreAllUserQuotas
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/user_quotas/trash/bulk:
+    delete:
+      tags:
+        - UserQuotas
+      summary: Bulk permanently-delete UserQuotas from trash by ids (atomic)
+      operationId: bulkPermanentDeleteUserQuotas
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
 components:
   schemas:
-    PaginationMeta:
-      type: object
-      properties:
-        total:
-          type: integer
-          example: 100
-        page:
-          type: integer
-          example: 1
-        per_page:
-          type: integer
-          example: 20
-        total_pages:
-          type: integer
-          example: 5
-
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: string
-          example: VALIDATION_ERROR
-        message:
-          type: string
-          example: Invalid input data
-        details:
-          type: object
-          additionalProperties: true
-
-  parameters:
-    IdParam:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-
-    PageParam:
-      name: page
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
-
-    PerPageParam:
-      name: per_page
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 20
-
-    SortByParam:
-      name: sort_by
-      in: query
-      schema:
-        type: string
-
-    SortOrderParam:
-      name: sort_order
-      in: query
-      schema:
-        type: string
-        enum: [asc, desc]
-        default: asc
-
-  responses:
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    Unauthorized:
-      description: Unauthorized
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
     AccessLog:
       type: object
       required:
@@ -3125,6 +4877,19 @@ components:
           format: date-time
         metadata:
           type: object
+
+    AccessLogBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessLog'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
 
     CreateAccessLogRequest:
       type: object
@@ -3420,6 +5185,19 @@ components:
         metadata:
           type: object
 
+    BucketBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bucket'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateBucketRequest:
       type: object
       required:
@@ -3650,6 +5428,19 @@ components:
         metadata:
           type: object
 
+    ContentHashBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentHash'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateContentHashRequest:
       type: object
       required:
@@ -3812,6 +5603,19 @@ components:
           format: date-time
         metadata:
           type: object
+
+    ConversionJobBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversionJob'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
 
     CreateConversionJobRequest:
       type: object
@@ -3988,6 +5792,19 @@ components:
         metadata:
           type: object
 
+    FileCommentBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileComment'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateFileCommentRequest:
       type: object
       required:
@@ -4157,6 +5974,19 @@ components:
         metadata:
           type: object
 
+    FileLockBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileLock'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateFileLockRequest:
       type: object
       required:
@@ -4318,6 +6148,19 @@ components:
           type: string
         metadata:
           type: object
+
+    FileShareBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileShare'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
 
     CreateFileShareRequest:
       type: object
@@ -4578,6 +6421,19 @@ components:
         metadata:
           type: object
 
+    FileVersionBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileVersion'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateFileVersionRequest:
       type: object
       required:
@@ -4823,6 +6679,19 @@ components:
           format: int32
         metadata:
           type: object
+
+    ProcessingJobBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessingJob'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
 
     CreateProcessingJobRequest:
       type: object
@@ -5094,6 +6963,19 @@ components:
           format: date-time
         metadata:
           type: object
+
+    StoredFileBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoredFile'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
 
     CreateStoredFileRequest:
       type: object
@@ -5528,6 +7410,19 @@ components:
         metadata:
           type: object
 
+    ThumbnailBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Thumbnail'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateThumbnailRequest:
       type: object
       required:
@@ -5782,6 +7677,19 @@ components:
         metadata:
           type: object
 
+    UploadSessionBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadSession'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateUploadSessionRequest:
       type: object
       required:
@@ -6017,6 +7925,19 @@ components:
         metadata:
           type: object
 
+    UserQuotaBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserQuota'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
     CreateUserQuotaRequest:
       type: object
       required:
@@ -6181,6 +8102,113 @@ components:
             $ref: '#/components/schemas/UserQuota'
         meta:
           $ref: '#/components/schemas/PaginationMeta'
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        total_pages:
+          type: integer
+          example: 5
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Invalid input data
+        details:
+          type: object
+          additionalProperties: true
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PerPageParam:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    SortByParam:
+      name: sort_by
+      in: query
+      schema:
+        type: string
+
+    SortOrderParam:
+      name: sort_order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  requestBodies:
+    BatchIds:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ids]
+            properties:
+              ids:
+                type: array
+                items: { type: string }
 
   securitySchemes:
     bearerAuth:
