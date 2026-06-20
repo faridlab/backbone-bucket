@@ -51,32 +51,21 @@ impl std::ops::Deref for AccessLogId {
 pub struct AccessLog {
     pub id: Uuid,
     pub file_id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub bucket_id: Option<Uuid>,
     pub action: AccessAction,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub share_id: Option<Uuid>,
     pub is_owner: bool,
     pub is_shared: bool,
     pub is_public: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub referer: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub country_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes_transferred: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<i32>,
     pub success: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
     pub accessed_at: DateTime<Utc>,
     #[serde(default)]
@@ -362,6 +351,9 @@ impl backbone_orm::EntityRepoMeta for AccessLog {
     }
     fn search_fields() -> &'static [&'static str] {
         &[]
+    }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("file", "stored_files", "fileId"), ("bucket", "buckets", "bucketId"), ("share", "file_shares", "shareId")]
     }
 }
 

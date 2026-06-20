@@ -61,12 +61,9 @@ pub struct Thumbnail {
     pub quality: i32,
     pub size_bytes: i64,
     pub generated_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub generation_time_ms: Option<i32>,
     pub source_version: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cdn_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_expires_at: Option<DateTime<Utc>>,
     pub is_stale: bool,
     #[serde(default)]
@@ -293,6 +290,9 @@ impl backbone_orm::EntityRepoMeta for Thumbnail {
     }
     fn search_fields() -> &'static [&'static str] {
         &["storage_key", "storage_backend", "mime_type", "format"]
+    }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("file", "stored_files", "fileId")]
     }
 }
 

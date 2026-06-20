@@ -85,17 +85,13 @@ pub struct UserQuota {
     pub limit_bytes: i64,
     pub used_bytes: i64,
     pub file_count: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_file_size: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_file_count: Option<i32>,
     pub tier: String,
     pub(crate) quota_status: QuotaStatus,
     pub warning_threshold_percent: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_warning_sent_at: Option<DateTime<Utc>>,
     pub peak_usage_bytes: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub peak_usage_at: Option<DateTime<Utc>>,
     #[serde(default)]
     #[sqlx(json)]

@@ -86,7 +86,6 @@ pub struct ContentHash {
     pub reference_count: i32,
     pub first_uploaded_at: DateTime<Utc>,
     pub last_referenced_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     #[serde(default)]
     #[sqlx(json)]

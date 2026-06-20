@@ -62,47 +62,31 @@ pub struct StoredFile {
     pub original_name: String,
     pub size_bytes: i64,
     pub mime_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
     pub is_compressed: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub original_size: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub compression_algorithm: Option<String>,
     pub is_scanned: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub scan_result: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub threat_level: Option<ThreatLevel>,
     pub has_thumbnail: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub thumbnail_path: Option<String>,
     pub has_video_thumbnail: bool,
     pub has_document_preview: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_status: Option<ProcessingStatus>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub content_hash_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cdn_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cdn_url_expires_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner_module: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner_entity: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner_entity_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub field_name: Option<String>,
     pub sort_order: i32,
     pub(crate) status: FileStatus,
     pub storage_key: String,
     pub version: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub previous_version_id: Option<Uuid>,
     pub download_count: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_accessed_at: Option<DateTime<Utc>>,
     #[serde(default)]
     #[sqlx(json)]
@@ -566,6 +550,9 @@ impl backbone_orm::EntityRepoMeta for StoredFile {
     }
     fn search_fields() -> &'static [&'static str] {
         &["path", "original_name", "mime_type", "storage_key"]
+    }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("bucket", "buckets", "bucketId"), ("previousVersion", "stored_files", "previousVersionId"), ("contentHash", "content_hashes", "contentHashId")]
     }
 }
 

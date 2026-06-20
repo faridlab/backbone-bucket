@@ -58,7 +58,6 @@ pub struct Bucket {
     pub id: Uuid,
     pub name: String,
     pub slug: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub owner_id: Uuid,
     pub bucket_type: BucketType,
@@ -67,10 +66,8 @@ pub struct Bucket {
     pub root_path: String,
     pub file_count: i32,
     pub total_size_bytes: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_file_size: Option<i64>,
     pub allowed_mime_types: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_delete_after_days: Option<i32>,
     pub enable_cdn: bool,
     pub enable_versioning: bool,

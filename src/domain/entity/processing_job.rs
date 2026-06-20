@@ -86,15 +86,10 @@ pub struct ProcessingJob {
     pub job_type: ProcessingJobType,
     pub(crate) status: JobStatus,
     pub priority: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub input_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub result_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<DateTime<Utc>>,
     pub retry_count: i32,
     pub max_retries: i32,

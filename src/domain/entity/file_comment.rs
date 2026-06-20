@@ -83,16 +83,12 @@ pub struct FileComment {
     pub id: Uuid,
     pub file_id: Uuid,
     pub user_id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<Uuid>,
     pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub annotation_region: Option<serde_json::Value>,
     pub mentions: Vec<Uuid>,
     pub resolved: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_by: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_at: Option<DateTime<Utc>>,
     pub(crate) status: CommentStatus,
     #[serde(default)]

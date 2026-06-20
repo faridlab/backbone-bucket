@@ -57,20 +57,14 @@ pub struct FileVersion {
     pub storage_backend: String,
     pub name: String,
     pub mime_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum_md5: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum_sha256: Option<String>,
     pub created_by_id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub change_summary: Option<String>,
     pub is_current: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub restored_from_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
     pub is_deleted: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub deleted_at: Option<DateTime<Utc>>,
     pub size_bytes: i64,
     #[serde(default)]
@@ -309,6 +303,9 @@ impl backbone_orm::EntityRepoMeta for FileVersion {
     }
     fn search_fields() -> &'static [&'static str] {
         &["storage_key", "storage_backend", "name", "mime_type"]
+    }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("file", "stored_files", "fileId"), ("restoredFrom", "file_versions", "restoredFromId")]
     }
 }
 

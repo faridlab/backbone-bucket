@@ -62,20 +62,14 @@ pub struct FileShare {
     pub share_type: ShareType,
     pub permission: SharePermission,
     pub shared_with: Vec<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub password_hash: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_downloads: Option<i32>,
     pub download_count: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
     pub(crate) share_status: ShareStatus,
     pub is_active: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub revoked_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub revoked_by: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     #[serde(default)]
     #[sqlx(json)]
@@ -435,6 +429,9 @@ impl backbone_orm::EntityRepoMeta for FileShare {
     }
     fn search_fields() -> &'static [&'static str] {
         &["token"]
+    }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("file", "stored_files", "fileId")]
     }
 }
 

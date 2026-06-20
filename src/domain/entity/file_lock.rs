@@ -85,7 +85,6 @@ pub struct FileLock {
     pub user_id: Uuid,
     pub locked_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub refreshed_at: Option<DateTime<Utc>>,
     pub(crate) status: LockStatus,
     #[serde(default)]

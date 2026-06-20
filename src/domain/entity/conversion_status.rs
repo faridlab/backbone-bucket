@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::Type;
 use std::str::FromStr;
 #[cfg(feature = "openapi")]
-#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Type)]

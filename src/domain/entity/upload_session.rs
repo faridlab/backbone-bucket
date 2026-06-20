@@ -86,7 +86,6 @@ pub struct UploadSession {
     pub user_id: Uuid,
     pub path: String,
     pub filename: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
     pub file_size: i64,
     pub chunk_size: i32,
@@ -95,7 +94,6 @@ pub struct UploadSession {
     pub(crate) status: UploadStatus,
     pub storage_backend: StorageBackend,
     pub completed_parts: Vec<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub part_etags: Option<serde_json::Value>,
     pub expires_at: DateTime<Utc>,
     #[serde(default)]

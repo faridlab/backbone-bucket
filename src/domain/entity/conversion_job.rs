@@ -84,16 +84,11 @@ pub struct ConversionJob {
     pub source_file_id: Uuid,
     pub target_format: String,
     pub(crate) status: ConversionStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub conversion_options: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub result_file_id: Option<Uuid>,
     pub progress: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<DateTime<Utc>>,
     #[serde(default)]
     #[sqlx(json)]
