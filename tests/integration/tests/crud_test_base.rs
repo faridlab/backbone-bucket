@@ -199,6 +199,36 @@ impl<G: TestDataGenerator> GenericCrudTest<G> {
         }
     }
 
+    /// Test: Bulk soft-delete (POST /collection/delete/bulk)
+    pub async fn test_bulk_delete(&self, ids: &[String]) -> TestResult {
+        let test_name = format!("{} - Bulk Delete", self.config.entity_name);
+        let payload = serde_json::json!({ "ids": ids });
+        match self.api_test.post(&self.endpoint("/delete/bulk"), &payload, None).await {
+            Ok(response) => self.api_test.create_result(&test_name, &response, 200, "Bulk soft-delete works"),
+            Err(e) => TestResult::failure(&test_name, e.to_string()),
+        }
+    }
+
+    /// Test: Bulk restore (POST /collection/restore/bulk)
+    pub async fn test_bulk_restore(&self, ids: &[String]) -> TestResult {
+        let test_name = format!("{} - Bulk Restore", self.config.entity_name);
+        let payload = serde_json::json!({ "ids": ids });
+        match self.api_test.post(&self.endpoint("/restore/bulk"), &payload, None).await {
+            Ok(response) => self.api_test.create_result(&test_name, &response, 200, "Bulk restore works"),
+            Err(e) => TestResult::failure(&test_name, e.to_string()),
+        }
+    }
+
+    /// Test: Restore all soft-deleted (POST /collection/restore/all)
+    pub async fn test_restore_all(&self) -> TestResult {
+        let test_name = format!("{} - Restore All", self.config.entity_name);
+        let payload = serde_json::json!({});
+        match self.api_test.post(&self.endpoint("/restore/all"), &payload, None).await {
+            Ok(response) => self.api_test.create_result(&test_name, &response, 200, "Restore all works"),
+            Err(e) => TestResult::failure(&test_name, e.to_string()),
+        }
+    }
+
     /// Run all CRUD tests
     pub async fn run_all(&mut self) -> Vec<TestResult> {
         let mut results = Vec::new();
@@ -239,6 +269,15 @@ impl<G: TestDataGenerator> GenericCrudTest<G> {
         // Validation tests
         results.push(self.test_invalid_create().await);
         results.push(self.test_not_found().await);
+
+        // Batch operations (exercised on the created entities;
+        // soft-delete then restore so they remain for cleanup below)
+        let batch_ids: Vec<String> = self.created_ids.clone();
+        if !batch_ids.is_empty() {
+            results.push(self.test_bulk_delete(&batch_ids).await);
+            results.push(self.test_bulk_restore(&batch_ids).await);
+            results.push(self.test_restore_all().await);
+        }
 
         // Cleanup - delete created entities
         for id in self.created_ids.clone() {
