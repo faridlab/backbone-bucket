@@ -35,24 +35,28 @@ use crate::domain::entity::ProcessingJobType;
 #[serde(rename_all = "camelCase")]
 pub struct CreateProcessingJobDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
+    #[serde(alias = "job_type")]
     pub job_type: ProcessingJobType,
     pub status: JobStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub priority: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "input_data")]
     pub input_data: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_data")]
     pub result_data: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "started_at")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "completed_at")]
     pub completed_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "retry_count")]
     pub retry_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "max_retries")]
     pub max_retries: i32,
 }
 
@@ -70,24 +74,28 @@ pub struct CreateProcessingJobDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateProcessingJobDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
+    #[serde(alias = "job_type")]
     pub job_type: ProcessingJobType,
     pub status: JobStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub priority: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "input_data")]
     pub input_data: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_data")]
     pub result_data: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "started_at")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "completed_at")]
     pub completed_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "retry_count")]
     pub retry_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "max_retries")]
     pub max_retries: i32,
 }
 
@@ -105,30 +113,30 @@ pub struct UpdateProcessingJobDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchProcessingJobDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "job_type")]
     pub job_type: Option<ProcessingJobType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<JobStatus>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "input_data")]
     pub input_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "result_data")]
     pub result_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "started_at")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "completed_at")]
     pub completed_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "retry_count")]
     pub retry_count: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "max_retries")]
     pub max_retries: Option<i32>,
 }
 
@@ -159,15 +167,10 @@ pub struct ProcessingJobResponseDto {
     pub status: JobStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub priority: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub input_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub result_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub retry_count: i32,

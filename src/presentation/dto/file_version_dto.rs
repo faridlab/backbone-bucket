@@ -34,39 +34,49 @@ use crate::domain::entity::VersionType;
 #[serde(rename_all = "camelCase")]
 pub struct CreateFileVersionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "version_number")]
     pub version_number: i32,
+    #[serde(alias = "version_type")]
     pub version_type: VersionType,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_key")]
     pub storage_key: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_backend")]
     pub storage_backend: String,
     #[cfg_attr(feature = "validation", validate(length(max = 255)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub name: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "mime_type")]
     pub mime_type: String,
     #[cfg_attr(feature = "validation", validate(length(max = 32)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "checksum_md5")]
     pub checksum_md5: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 64)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "checksum_sha256")]
     pub checksum_sha256: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "created_by_id")]
     pub created_by_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "change_summary")]
     pub change_summary: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_current")]
     pub is_current: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "restored_from_id")]
     pub restored_from_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_deleted")]
     pub is_deleted: bool,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
 }
 
@@ -84,39 +94,49 @@ pub struct CreateFileVersionDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateFileVersionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "version_number")]
     pub version_number: i32,
+    #[serde(alias = "version_type")]
     pub version_type: VersionType,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_key")]
     pub storage_key: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_backend")]
     pub storage_backend: String,
     #[cfg_attr(feature = "validation", validate(length(max = 255)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub name: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "mime_type")]
     pub mime_type: String,
     #[cfg_attr(feature = "validation", validate(length(max = 32)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "checksum_md5")]
     pub checksum_md5: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 64)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "checksum_sha256")]
     pub checksum_sha256: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "created_by_id")]
     pub created_by_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "change_summary")]
     pub change_summary: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_current")]
     pub is_current: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "restored_from_id")]
     pub restored_from_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_deleted")]
     pub is_deleted: bool,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
 }
 
@@ -134,50 +154,50 @@ pub struct UpdateFileVersionDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchFileVersionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "version_number")]
     pub version_number: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "version_type")]
     pub version_type: Option<VersionType>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_key")]
     pub storage_key: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_backend")]
     pub storage_backend: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 255)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "mime_type")]
     pub mime_type: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 32)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "checksum_md5")]
     pub checksum_md5: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 64)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "checksum_sha256")]
     pub checksum_sha256: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "created_by_id")]
     pub created_by_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "change_summary")]
     pub change_summary: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "is_current")]
     pub is_current: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "restored_from_id")]
     pub restored_from_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "is_deleted")]
     pub is_deleted: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "size_bytes")]
     pub size_bytes: Option<i64>,
 }
 
@@ -215,23 +235,17 @@ pub struct FileVersionResponseDto {
     pub name: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub mime_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum_md5: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum_sha256: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub created_by_id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub change_summary: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub is_current: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub restored_from_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub is_deleted: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub deleted_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub size_bytes: i64,

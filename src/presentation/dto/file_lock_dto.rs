@@ -34,14 +34,18 @@ use crate::domain::entity::LockStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreateFileLockDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "locked_at")]
     pub locked_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "expires_at")]
     pub expires_at: DateTime<Utc>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "refreshed_at")]
     pub refreshed_at: Option<DateTime<Utc>>,
     pub status: LockStatus,
 }
@@ -60,14 +64,18 @@ pub struct CreateFileLockDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateFileLockDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "locked_at")]
     pub locked_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "expires_at")]
     pub expires_at: DateTime<Utc>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "refreshed_at")]
     pub refreshed_at: Option<DateTime<Utc>>,
     pub status: LockStatus,
 }
@@ -86,18 +94,18 @@ pub struct UpdateFileLockDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchFileLockDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "locked_at")]
     pub locked_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "refreshed_at")]
     pub refreshed_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<LockStatus>,
@@ -132,7 +140,6 @@ pub struct FileLockResponseDto {
     pub locked_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     pub expires_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub refreshed_at: Option<DateTime<Utc>>,
     pub status: LockStatus,
     pub metadata: AuditMetadata,

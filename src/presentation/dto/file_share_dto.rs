@@ -36,29 +36,36 @@ use crate::domain::entity::ShareType;
 #[serde(rename_all = "camelCase")]
 pub struct CreateFileShareDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "owner_id")]
     pub owner_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(min = 32), length(max = 64)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub token: String,
+    #[serde(alias = "share_type")]
     pub share_type: ShareType,
     pub permission: SharePermission,
+    #[serde(alias = "shared_with")]
     pub shared_with: Vec<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "password_hash")]
     pub password_hash: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_downloads")]
     pub max_downloads: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "download_count")]
     pub download_count: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
+    #[serde(alias = "share_status")]
     pub share_status: ShareStatus,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_active")]
     pub is_active: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_at")]
     pub revoked_at: Option<DateTime<Utc>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_by")]
     pub revoked_by: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -78,29 +85,36 @@ pub struct CreateFileShareDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateFileShareDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "owner_id")]
     pub owner_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(min = 32), length(max = 64)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub token: String,
+    #[serde(alias = "share_type")]
     pub share_type: ShareType,
     pub permission: SharePermission,
+    #[serde(alias = "shared_with")]
     pub shared_with: Vec<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "password_hash")]
     pub password_hash: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_downloads")]
     pub max_downloads: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "download_count")]
     pub download_count: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
+    #[serde(alias = "share_status")]
     pub share_status: ShareStatus,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_active")]
     pub is_active: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_at")]
     pub revoked_at: Option<DateTime<Utc>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_by")]
     pub revoked_by: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -120,38 +134,38 @@ pub struct UpdateFileShareDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchFileShareDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "owner_id")]
     pub owner_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(min = 32), length(max = 64)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "share_type")]
     pub share_type: Option<ShareType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permission: Option<SharePermission>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "shared_with")]
     pub shared_with: Option<Vec<Uuid>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "password_hash")]
     pub password_hash: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "max_downloads")]
     pub max_downloads: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "download_count")]
     pub download_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "share_status")]
     pub share_status: Option<ShareStatus>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "is_active")]
     pub is_active: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "revoked_at")]
     pub revoked_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "revoked_by")]
     pub revoked_by: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -187,22 +201,16 @@ pub struct FileShareResponseDto {
     pub share_type: ShareType,
     pub permission: SharePermission,
     pub shared_with: Vec<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub password_hash: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_downloads: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub download_count: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
     pub share_status: ShareStatus,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub is_active: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub revoked_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub revoked_by: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     pub metadata: AuditMetadata,
 }

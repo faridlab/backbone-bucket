@@ -34,22 +34,24 @@ use crate::domain::entity::CommentStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreateFileCommentDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "parent_id")]
     pub parent_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 10000)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub content: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "annotation_region")]
     pub annotation_region: Option<serde_json::Value>,
     pub mentions: Vec<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub resolved: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "resolved_by")]
     pub resolved_by: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "resolved_at")]
     pub resolved_at: Option<DateTime<Utc>>,
     pub status: CommentStatus,
 }
@@ -68,22 +70,24 @@ pub struct CreateFileCommentDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateFileCommentDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "parent_id")]
     pub parent_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 10000)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub content: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "annotation_region")]
     pub annotation_region: Option<serde_json::Value>,
     pub mentions: Vec<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub resolved: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "resolved_by")]
     pub resolved_by: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "resolved_at")]
     pub resolved_at: Option<DateTime<Utc>>,
     pub status: CommentStatus,
 }
@@ -102,27 +106,27 @@ pub struct UpdateFileCommentDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchFileCommentDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "parent_id")]
     pub parent_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 10000)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "annotation_region")]
     pub annotation_region: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mentions: Option<Vec<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "resolved_by")]
     pub resolved_by: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "resolved_at")]
     pub resolved_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<CommentStatus>,
@@ -153,18 +157,14 @@ pub struct FileCommentResponseDto {
     pub file_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub user_id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub annotation_region: Option<serde_json::Value>,
     pub mentions: Vec<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub resolved: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_by: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_at: Option<DateTime<Utc>>,
     pub status: CommentStatus,
     pub metadata: AuditMetadata,

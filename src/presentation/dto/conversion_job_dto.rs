@@ -34,22 +34,24 @@ use crate::domain::entity::ConversionStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreateConversionJobDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "source_file_id")]
     pub source_file_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 50)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "target_format")]
     pub target_format: String,
     pub status: ConversionStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "conversion_options")]
     pub conversion_options: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_file_id")]
     pub result_file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub progress: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "started_at")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "completed_at")]
     pub completed_at: Option<DateTime<Utc>>,
 }
 
@@ -67,22 +69,24 @@ pub struct CreateConversionJobDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateConversionJobDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "source_file_id")]
     pub source_file_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 50)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "target_format")]
     pub target_format: String,
     pub status: ConversionStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "conversion_options")]
     pub conversion_options: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_file_id")]
     pub result_file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub progress: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "started_at")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "completed_at")]
     pub completed_at: Option<DateTime<Utc>>,
 }
 
@@ -100,26 +104,26 @@ pub struct UpdateConversionJobDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchConversionJobDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "source_file_id")]
     pub source_file_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 50)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "target_format")]
     pub target_format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ConversionStatus>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "conversion_options")]
     pub conversion_options: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "result_file_id")]
     pub result_file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub progress: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "started_at")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "completed_at")]
     pub completed_at: Option<DateTime<Utc>>,
 }
 
@@ -149,17 +153,12 @@ pub struct ConversionJobResponseDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub target_format: String,
     pub status: ConversionStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub conversion_options: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub result_file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub progress: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<DateTime<Utc>>,
     pub metadata: AuditMetadata,
 }

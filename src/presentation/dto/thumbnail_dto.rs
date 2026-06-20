@@ -34,6 +34,7 @@ use crate::domain::entity::ThumbnailSize;
 #[serde(rename_all = "camelCase")]
 pub struct CreateThumbnailDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     pub size: ThumbnailSize,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
@@ -41,28 +42,35 @@ pub struct CreateThumbnailDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub height: i32,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_key")]
     pub storage_key: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_backend")]
     pub storage_backend: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "mime_type")]
     pub mime_type: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub format: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub quality: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "generated_at")]
     pub generated_at: DateTime<Utc>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "generation_time_ms")]
     pub generation_time_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "source_version")]
     pub source_version: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "cdn_url")]
     pub cdn_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "cache_expires_at")]
     pub cache_expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_stale")]
     pub is_stale: bool,
 }
 
@@ -80,6 +88,7 @@ pub struct CreateThumbnailDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateThumbnailDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
     pub size: ThumbnailSize,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
@@ -87,28 +96,35 @@ pub struct UpdateThumbnailDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub height: i32,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_key")]
     pub storage_key: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_backend")]
     pub storage_backend: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "mime_type")]
     pub mime_type: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub format: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub quality: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "generated_at")]
     pub generated_at: DateTime<Utc>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "generation_time_ms")]
     pub generation_time_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "source_version")]
     pub source_version: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "cdn_url")]
     pub cdn_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "cache_expires_at")]
     pub cache_expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_stale")]
     pub is_stale: bool,
 }
 
@@ -126,7 +142,7 @@ pub struct UpdateThumbnailDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchThumbnailDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<ThumbnailSize>,
@@ -137,13 +153,13 @@ pub struct PatchThumbnailDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_key")]
     pub storage_key: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_backend")]
     pub storage_backend: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "mime_type")]
     pub mime_type: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -152,22 +168,22 @@ pub struct PatchThumbnailDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quality: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "size_bytes")]
     pub size_bytes: Option<i64>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "generated_at")]
     pub generated_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "generation_time_ms")]
     pub generation_time_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "source_version")]
     pub source_version: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "cdn_url")]
     pub cdn_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "cache_expires_at")]
     pub cache_expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "is_stale")]
     pub is_stale: Option<bool>,
 }
 
@@ -213,13 +229,10 @@ pub struct ThumbnailResponseDto {
     pub size_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     pub generated_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub generation_time_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub source_version: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cdn_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub is_stale: bool,

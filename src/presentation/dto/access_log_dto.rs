@@ -34,45 +34,50 @@ use crate::domain::entity::AccessAction;
 #[serde(rename_all = "camelCase")]
 pub struct CreateAccessLogDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "bucket_id")]
     pub bucket_id: Option<Uuid>,
     pub action: AccessAction,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "share_id")]
     pub share_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_owner")]
     pub is_owner: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_shared")]
     pub is_shared: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_public")]
     pub is_public: bool,
     #[cfg_attr(feature = "validation", validate(length(max = 45)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "ip_address")]
     pub ip_address: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "user_agent")]
     pub user_agent: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub referer: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 2)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "country_code")]
     pub country_code: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 100)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "bytes_transferred")]
     pub bytes_transferred: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "duration_ms")]
     pub duration_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub success: bool,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "accessed_at")]
     pub accessed_at: DateTime<Utc>,
 }
 
@@ -90,45 +95,50 @@ pub struct CreateAccessLogDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateAccessLogDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "file_id")]
     pub file_id: Uuid,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "bucket_id")]
     pub bucket_id: Option<Uuid>,
     pub action: AccessAction,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "share_id")]
     pub share_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_owner")]
     pub is_owner: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_shared")]
     pub is_shared: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "is_public")]
     pub is_public: bool,
     #[cfg_attr(feature = "validation", validate(length(max = 45)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "ip_address")]
     pub ip_address: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "user_agent")]
     pub user_agent: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub referer: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 2)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "country_code")]
     pub country_code: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 100)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "bytes_transferred")]
     pub bytes_transferred: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "duration_ms")]
     pub duration_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub success: bool,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "accessed_at")]
     pub accessed_at: DateTime<Utc>,
 }
 
@@ -146,52 +156,52 @@ pub struct UpdateAccessLogDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchAccessLogDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "bucket_id")]
     pub bucket_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<AccessAction>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "share_id")]
     pub share_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "is_owner")]
     pub is_owner: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "is_shared")]
     pub is_shared: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "is_public")]
     pub is_public: Option<bool>,
     #[cfg_attr(feature = "validation", validate(length(max = 45)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "ip_address")]
     pub ip_address: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "user_agent")]
     pub user_agent: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub referer: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 2)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "country_code")]
     pub country_code: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 100)))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "bytes_transferred")]
     pub bytes_transferred: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "duration_ms")]
     pub duration_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub success: Option<bool>,
     #[cfg_attr(feature = "validation", validate(length(max = 500)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "accessed_at")]
     pub accessed_at: Option<DateTime<Utc>>,
 }
 
@@ -218,12 +228,9 @@ pub struct AccessLogResponseDto {
     pub id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub file_id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub bucket_id: Option<Uuid>,
     pub action: AccessAction,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub share_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub is_owner: bool,
@@ -231,23 +238,15 @@ pub struct AccessLogResponseDto {
     pub is_shared: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub is_public: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub referer: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub country_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes_transferred: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub success: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     pub accessed_at: DateTime<Utc>,

@@ -44,27 +44,37 @@ pub struct CreateBucketDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "owner_id")]
     pub owner_id: Uuid,
+    #[serde(alias = "bucket_type")]
     pub bucket_type: BucketType,
     pub status: BucketStatus,
+    #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "root_path")]
     pub root_path: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "file_count")]
     pub file_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "total_size_bytes")]
     pub total_size_bytes: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
+    #[serde(alias = "allowed_mime_types")]
     pub allowed_mime_types: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "auto_delete_after_days")]
     pub auto_delete_after_days: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "enable_cdn")]
     pub enable_cdn: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "enable_versioning")]
     pub enable_versioning: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "enable_deduplication")]
     pub enable_deduplication: bool,
 }
 
@@ -90,27 +100,37 @@ pub struct UpdateBucketDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "owner_id")]
     pub owner_id: Uuid,
+    #[serde(alias = "bucket_type")]
     pub bucket_type: BucketType,
     pub status: BucketStatus,
+    #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "root_path")]
     pub root_path: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "file_count")]
     pub file_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "total_size_bytes")]
     pub total_size_bytes: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
+    #[serde(alias = "allowed_mime_types")]
     pub allowed_mime_types: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "auto_delete_after_days")]
     pub auto_delete_after_days: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "enable_cdn")]
     pub enable_cdn: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "enable_versioning")]
     pub enable_versioning: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(alias = "enable_deduplication")]
     pub enable_deduplication: bool,
 }
 
@@ -138,38 +158,38 @@ pub struct PatchBucketDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "owner_id")]
     pub owner_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "bucket_type")]
     pub bucket_type: Option<BucketType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<BucketStatus>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_backend")]
     pub storage_backend: Option<StorageBackend>,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "root_path")]
     pub root_path: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_count")]
     pub file_count: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "total_size_bytes")]
     pub total_size_bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "allowed_mime_types")]
     pub allowed_mime_types: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "auto_delete_after_days")]
     pub auto_delete_after_days: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "enable_cdn")]
     pub enable_cdn: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "enable_versioning")]
     pub enable_versioning: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "enable_deduplication")]
     pub enable_deduplication: Option<bool>,
 }
 
@@ -198,7 +218,6 @@ pub struct BucketResponseDto {
     pub name: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub slug: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub owner_id: Uuid,
@@ -211,10 +230,8 @@ pub struct BucketResponseDto {
     pub file_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub total_size_bytes: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_file_size: Option<i64>,
     pub allowed_mime_types: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_delete_after_days: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub enable_cdn: bool,

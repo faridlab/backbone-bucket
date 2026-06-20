@@ -35,8 +35,10 @@ use crate::domain::entity::UploadStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreateUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "bucket_id")]
     pub bucket_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
@@ -45,22 +47,29 @@ pub struct CreateUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub filename: String,
     #[cfg_attr(feature = "validation", validate(length(max = 127)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "mime_type")]
     pub mime_type: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "file_size")]
     pub file_size: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "chunk_size")]
     pub chunk_size: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "total_chunks")]
     pub total_chunks: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "uploaded_chunks")]
     pub uploaded_chunks: i32,
     pub status: UploadStatus,
+    #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
+    #[serde(alias = "completed_parts")]
     pub completed_parts: Vec<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "part_etags")]
     pub part_etags: Option<serde_json::Value>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "expires_at")]
     pub expires_at: DateTime<Utc>,
 }
 
@@ -78,8 +87,10 @@ pub struct CreateUploadSessionDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "bucket_id")]
     pub bucket_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
@@ -88,22 +99,29 @@ pub struct UpdateUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub filename: String,
     #[cfg_attr(feature = "validation", validate(length(max = 127)))]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "mime_type")]
     pub mime_type: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "file_size")]
     pub file_size: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "chunk_size")]
     pub chunk_size: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "total_chunks")]
     pub total_chunks: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "uploaded_chunks")]
     pub uploaded_chunks: i32,
     pub status: UploadStatus,
+    #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
+    #[serde(alias = "completed_parts")]
     pub completed_parts: Vec<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "part_etags")]
     pub part_etags: Option<serde_json::Value>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "expires_at")]
     pub expires_at: DateTime<Utc>,
 }
 
@@ -121,10 +139,10 @@ pub struct UpdateUploadSessionDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "bucket_id")]
     pub bucket_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
@@ -135,30 +153,30 @@ pub struct PatchUploadSessionDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub filename: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 127)))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "mime_type")]
     pub mime_type: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_size")]
     pub file_size: Option<i64>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "chunk_size")]
     pub chunk_size: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "total_chunks")]
     pub total_chunks: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "uploaded_chunks")]
     pub uploaded_chunks: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<UploadStatus>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_backend")]
     pub storage_backend: Option<StorageBackend>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "completed_parts")]
     pub completed_parts: Option<Vec<i32>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "part_etags")]
     pub part_etags: Option<serde_json::Value>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
 }
 
@@ -191,7 +209,6 @@ pub struct UploadSessionResponseDto {
     pub path: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub filename: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub file_size: i64,
@@ -204,7 +221,6 @@ pub struct UploadSessionResponseDto {
     pub status: UploadStatus,
     pub storage_backend: StorageBackend,
     pub completed_parts: Vec<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub part_etags: Option<serde_json::Value>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     pub expires_at: DateTime<Utc>,

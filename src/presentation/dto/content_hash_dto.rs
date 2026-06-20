@@ -36,17 +36,23 @@ pub struct CreateContentHashDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub hash: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_key")]
     pub storage_key: String,
+    #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[cfg_attr(feature = "validation", validate(range(min = 1)))]
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "reference_count")]
     pub reference_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "first_uploaded_at")]
     pub first_uploaded_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "last_referenced_at")]
     pub last_referenced_at: DateTime<Utc>,
     #[cfg_attr(feature = "validation", validate(length(max = 128)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -69,17 +75,23 @@ pub struct UpdateContentHashDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub hash: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(alias = "storage_key")]
     pub storage_key: String,
+    #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[cfg_attr(feature = "validation", validate(range(min = 1)))]
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "reference_count")]
     pub reference_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "first_uploaded_at")]
     pub first_uploaded_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
+    #[serde(alias = "last_referenced_at")]
     pub last_referenced_at: DateTime<Utc>,
     #[cfg_attr(feature = "validation", validate(length(max = 128)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -103,23 +115,23 @@ pub struct PatchContentHashDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hash: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "size_bytes")]
     pub size_bytes: Option<i64>,
     #[cfg_attr(feature = "validation", validate(length(max = 1024)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_key")]
     pub storage_key: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "storage_backend")]
     pub storage_backend: Option<StorageBackend>,
     #[cfg_attr(feature = "validation", validate(range(min = 1)))]
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "reference_count")]
     pub reference_count: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "first_uploaded_at")]
     pub first_uploaded_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "last_referenced_at")]
     pub last_referenced_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "validation", validate(length(max = 128)))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -160,7 +172,6 @@ pub struct ContentHashResponseDto {
     pub first_uploaded_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     pub last_referenced_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     pub metadata: AuditMetadata,
 }

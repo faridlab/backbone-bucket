@@ -34,28 +34,35 @@ use crate::domain::entity::QuotaStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreateUserQuotaDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "limit_bytes")]
     pub limit_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "used_bytes")]
     pub used_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "file_count")]
     pub file_count: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_count")]
     pub max_file_count: Option<i32>,
     #[cfg_attr(feature = "validation", validate(length(max = 50)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub tier: String,
+    #[serde(alias = "quota_status")]
     pub quota_status: QuotaStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "warning_threshold_percent")]
     pub warning_threshold_percent: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "last_warning_sent_at")]
     pub last_warning_sent_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "peak_usage_bytes")]
     pub peak_usage_bytes: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "peak_usage_at")]
     pub peak_usage_at: Option<DateTime<Utc>>,
 }
 
@@ -73,28 +80,35 @@ pub struct CreateUserQuotaDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserQuotaDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[serde(alias = "user_id")]
     pub user_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "limit_bytes")]
     pub limit_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "used_bytes")]
     pub used_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "file_count")]
     pub file_count: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_count")]
     pub max_file_count: Option<i32>,
     #[cfg_attr(feature = "validation", validate(length(max = 50)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub tier: String,
+    #[serde(alias = "quota_status")]
     pub quota_status: QuotaStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "warning_threshold_percent")]
     pub warning_threshold_percent: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "last_warning_sent_at")]
     pub last_warning_sent_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(alias = "peak_usage_bytes")]
     pub peak_usage_bytes: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "peak_usage_at")]
     pub peak_usage_at: Option<DateTime<Utc>>,
 }
 
@@ -112,36 +126,36 @@ pub struct UpdateUserQuotaDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchUserQuotaDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "limit_bytes")]
     pub limit_bytes: Option<i64>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "used_bytes")]
     pub used_bytes: Option<i64>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "file_count")]
     pub file_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "max_file_count")]
     pub max_file_count: Option<i32>,
     #[cfg_attr(feature = "validation", validate(length(max = 50)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tier: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "quota_status")]
     pub quota_status: Option<QuotaStatus>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "warning_threshold_percent")]
     pub warning_threshold_percent: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "last_warning_sent_at")]
     pub last_warning_sent_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "peak_usage_bytes")]
     pub peak_usage_bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "peak_usage_at")]
     pub peak_usage_at: Option<DateTime<Utc>>,
 }
 
@@ -174,20 +188,16 @@ pub struct UserQuotaResponseDto {
     pub used_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub file_count: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_file_size: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_file_count: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub tier: String,
     pub quota_status: QuotaStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub warning_threshold_percent: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_warning_sent_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub peak_usage_bytes: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub peak_usage_at: Option<DateTime<Utc>>,
     pub metadata: AuditMetadata,
 }
