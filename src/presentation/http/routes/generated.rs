@@ -9,17 +9,14 @@ use axum::Router;
 use std::sync::Arc;
 
 use super::{
-    access_log_handler::create_access_log_routes,
     bucket_handler::create_bucket_routes,
     content_hash_handler::create_content_hash_routes,
     conversion_job_handler::create_conversion_job_routes,
     file_comment_handler::create_file_comment_routes,
     file_lock_handler::create_file_lock_routes,
     file_share_handler::create_file_share_routes,
-    file_version_handler::create_file_version_routes,
     processing_job_handler::create_processing_job_routes,
     stored_file_handler::create_stored_file_routes,
-    thumbnail_handler::create_thumbnail_routes,
     upload_session_handler::create_upload_session_routes,
     user_quota_handler::create_user_quota_routes,
 };
@@ -74,8 +71,6 @@ pub struct HttpServices {
 /// 12. GET /api/v1/{collection}/:id/deleted - Get deleted by ID
 pub fn configure_routes(services: HttpServices) -> Router {
     Router::new()
-        // AccessLog routes (12 Backbone endpoints)
-        .merge(create_access_log_routes(services.access_log))
         // Bucket routes (12 Backbone endpoints)
         .merge(create_bucket_routes(services.bucket))
         // ContentHash routes (12 Backbone endpoints)
@@ -88,14 +83,10 @@ pub fn configure_routes(services: HttpServices) -> Router {
         .merge(create_file_lock_routes(services.file_lock))
         // FileShare routes (12 Backbone endpoints)
         .merge(create_file_share_routes(services.file_share))
-        // FileVersion routes (12 Backbone endpoints)
-        .merge(create_file_version_routes(services.file_version))
         // ProcessingJob routes (12 Backbone endpoints)
         .merge(create_processing_job_routes(services.processing_job))
         // StoredFile routes (12 Backbone endpoints)
         .merge(create_stored_file_routes(services.stored_file))
-        // Thumbnail routes (12 Backbone endpoints)
-        .merge(create_thumbnail_routes(services.thumbnail))
         // UploadSession routes (12 Backbone endpoints)
         .merge(create_upload_session_routes(services.upload_session))
         // UserQuota routes (12 Backbone endpoints)
@@ -105,10 +96,6 @@ pub fn configure_routes(services: HttpServices) -> Router {
 /// Create an individual entity's routes (for modular configuration)
 pub mod individual {
     use super::*;
-
-    pub fn access_log_routes(service: Arc<AccessLogService>) -> Router {
-        create_access_log_routes(service)
-    }
 
     pub fn bucket_routes(service: Arc<BucketService>) -> Router {
         create_bucket_routes(service)
@@ -134,20 +121,12 @@ pub mod individual {
         create_file_share_routes(service)
     }
 
-    pub fn file_version_routes(service: Arc<FileVersionService>) -> Router {
-        create_file_version_routes(service)
-    }
-
     pub fn processing_job_routes(service: Arc<ProcessingJobService>) -> Router {
         create_processing_job_routes(service)
     }
 
     pub fn stored_file_routes(service: Arc<StoredFileService>) -> Router {
         create_stored_file_routes(service)
-    }
-
-    pub fn thumbnail_routes(service: Arc<ThumbnailService>) -> Router {
-        create_thumbnail_routes(service)
     }
 
     pub fn upload_session_routes(service: Arc<UploadSessionService>) -> Router {

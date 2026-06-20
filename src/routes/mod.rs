@@ -11,17 +11,14 @@ use std::sync::Arc;
 
 // Import handlers
 use crate::presentation::http::{
-    create_access_log_routes,
     create_bucket_routes,
     create_content_hash_routes,
     create_conversion_job_routes,
     create_file_comment_routes,
     create_file_lock_routes,
     create_file_share_routes,
-    create_file_version_routes,
     create_processing_job_routes,
     create_stored_file_routes,
-    create_thumbnail_routes,
     create_upload_session_routes,
     create_user_quota_routes
 };
@@ -47,17 +44,14 @@ use crate::handlers::AppState;
 /// ```
 pub fn create_stateless_routes(module: &crate::BucketModule) -> Router<()> {
     Router::new()
-        .merge(create_access_log_routes(module.access_log_service.clone()))
         .merge(create_bucket_routes(module.bucket_service.clone()))
         .merge(create_content_hash_routes(module.content_hash_service.clone()))
         .merge(create_conversion_job_routes(module.conversion_job_service.clone()))
         .merge(create_file_comment_routes(module.file_comment_service.clone()))
         .merge(create_file_lock_routes(module.file_lock_service.clone()))
         .merge(create_file_share_routes(module.file_share_service.clone()))
-        .merge(create_file_version_routes(module.file_version_service.clone()))
         .merge(create_processing_job_routes(module.processing_job_service.clone()))
         .merge(create_stored_file_routes(module.stored_file_service.clone()))
-        .merge(create_thumbnail_routes(module.thumbnail_service.clone()))
         .merge(create_upload_session_routes(module.upload_session_service.clone()))
         .merge(create_user_quota_routes(module.user_quota_service.clone()))
 }

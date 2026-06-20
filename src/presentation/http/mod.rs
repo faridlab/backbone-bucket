@@ -5,17 +5,14 @@
 //! These handlers use Axum and backbone-core's BackboneCrudHandler
 //! to provide all 12 standard Backbone CRUD endpoints.
 
-pub mod access_log_handler;
 pub mod bucket_handler;
 pub mod content_hash_handler;
 pub mod conversion_job_handler;
 pub mod file_comment_handler;
 pub mod file_lock_handler;
 pub mod file_share_handler;
-pub mod file_version_handler;
 pub mod processing_job_handler;
 pub mod stored_file_handler;
-pub mod thumbnail_handler;
 pub mod upload_session_handler;
 pub mod user_quota_handler;
 
@@ -27,17 +24,14 @@ pub mod upload;
 // END CUSTOM
 
 // Re-exports
-pub use access_log_handler::{create_access_log_routes, create_access_log_read_routes, create_access_log_write_routes};
 pub use bucket_handler::{create_bucket_routes, create_bucket_read_routes, create_bucket_write_routes};
 pub use content_hash_handler::{create_content_hash_routes, create_content_hash_read_routes, create_content_hash_write_routes};
 pub use conversion_job_handler::{create_conversion_job_routes, create_conversion_job_read_routes, create_conversion_job_write_routes};
 pub use file_comment_handler::{create_file_comment_routes, create_file_comment_read_routes, create_file_comment_write_routes};
 pub use file_lock_handler::{create_file_lock_routes, create_file_lock_read_routes, create_file_lock_write_routes};
 pub use file_share_handler::{create_file_share_routes, create_file_share_read_routes, create_file_share_write_routes};
-pub use file_version_handler::{create_file_version_routes, create_file_version_read_routes, create_file_version_write_routes};
 pub use processing_job_handler::{create_processing_job_routes, create_processing_job_read_routes, create_processing_job_write_routes};
 pub use stored_file_handler::{create_stored_file_routes, create_stored_file_read_routes, create_stored_file_write_routes};
-pub use thumbnail_handler::{create_thumbnail_routes, create_thumbnail_read_routes, create_thumbnail_write_routes};
 pub use upload_session_handler::{create_upload_session_routes, create_upload_session_read_routes, create_upload_session_write_routes};
 pub use user_quota_handler::{create_user_quota_routes, create_user_quota_read_routes, create_user_quota_write_routes};
 // <<< CUSTOM

@@ -14,6 +14,8 @@
 //! - Computed fields
 //! - Workflow orchestrator
 
+#![recursion_limit = "1024"]
+
 // Generated modules
 pub mod domain;
 pub mod infrastructure;
@@ -166,33 +168,27 @@ impl BucketModule {
     /// Returns an Axum Router with all 12 Backbone CRUD endpoints per entity.
     pub fn routes(&self) -> Router {
         use presentation::http::{
-            create_access_log_routes,
             create_bucket_routes,
             create_content_hash_routes,
             create_conversion_job_routes,
             create_file_comment_routes,
             create_file_lock_routes,
             create_file_share_routes,
-            create_file_version_routes,
             create_processing_job_routes,
             create_stored_file_routes,
-            create_thumbnail_routes,
             create_upload_session_routes,
             create_user_quota_routes,
         };
 
         Router::new()
-            .merge(create_access_log_routes(self.access_log_service.clone()))
             .merge(create_bucket_routes(self.bucket_service.clone()))
             .merge(create_content_hash_routes(self.content_hash_service.clone()))
             .merge(create_conversion_job_routes(self.conversion_job_service.clone()))
             .merge(create_file_comment_routes(self.file_comment_service.clone()))
             .merge(create_file_lock_routes(self.file_lock_service.clone()))
             .merge(create_file_share_routes(self.file_share_service.clone()))
-            .merge(create_file_version_routes(self.file_version_service.clone()))
             .merge(create_processing_job_routes(self.processing_job_service.clone()))
             .merge(create_stored_file_routes(self.stored_file_service.clone()))
-            .merge(create_thumbnail_routes(self.thumbnail_service.clone()))
             .merge(create_upload_session_routes(self.upload_session_service.clone()))
             .merge(create_user_quota_routes(self.user_quota_service.clone()))
     }
@@ -297,7 +293,6 @@ impl BucketModuleBuilder {
         // UserQuota service
         let user_quota_repository = Arc::new(UserQuotaRepository::new(db_pool.clone()));
         let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()));
-
         // <<< CUSTOM - Custom business logic services
         let locking_service = Arc::new(LockingService::new(
             file_lock_repository, stored_file_repository.clone(),
@@ -334,6 +329,7 @@ impl BucketModuleBuilder {
             _ => None,
         };
         // END CUSTOM
+
         Ok(BucketModule {
             access_log_service,
             bucket_service,

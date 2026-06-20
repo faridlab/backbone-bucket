@@ -7,24 +7,17 @@
 pub mod base;
 pub use base::{UseCaseError, UseCaseResult, UseCaseHooks};
 
-pub mod access_log_usecases;
 pub mod bucket_usecases;
 pub mod content_hash_usecases;
 pub mod conversion_job_usecases;
 pub mod file_comment_usecases;
 pub mod file_lock_usecases;
 pub mod file_share_usecases;
-pub mod file_version_usecases;
 pub mod processing_job_usecases;
 pub mod stored_file_usecases;
-pub mod thumbnail_usecases;
 pub mod upload_session_usecases;
 pub mod user_quota_usecases;
 
-pub use access_log_usecases::{
-    CreateAccessLogUseCase, UpdateAccessLogUseCase, GetAccessLogUseCase,
-    DeleteAccessLogUseCase, ListAccessLogUseCase,
-};
 pub use bucket_usecases::{
     CreateBucketUseCase, UpdateBucketUseCase, GetBucketUseCase,
     DeleteBucketUseCase, ListBucketUseCase,
@@ -49,10 +42,6 @@ pub use file_share_usecases::{
     CreateFileShareUseCase, UpdateFileShareUseCase, GetFileShareUseCase,
     DeleteFileShareUseCase, ListFileShareUseCase,
 };
-pub use file_version_usecases::{
-    CreateFileVersionUseCase, UpdateFileVersionUseCase, GetFileVersionUseCase,
-    DeleteFileVersionUseCase, ListFileVersionUseCase,
-};
 pub use processing_job_usecases::{
     CreateProcessingJobUseCase, UpdateProcessingJobUseCase, GetProcessingJobUseCase,
     DeleteProcessingJobUseCase, ListProcessingJobUseCase,
@@ -60,10 +49,6 @@ pub use processing_job_usecases::{
 pub use stored_file_usecases::{
     CreateStoredFileUseCase, UpdateStoredFileUseCase, GetStoredFileUseCase,
     DeleteStoredFileUseCase, ListStoredFileUseCase,
-};
-pub use thumbnail_usecases::{
-    CreateThumbnailUseCase, UpdateThumbnailUseCase, GetThumbnailUseCase,
-    DeleteThumbnailUseCase, ListThumbnailUseCase,
 };
 pub use upload_session_usecases::{
     CreateUploadSessionUseCase, UpdateUploadSessionUseCase, GetUploadSessionUseCase,
