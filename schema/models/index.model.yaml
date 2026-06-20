@@ -4,6 +4,7 @@
 
 module: bucket
 version: 2
+schema: bucket
 description: "Enterprise file storage with buckets, sharing, quotas, security scanning, and media processing"
 
 # =============================================================================
