@@ -90,7 +90,6 @@ config:
       - graphql
       - grpc
       - proto
-      - openapi
 
 # =============================================================================
 # IMPORTS - Model files in this module
