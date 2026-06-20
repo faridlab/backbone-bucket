@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS thumbnails (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.thumbnails (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL,
     size thumbnail_size NOT NULL,
@@ -32,25 +34,25 @@ CREATE TABLE IF NOT EXISTS thumbnails (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_thumbnails_file_id ON thumbnails (file_id);
+CREATE INDEX IF NOT EXISTS idx_thumbnails_file_id ON bucket.thumbnails (file_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_thumbnails_file_id_size ON thumbnails (file_id, size);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thumbnails_file_id_size ON bucket.thumbnails (file_id, size);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_thumbnails_storage_key ON thumbnails (storage_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thumbnails_storage_key ON bucket.thumbnails (storage_key);
 
-CREATE INDEX IF NOT EXISTS idx_thumbnails_is_stale ON thumbnails (is_stale);
+CREATE INDEX IF NOT EXISTS idx_thumbnails_is_stale ON bucket.thumbnails (is_stale);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_gin ON thumbnails USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_deleted_at ON thumbnails ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_created_at ON thumbnails ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_updated_at ON thumbnails ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_gin ON bucket.thumbnails USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_deleted_at ON bucket.thumbnails ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_created_at ON bucket.thumbnails ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_thumbnails_metadata_updated_at ON bucket.thumbnails ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION thumbnails_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.thumbnails_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -63,14 +65,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS thumbnails_insert_audit ON thumbnails;
-CREATE TRIGGER thumbnails_insert_audit BEFORE INSERT ON thumbnails
-    FOR EACH ROW EXECUTE FUNCTION thumbnails_audit_timestamp();
+DROP TRIGGER IF EXISTS thumbnails_insert_audit ON bucket.thumbnails;
+CREATE TRIGGER thumbnails_insert_audit BEFORE INSERT ON bucket.thumbnails
+    FOR EACH ROW EXECUTE FUNCTION bucket.thumbnails_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS thumbnails_update_audit ON thumbnails;
-CREATE TRIGGER thumbnails_update_audit BEFORE UPDATE ON thumbnails
-    FOR EACH ROW EXECUTE FUNCTION thumbnails_audit_timestamp();
+DROP TRIGGER IF EXISTS thumbnails_update_audit ON bucket.thumbnails;
+CREATE TRIGGER thumbnails_update_audit BEFORE UPDATE ON bucket.thumbnails
+    FOR EACH ROW EXECUTE FUNCTION bucket.thumbnails_audit_timestamp();
 
 -- Inline foreign key constraints (forward + self refs)
-ALTER TABLE thumbnails ADD CONSTRAINT fk_thumbnails_file_id FOREIGN KEY (file_id) REFERENCES stored_files (id);
+ALTER TABLE bucket.thumbnails ADD CONSTRAINT fk_thumbnails_file_id FOREIGN KEY (file_id) REFERENCES bucket.stored_files (id);

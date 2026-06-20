@@ -19,7 +19,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS processing_jobs (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.processing_jobs (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL,
     job_type processing_job_type NOT NULL,
@@ -36,25 +38,25 @@ CREATE TABLE IF NOT EXISTS processing_jobs (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_file_id_status ON processing_jobs (file_id, status);
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_file_id_status ON bucket.processing_jobs (file_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_status_priority_(metadata->>'created_at') ON processing_jobs (status, priority, ((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_status_priority_(metadata->>'created_at') ON bucket.processing_jobs (status, priority, ((metadata->>'created_at')));
 
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_job_type_status ON processing_jobs (job_type, status);
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_job_type_status ON bucket.processing_jobs (job_type, status);
 
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_(metadata->>'created_at') ON processing_jobs (((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_(metadata->>'created_at') ON bucket.processing_jobs (((metadata->>'created_at')));
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_gin ON processing_jobs USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_deleted_at ON processing_jobs ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_created_at ON processing_jobs ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_updated_at ON processing_jobs ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_gin ON bucket.processing_jobs USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_deleted_at ON bucket.processing_jobs ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_created_at ON bucket.processing_jobs ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_updated_at ON bucket.processing_jobs ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION processing_jobs_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.processing_jobs_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -67,11 +69,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS processing_jobs_insert_audit ON processing_jobs;
-CREATE TRIGGER processing_jobs_insert_audit BEFORE INSERT ON processing_jobs
-    FOR EACH ROW EXECUTE FUNCTION processing_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS processing_jobs_insert_audit ON bucket.processing_jobs;
+CREATE TRIGGER processing_jobs_insert_audit BEFORE INSERT ON bucket.processing_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.processing_jobs_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS processing_jobs_update_audit ON processing_jobs;
-CREATE TRIGGER processing_jobs_update_audit BEFORE UPDATE ON processing_jobs
-    FOR EACH ROW EXECUTE FUNCTION processing_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS processing_jobs_update_audit ON bucket.processing_jobs;
+CREATE TRIGGER processing_jobs_update_audit BEFORE UPDATE ON bucket.processing_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.processing_jobs_audit_timestamp();

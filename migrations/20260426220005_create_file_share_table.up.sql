@@ -28,7 +28,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS file_shares (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.file_shares (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL,
     owner_id UUID NOT NULL,
@@ -49,31 +51,31 @@ CREATE TABLE IF NOT EXISTS file_shares (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_token ON file_shares (token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_file_shares_token ON bucket.file_shares (token);
 
-CREATE INDEX IF NOT EXISTS idx_file_shares_file_id ON file_shares (file_id);
+CREATE INDEX IF NOT EXISTS idx_file_shares_file_id ON bucket.file_shares (file_id);
 
-CREATE INDEX IF NOT EXISTS idx_file_shares_owner_id ON file_shares (owner_id);
+CREATE INDEX IF NOT EXISTS idx_file_shares_owner_id ON bucket.file_shares (owner_id);
 
-CREATE INDEX IF NOT EXISTS idx_file_shares_share_status ON file_shares (share_status);
+CREATE INDEX IF NOT EXISTS idx_file_shares_share_status ON bucket.file_shares (share_status);
 
-CREATE INDEX IF NOT EXISTS idx_file_shares_is_active ON file_shares (is_active);
+CREATE INDEX IF NOT EXISTS idx_file_shares_is_active ON bucket.file_shares (is_active);
 
-CREATE INDEX IF NOT EXISTS idx_file_shares_expires_at ON file_shares (expires_at);
+CREATE INDEX IF NOT EXISTS idx_file_shares_expires_at ON bucket.file_shares (expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_file_shares_file_id_share_status ON file_shares (file_id, share_status);
+CREATE INDEX IF NOT EXISTS idx_file_shares_file_id_share_status ON bucket.file_shares (file_id, share_status);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_gin ON file_shares USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_deleted_at ON file_shares ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_created_at ON file_shares ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_updated_at ON file_shares ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_gin ON bucket.file_shares USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_deleted_at ON bucket.file_shares ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_created_at ON bucket.file_shares ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_file_shares_metadata_updated_at ON bucket.file_shares ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION file_shares_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_shares_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -86,14 +88,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_shares_insert_audit ON file_shares;
-CREATE TRIGGER file_shares_insert_audit BEFORE INSERT ON file_shares
-    FOR EACH ROW EXECUTE FUNCTION file_shares_audit_timestamp();
+DROP TRIGGER IF EXISTS file_shares_insert_audit ON bucket.file_shares;
+CREATE TRIGGER file_shares_insert_audit BEFORE INSERT ON bucket.file_shares
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_shares_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_shares_update_audit ON file_shares;
-CREATE TRIGGER file_shares_update_audit BEFORE UPDATE ON file_shares
-    FOR EACH ROW EXECUTE FUNCTION file_shares_audit_timestamp();
+DROP TRIGGER IF EXISTS file_shares_update_audit ON bucket.file_shares;
+CREATE TRIGGER file_shares_update_audit BEFORE UPDATE ON bucket.file_shares
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_shares_audit_timestamp();
 
 -- Inline foreign key constraints (forward + self refs)
-ALTER TABLE file_shares ADD CONSTRAINT fk_file_shares_file_id FOREIGN KEY (file_id) REFERENCES stored_files (id);
+ALTER TABLE bucket.file_shares ADD CONSTRAINT fk_file_shares_file_id FOREIGN KEY (file_id) REFERENCES bucket.stored_files (id);

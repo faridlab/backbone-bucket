@@ -1,3 +1,3 @@
--- Down: drop file_versions table
-DROP TABLE IF EXISTS file_versions CASCADE;
-DROP FUNCTION IF EXISTS file_versions_audit_timestamp() CASCADE;
+-- Down: drop bucket.file_versions table
+DROP TABLE IF EXISTS bucket.file_versions CASCADE;
+DROP FUNCTION IF EXISTS bucket.file_versions_audit_timestamp() CASCADE;

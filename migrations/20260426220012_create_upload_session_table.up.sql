@@ -19,7 +19,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS upload_sessions (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.upload_sessions (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     bucket_id UUID NOT NULL,
     user_id UUID NOT NULL,
@@ -39,23 +41,23 @@ CREATE TABLE IF NOT EXISTS upload_sessions (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_user_id_status ON upload_sessions (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_user_id_status ON bucket.upload_sessions (user_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_expires_at ON upload_sessions (expires_at);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_expires_at ON bucket.upload_sessions (expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_bucket_id_status ON upload_sessions (bucket_id, status);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_bucket_id_status ON bucket.upload_sessions (bucket_id, status);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_gin ON upload_sessions USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_deleted_at ON upload_sessions ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_created_at ON upload_sessions ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_updated_at ON upload_sessions ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_gin ON bucket.upload_sessions USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_deleted_at ON bucket.upload_sessions ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_created_at ON bucket.upload_sessions ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_upload_sessions_metadata_updated_at ON bucket.upload_sessions ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION upload_sessions_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.upload_sessions_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -68,11 +70,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS upload_sessions_insert_audit ON upload_sessions;
-CREATE TRIGGER upload_sessions_insert_audit BEFORE INSERT ON upload_sessions
-    FOR EACH ROW EXECUTE FUNCTION upload_sessions_audit_timestamp();
+DROP TRIGGER IF EXISTS upload_sessions_insert_audit ON bucket.upload_sessions;
+CREATE TRIGGER upload_sessions_insert_audit BEFORE INSERT ON bucket.upload_sessions
+    FOR EACH ROW EXECUTE FUNCTION bucket.upload_sessions_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS upload_sessions_update_audit ON upload_sessions;
-CREATE TRIGGER upload_sessions_update_audit BEFORE UPDATE ON upload_sessions
-    FOR EACH ROW EXECUTE FUNCTION upload_sessions_audit_timestamp();
+DROP TRIGGER IF EXISTS upload_sessions_update_audit ON bucket.upload_sessions;
+CREATE TRIGGER upload_sessions_update_audit BEFORE UPDATE ON bucket.upload_sessions
+    FOR EACH ROW EXECUTE FUNCTION bucket.upload_sessions_audit_timestamp();

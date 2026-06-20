@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS file_locks (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.file_locks (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL,
     user_id UUID NOT NULL,
@@ -22,23 +24,23 @@ CREATE TABLE IF NOT EXISTS file_locks (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_file_locks_file_id ON file_locks (file_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_file_locks_file_id ON bucket.file_locks (file_id);
 
-CREATE INDEX IF NOT EXISTS idx_file_locks_expires_at ON file_locks (expires_at);
+CREATE INDEX IF NOT EXISTS idx_file_locks_expires_at ON bucket.file_locks (expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_file_locks_user_id ON file_locks (user_id);
+CREATE INDEX IF NOT EXISTS idx_file_locks_user_id ON bucket.file_locks (user_id);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_gin ON file_locks USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_deleted_at ON file_locks ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_created_at ON file_locks ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_updated_at ON file_locks ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_gin ON bucket.file_locks USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_deleted_at ON bucket.file_locks ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_created_at ON bucket.file_locks ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_file_locks_metadata_updated_at ON bucket.file_locks ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION file_locks_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_locks_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -51,11 +53,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_locks_insert_audit ON file_locks;
-CREATE TRIGGER file_locks_insert_audit BEFORE INSERT ON file_locks
-    FOR EACH ROW EXECUTE FUNCTION file_locks_audit_timestamp();
+DROP TRIGGER IF EXISTS file_locks_insert_audit ON bucket.file_locks;
+CREATE TRIGGER file_locks_insert_audit BEFORE INSERT ON bucket.file_locks
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_locks_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_locks_update_audit ON file_locks;
-CREATE TRIGGER file_locks_update_audit BEFORE UPDATE ON file_locks
-    FOR EACH ROW EXECUTE FUNCTION file_locks_audit_timestamp();
+DROP TRIGGER IF EXISTS file_locks_update_audit ON bucket.file_locks;
+CREATE TRIGGER file_locks_update_audit BEFORE UPDATE ON bucket.file_locks
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_locks_audit_timestamp();

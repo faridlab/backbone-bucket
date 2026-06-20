@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS access_logs (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.access_logs (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL,
     bucket_id UUID,
@@ -34,33 +36,33 @@ CREATE TABLE IF NOT EXISTS access_logs (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_file_id ON access_logs (file_id);
+CREATE INDEX IF NOT EXISTS idx_access_logs_file_id ON bucket.access_logs (file_id);
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_user_id ON access_logs (user_id);
+CREATE INDEX IF NOT EXISTS idx_access_logs_user_id ON bucket.access_logs (user_id);
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_action ON access_logs (action);
+CREATE INDEX IF NOT EXISTS idx_access_logs_action ON bucket.access_logs (action);
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_accessed_at ON access_logs (accessed_at);
+CREATE INDEX IF NOT EXISTS idx_access_logs_accessed_at ON bucket.access_logs (accessed_at);
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_share_id ON access_logs (share_id);
+CREATE INDEX IF NOT EXISTS idx_access_logs_share_id ON bucket.access_logs (share_id);
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_file_id_accessed_at ON access_logs (file_id, accessed_at);
+CREATE INDEX IF NOT EXISTS idx_access_logs_file_id_accessed_at ON bucket.access_logs (file_id, accessed_at);
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_user_id_accessed_at ON access_logs (user_id, accessed_at);
+CREATE INDEX IF NOT EXISTS idx_access_logs_user_id_accessed_at ON bucket.access_logs (user_id, accessed_at);
 
-CREATE INDEX IF NOT EXISTS idx_access_logs_success ON access_logs (success);
+CREATE INDEX IF NOT EXISTS idx_access_logs_success ON bucket.access_logs (success);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_gin ON access_logs USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_deleted_at ON access_logs ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_created_at ON access_logs ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_updated_at ON access_logs ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_gin ON bucket.access_logs USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_deleted_at ON bucket.access_logs ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_created_at ON bucket.access_logs ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_access_logs_metadata_updated_at ON bucket.access_logs ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION access_logs_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.access_logs_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -73,16 +75,16 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS access_logs_insert_audit ON access_logs;
-CREATE TRIGGER access_logs_insert_audit BEFORE INSERT ON access_logs
-    FOR EACH ROW EXECUTE FUNCTION access_logs_audit_timestamp();
+DROP TRIGGER IF EXISTS access_logs_insert_audit ON bucket.access_logs;
+CREATE TRIGGER access_logs_insert_audit BEFORE INSERT ON bucket.access_logs
+    FOR EACH ROW EXECUTE FUNCTION bucket.access_logs_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS access_logs_update_audit ON access_logs;
-CREATE TRIGGER access_logs_update_audit BEFORE UPDATE ON access_logs
-    FOR EACH ROW EXECUTE FUNCTION access_logs_audit_timestamp();
+DROP TRIGGER IF EXISTS access_logs_update_audit ON bucket.access_logs;
+CREATE TRIGGER access_logs_update_audit BEFORE UPDATE ON bucket.access_logs
+    FOR EACH ROW EXECUTE FUNCTION bucket.access_logs_audit_timestamp();
 
 -- Inline foreign key constraints (forward + self refs)
-ALTER TABLE access_logs ADD CONSTRAINT fk_access_logs_file_id FOREIGN KEY (file_id) REFERENCES stored_files (id);
-ALTER TABLE access_logs ADD CONSTRAINT fk_access_logs_bucket_id FOREIGN KEY (bucket_id) REFERENCES buckets (id);
-ALTER TABLE access_logs ADD CONSTRAINT fk_access_logs_share_id FOREIGN KEY (share_id) REFERENCES file_shares (id);
+ALTER TABLE bucket.access_logs ADD CONSTRAINT fk_access_logs_file_id FOREIGN KEY (file_id) REFERENCES bucket.stored_files (id);
+ALTER TABLE bucket.access_logs ADD CONSTRAINT fk_access_logs_bucket_id FOREIGN KEY (bucket_id) REFERENCES bucket.buckets (id);
+ALTER TABLE bucket.access_logs ADD CONSTRAINT fk_access_logs_share_id FOREIGN KEY (share_id) REFERENCES bucket.file_shares (id);

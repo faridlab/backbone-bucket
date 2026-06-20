@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS user_quotas (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.user_quotas (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     limit_bytes BIGINT NOT NULL,
@@ -28,25 +30,25 @@ CREATE TABLE IF NOT EXISTS user_quotas (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_quotas_user_id ON user_quotas (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_quotas_user_id ON bucket.user_quotas (user_id);
 
-CREATE INDEX IF NOT EXISTS idx_user_quotas_tier ON user_quotas (tier);
+CREATE INDEX IF NOT EXISTS idx_user_quotas_tier ON bucket.user_quotas (tier);
 
-CREATE INDEX IF NOT EXISTS idx_user_quotas_used_bytes ON user_quotas (used_bytes);
+CREATE INDEX IF NOT EXISTS idx_user_quotas_used_bytes ON bucket.user_quotas (used_bytes);
 
-CREATE INDEX IF NOT EXISTS idx_user_quotas_quota_status ON user_quotas (quota_status);
+CREATE INDEX IF NOT EXISTS idx_user_quotas_quota_status ON bucket.user_quotas (quota_status);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_gin ON user_quotas USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_deleted_at ON user_quotas ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_created_at ON user_quotas ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_updated_at ON user_quotas ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_gin ON bucket.user_quotas USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_deleted_at ON bucket.user_quotas ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_created_at ON bucket.user_quotas ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_user_quotas_metadata_updated_at ON bucket.user_quotas ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION user_quotas_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.user_quotas_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -59,11 +61,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS user_quotas_insert_audit ON user_quotas;
-CREATE TRIGGER user_quotas_insert_audit BEFORE INSERT ON user_quotas
-    FOR EACH ROW EXECUTE FUNCTION user_quotas_audit_timestamp();
+DROP TRIGGER IF EXISTS user_quotas_insert_audit ON bucket.user_quotas;
+CREATE TRIGGER user_quotas_insert_audit BEFORE INSERT ON bucket.user_quotas
+    FOR EACH ROW EXECUTE FUNCTION bucket.user_quotas_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS user_quotas_update_audit ON user_quotas;
-CREATE TRIGGER user_quotas_update_audit BEFORE UPDATE ON user_quotas
-    FOR EACH ROW EXECUTE FUNCTION user_quotas_audit_timestamp();
+DROP TRIGGER IF EXISTS user_quotas_update_audit ON bucket.user_quotas;
+CREATE TRIGGER user_quotas_update_audit BEFORE UPDATE ON bucket.user_quotas
+    FOR EACH ROW EXECUTE FUNCTION bucket.user_quotas_audit_timestamp();

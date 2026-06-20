@@ -28,7 +28,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS stored_files (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.stored_files (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     bucket_id UUID NOT NULL,
     owner_id UUID NOT NULL,
@@ -66,43 +68,43 @@ CREATE TABLE IF NOT EXISTS stored_files (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_stored_files_bucket_id_path_(metadata->>'deleted_at') ON stored_files (bucket_id, path, ((metadata->>'deleted_at')));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_stored_files_bucket_id_path_(metadata->>'deleted_at') ON bucket.stored_files (bucket_id, path, ((metadata->>'deleted_at')));
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_owner_id ON stored_files (owner_id);
+CREATE INDEX IF NOT EXISTS idx_stored_files_owner_id ON bucket.stored_files (owner_id);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_bucket_id ON stored_files (bucket_id);
+CREATE INDEX IF NOT EXISTS idx_stored_files_bucket_id ON bucket.stored_files (bucket_id);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_status ON stored_files (status);
+CREATE INDEX IF NOT EXISTS idx_stored_files_status ON bucket.stored_files (status);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_mime_type ON stored_files (mime_type);
+CREATE INDEX IF NOT EXISTS idx_stored_files_mime_type ON bucket.stored_files (mime_type);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_owner_id_status ON stored_files (owner_id, status);
+CREATE INDEX IF NOT EXISTS idx_stored_files_owner_id_status ON bucket.stored_files (owner_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_(metadata->>'created_at') ON stored_files (((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_stored_files_(metadata->>'created_at') ON bucket.stored_files (((metadata->>'created_at')));
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_checksum ON stored_files (checksum);
+CREATE INDEX IF NOT EXISTS idx_stored_files_checksum ON bucket.stored_files (checksum);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_content_hash_id ON stored_files (content_hash_id);
+CREATE INDEX IF NOT EXISTS idx_stored_files_content_hash_id ON bucket.stored_files (content_hash_id);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_cdn_url_expires_at ON stored_files (cdn_url_expires_at);
+CREATE INDEX IF NOT EXISTS idx_stored_files_cdn_url_expires_at ON bucket.stored_files (cdn_url_expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_processing_status ON stored_files (processing_status);
+CREATE INDEX IF NOT EXISTS idx_stored_files_processing_status ON bucket.stored_files (processing_status);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_owner_module_owner_entity_owner_entity_id ON stored_files (owner_module, owner_entity, owner_entity_id);
+CREATE INDEX IF NOT EXISTS idx_stored_files_owner_module_owner_entity_owner_entity_id ON bucket.stored_files (owner_module, owner_entity, owner_entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_owner_entity_id ON stored_files (owner_entity_id);
+CREATE INDEX IF NOT EXISTS idx_stored_files_owner_entity_id ON bucket.stored_files (owner_entity_id);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_gin ON stored_files USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_deleted_at ON stored_files ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_created_at ON stored_files ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_updated_at ON stored_files ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_gin ON bucket.stored_files USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_deleted_at ON bucket.stored_files ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_created_at ON bucket.stored_files ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_updated_at ON bucket.stored_files ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION stored_files_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.stored_files_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -115,16 +117,16 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS stored_files_insert_audit ON stored_files;
-CREATE TRIGGER stored_files_insert_audit BEFORE INSERT ON stored_files
-    FOR EACH ROW EXECUTE FUNCTION stored_files_audit_timestamp();
+DROP TRIGGER IF EXISTS stored_files_insert_audit ON bucket.stored_files;
+CREATE TRIGGER stored_files_insert_audit BEFORE INSERT ON bucket.stored_files
+    FOR EACH ROW EXECUTE FUNCTION bucket.stored_files_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS stored_files_update_audit ON stored_files;
-CREATE TRIGGER stored_files_update_audit BEFORE UPDATE ON stored_files
-    FOR EACH ROW EXECUTE FUNCTION stored_files_audit_timestamp();
+DROP TRIGGER IF EXISTS stored_files_update_audit ON bucket.stored_files;
+CREATE TRIGGER stored_files_update_audit BEFORE UPDATE ON bucket.stored_files
+    FOR EACH ROW EXECUTE FUNCTION bucket.stored_files_audit_timestamp();
 
 -- Inline foreign key constraints (forward + self refs)
-ALTER TABLE stored_files ADD CONSTRAINT fk_stored_files_bucket_id FOREIGN KEY (bucket_id) REFERENCES buckets (id);
-ALTER TABLE stored_files ADD CONSTRAINT fk_stored_files_previous_version_id FOREIGN KEY (previous_version_id) REFERENCES stored_files (id);
-ALTER TABLE stored_files ADD CONSTRAINT fk_stored_files_content_hash_id FOREIGN KEY (content_hash_id) REFERENCES content_hashes (id);
+ALTER TABLE bucket.stored_files ADD CONSTRAINT fk_stored_files_bucket_id FOREIGN KEY (bucket_id) REFERENCES bucket.buckets (id);
+ALTER TABLE bucket.stored_files ADD CONSTRAINT fk_stored_files_previous_version_id FOREIGN KEY (previous_version_id) REFERENCES bucket.stored_files (id);
+ALTER TABLE bucket.stored_files ADD CONSTRAINT fk_stored_files_content_hash_id FOREIGN KEY (content_hash_id) REFERENCES bucket.content_hashes (id);

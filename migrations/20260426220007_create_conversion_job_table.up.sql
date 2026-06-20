@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS conversion_jobs (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.conversion_jobs (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     source_file_id UUID NOT NULL,
     target_format TEXT NOT NULL,
@@ -25,23 +27,23 @@ CREATE TABLE IF NOT EXISTS conversion_jobs (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_source_file_id_status ON conversion_jobs (source_file_id, status);
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_source_file_id_status ON bucket.conversion_jobs (source_file_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_result_file_id ON conversion_jobs (result_file_id);
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_result_file_id ON bucket.conversion_jobs (result_file_id);
 
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status_(metadata->>'created_at') ON conversion_jobs (status, ((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status_(metadata->>'created_at') ON bucket.conversion_jobs (status, ((metadata->>'created_at')));
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_gin ON conversion_jobs USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_deleted_at ON conversion_jobs ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_created_at ON conversion_jobs ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_updated_at ON conversion_jobs ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_gin ON bucket.conversion_jobs USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_deleted_at ON bucket.conversion_jobs ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_created_at ON bucket.conversion_jobs ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_updated_at ON bucket.conversion_jobs ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION conversion_jobs_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.conversion_jobs_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -54,11 +56,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS conversion_jobs_insert_audit ON conversion_jobs;
-CREATE TRIGGER conversion_jobs_insert_audit BEFORE INSERT ON conversion_jobs
-    FOR EACH ROW EXECUTE FUNCTION conversion_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS conversion_jobs_insert_audit ON bucket.conversion_jobs;
+CREATE TRIGGER conversion_jobs_insert_audit BEFORE INSERT ON bucket.conversion_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.conversion_jobs_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS conversion_jobs_update_audit ON conversion_jobs;
-CREATE TRIGGER conversion_jobs_update_audit BEFORE UPDATE ON conversion_jobs
-    FOR EACH ROW EXECUTE FUNCTION conversion_jobs_audit_timestamp();
+DROP TRIGGER IF EXISTS conversion_jobs_update_audit ON bucket.conversion_jobs;
+CREATE TRIGGER conversion_jobs_update_audit BEFORE UPDATE ON bucket.conversion_jobs
+    FOR EACH ROW EXECUTE FUNCTION bucket.conversion_jobs_audit_timestamp();

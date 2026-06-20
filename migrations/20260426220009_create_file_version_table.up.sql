@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS file_versions (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.file_versions (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL,
     version_number INTEGER NOT NULL,
@@ -33,29 +35,29 @@ CREATE TABLE IF NOT EXISTS file_versions (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_file_versions_file_id ON file_versions (file_id);
+CREATE INDEX IF NOT EXISTS idx_file_versions_file_id ON bucket.file_versions (file_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_file_versions_file_id_version_number ON file_versions (file_id, version_number);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_file_versions_file_id_version_number ON bucket.file_versions (file_id, version_number);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_file_versions_storage_key ON file_versions (storage_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_file_versions_storage_key ON bucket.file_versions (storage_key);
 
-CREATE INDEX IF NOT EXISTS idx_file_versions_created_by_id ON file_versions (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_file_versions_created_by_id ON bucket.file_versions (created_by_id);
 
-CREATE INDEX IF NOT EXISTS idx_file_versions_file_id_is_current ON file_versions (file_id, is_current);
+CREATE INDEX IF NOT EXISTS idx_file_versions_file_id_is_current ON bucket.file_versions (file_id, is_current);
 
-CREATE INDEX IF NOT EXISTS idx_file_versions_expires_at ON file_versions (expires_at);
+CREATE INDEX IF NOT EXISTS idx_file_versions_expires_at ON bucket.file_versions (expires_at);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_gin ON file_versions USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_deleted_at ON file_versions ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_created_at ON file_versions ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_updated_at ON file_versions ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_gin ON bucket.file_versions USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_deleted_at ON bucket.file_versions ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_created_at ON bucket.file_versions ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_file_versions_metadata_updated_at ON bucket.file_versions ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION file_versions_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_versions_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -68,15 +70,15 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_versions_insert_audit ON file_versions;
-CREATE TRIGGER file_versions_insert_audit BEFORE INSERT ON file_versions
-    FOR EACH ROW EXECUTE FUNCTION file_versions_audit_timestamp();
+DROP TRIGGER IF EXISTS file_versions_insert_audit ON bucket.file_versions;
+CREATE TRIGGER file_versions_insert_audit BEFORE INSERT ON bucket.file_versions
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_versions_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_versions_update_audit ON file_versions;
-CREATE TRIGGER file_versions_update_audit BEFORE UPDATE ON file_versions
-    FOR EACH ROW EXECUTE FUNCTION file_versions_audit_timestamp();
+DROP TRIGGER IF EXISTS file_versions_update_audit ON bucket.file_versions;
+CREATE TRIGGER file_versions_update_audit BEFORE UPDATE ON bucket.file_versions
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_versions_audit_timestamp();
 
 -- Inline foreign key constraints (forward + self refs)
-ALTER TABLE file_versions ADD CONSTRAINT fk_file_versions_file_id FOREIGN KEY (file_id) REFERENCES stored_files (id);
-ALTER TABLE file_versions ADD CONSTRAINT fk_file_versions_restored_from_id FOREIGN KEY (restored_from_id) REFERENCES file_versions (id);
+ALTER TABLE bucket.file_versions ADD CONSTRAINT fk_file_versions_file_id FOREIGN KEY (file_id) REFERENCES bucket.stored_files (id);
+ALTER TABLE bucket.file_versions ADD CONSTRAINT fk_file_versions_restored_from_id FOREIGN KEY (restored_from_id) REFERENCES bucket.file_versions (id);

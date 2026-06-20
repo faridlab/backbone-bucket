@@ -28,7 +28,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS buckets (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.buckets (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     slug TEXT NOT NULL,
@@ -50,27 +52,27 @@ CREATE TABLE IF NOT EXISTS buckets (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_buckets_slug ON buckets (slug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_buckets_slug ON bucket.buckets (slug);
 
-CREATE INDEX IF NOT EXISTS idx_buckets_owner_id ON buckets (owner_id);
+CREATE INDEX IF NOT EXISTS idx_buckets_owner_id ON bucket.buckets (owner_id);
 
-CREATE INDEX IF NOT EXISTS idx_buckets_status ON buckets (status);
+CREATE INDEX IF NOT EXISTS idx_buckets_status ON bucket.buckets (status);
 
-CREATE INDEX IF NOT EXISTS idx_buckets_bucket_type ON buckets (bucket_type);
+CREATE INDEX IF NOT EXISTS idx_buckets_bucket_type ON bucket.buckets (bucket_type);
 
-CREATE INDEX IF NOT EXISTS idx_buckets_owner_id_status ON buckets (owner_id, status);
+CREATE INDEX IF NOT EXISTS idx_buckets_owner_id_status ON bucket.buckets (owner_id, status);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_buckets_metadata_gin ON buckets USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_buckets_metadata_deleted_at ON buckets ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_buckets_metadata_created_at ON buckets ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_buckets_metadata_updated_at ON buckets ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_buckets_metadata_gin ON bucket.buckets USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_buckets_metadata_deleted_at ON bucket.buckets ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_buckets_metadata_created_at ON bucket.buckets ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_buckets_metadata_updated_at ON bucket.buckets ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION buckets_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.buckets_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -83,11 +85,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS buckets_insert_audit ON buckets;
-CREATE TRIGGER buckets_insert_audit BEFORE INSERT ON buckets
-    FOR EACH ROW EXECUTE FUNCTION buckets_audit_timestamp();
+DROP TRIGGER IF EXISTS buckets_insert_audit ON bucket.buckets;
+CREATE TRIGGER buckets_insert_audit BEFORE INSERT ON bucket.buckets
+    FOR EACH ROW EXECUTE FUNCTION bucket.buckets_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS buckets_update_audit ON buckets;
-CREATE TRIGGER buckets_update_audit BEFORE UPDATE ON buckets
-    FOR EACH ROW EXECUTE FUNCTION buckets_audit_timestamp();
+DROP TRIGGER IF EXISTS buckets_update_audit ON bucket.buckets;
+CREATE TRIGGER buckets_update_audit BEFORE UPDATE ON bucket.buckets
+    FOR EACH ROW EXECUTE FUNCTION bucket.buckets_audit_timestamp();

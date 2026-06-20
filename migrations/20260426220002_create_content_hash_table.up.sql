@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS content_hashes (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.content_hashes (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     hash TEXT NOT NULL,
     size_bytes BIGINT NOT NULL,
@@ -24,27 +26,27 @@ CREATE TABLE IF NOT EXISTS content_hashes (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_content_hashes_hash ON content_hashes (hash);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_content_hashes_hash ON bucket.content_hashes (hash);
 
-CREATE INDEX IF NOT EXISTS idx_content_hashes_reference_count ON content_hashes (reference_count);
+CREATE INDEX IF NOT EXISTS idx_content_hashes_reference_count ON bucket.content_hashes (reference_count);
 
-CREATE INDEX IF NOT EXISTS idx_content_hashes_last_referenced_at ON content_hashes (last_referenced_at);
+CREATE INDEX IF NOT EXISTS idx_content_hashes_last_referenced_at ON bucket.content_hashes (last_referenced_at);
 
-CREATE INDEX IF NOT EXISTS idx_content_hashes_fingerprint ON content_hashes (fingerprint) WHERE fingerprint IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_content_hashes_fingerprint ON bucket.content_hashes (fingerprint) WHERE fingerprint IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_content_hashes_size_bytes ON content_hashes (size_bytes);
+CREATE INDEX IF NOT EXISTS idx_content_hashes_size_bytes ON bucket.content_hashes (size_bytes);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_gin ON content_hashes USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_deleted_at ON content_hashes ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_created_at ON content_hashes ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_updated_at ON content_hashes ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_gin ON bucket.content_hashes USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_deleted_at ON bucket.content_hashes ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_created_at ON bucket.content_hashes ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_content_hashes_metadata_updated_at ON bucket.content_hashes ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION content_hashes_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.content_hashes_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -57,11 +59,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS content_hashes_insert_audit ON content_hashes;
-CREATE TRIGGER content_hashes_insert_audit BEFORE INSERT ON content_hashes
-    FOR EACH ROW EXECUTE FUNCTION content_hashes_audit_timestamp();
+DROP TRIGGER IF EXISTS content_hashes_insert_audit ON bucket.content_hashes;
+CREATE TRIGGER content_hashes_insert_audit BEFORE INSERT ON bucket.content_hashes
+    FOR EACH ROW EXECUTE FUNCTION bucket.content_hashes_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS content_hashes_update_audit ON content_hashes;
-CREATE TRIGGER content_hashes_update_audit BEFORE UPDATE ON content_hashes
-    FOR EACH ROW EXECUTE FUNCTION content_hashes_audit_timestamp();
+DROP TRIGGER IF EXISTS content_hashes_update_audit ON bucket.content_hashes;
+CREATE TRIGGER content_hashes_update_audit BEFORE UPDATE ON bucket.content_hashes
+    FOR EACH ROW EXECUTE FUNCTION bucket.content_hashes_audit_timestamp();

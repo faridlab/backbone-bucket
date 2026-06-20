@@ -10,7 +10,9 @@ BEGIN
 END
 $$;
 
-CREATE TABLE IF NOT EXISTS file_comments (
+CREATE SCHEMA IF NOT EXISTS bucket;
+
+CREATE TABLE IF NOT EXISTS bucket.file_comments (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     file_id UUID NOT NULL,
     user_id UUID NOT NULL,
@@ -26,25 +28,25 @@ CREATE TABLE IF NOT EXISTS file_comments (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_file_comments_file_id ON file_comments (file_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_file_id ON bucket.file_comments (file_id);
 
-CREATE INDEX IF NOT EXISTS idx_file_comments_parent_id ON file_comments (parent_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_parent_id ON bucket.file_comments (parent_id);
 
-CREATE INDEX IF NOT EXISTS idx_file_comments_user_id ON file_comments (user_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_user_id ON bucket.file_comments (user_id);
 
-CREATE INDEX IF NOT EXISTS idx_file_comments_resolved ON file_comments (resolved);
+CREATE INDEX IF NOT EXISTS idx_file_comments_resolved ON bucket.file_comments (resolved);
 
 -- GIN index for audit metadata JSONB queries
-CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_gin ON file_comments USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_deleted_at ON file_comments ((metadata->>'deleted_at'));
-CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_created_at ON file_comments ((metadata->>'created_at'));
-CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_updated_at ON file_comments ((metadata->>'updated_at'));
+CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_gin ON bucket.file_comments USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_deleted_at ON bucket.file_comments ((metadata->>'deleted_at'));
+CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_created_at ON bucket.file_comments ((metadata->>'created_at'));
+CREATE INDEX IF NOT EXISTS idx_file_comments_metadata_updated_at ON bucket.file_comments ((metadata->>'updated_at'));
 
 -- Triggers for automatic metadata timestamp management
 -- Automatically sets created_at on INSERT and updated_at on UPDATE
 
 -- Function to set metadata->'created_at' on INSERT
-CREATE OR REPLACE FUNCTION file_comments_audit_timestamp() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION bucket.file_comments_audit_timestamp() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
@@ -57,11 +59,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to set timestamps on INSERT
-DROP TRIGGER IF EXISTS file_comments_insert_audit ON file_comments;
-CREATE TRIGGER file_comments_insert_audit BEFORE INSERT ON file_comments
-    FOR EACH ROW EXECUTE FUNCTION file_comments_audit_timestamp();
+DROP TRIGGER IF EXISTS file_comments_insert_audit ON bucket.file_comments;
+CREATE TRIGGER file_comments_insert_audit BEFORE INSERT ON bucket.file_comments
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_comments_audit_timestamp();
 
 -- Trigger to set updated_at on UPDATE
-DROP TRIGGER IF EXISTS file_comments_update_audit ON file_comments;
-CREATE TRIGGER file_comments_update_audit BEFORE UPDATE ON file_comments
-    FOR EACH ROW EXECUTE FUNCTION file_comments_audit_timestamp();
+DROP TRIGGER IF EXISTS file_comments_update_audit ON bucket.file_comments;
+CREATE TRIGGER file_comments_update_audit BEFORE UPDATE ON bucket.file_comments
+    FOR EACH ROW EXECUTE FUNCTION bucket.file_comments_audit_timestamp();
