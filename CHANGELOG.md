@@ -7,6 +7,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+## [0.1.18] - 2026-07-03
+
+### Documentation
+
+- Corrected the stale schema/migration commands in `CLAUDE.md` and the
+  docs to the working CLI forms: `metaphor schema schema validate`
+  (schema check) and `metaphor migration generate <name>` (new
+  migration).
+
+## [0.1.17] - 2026-06-20
+
+### Added
+
+- OpenAPI spec now documents the bulk **update** and **patch**
+  endpoints alongside the existing bulk create/upsert operations, so the
+  generated spec matches the twelve wired CRUD routes.
+
+### Changed
+
+- Dropped the OpenAPI spec from the index model's generated outputs; the
+  spec is maintained under `docs/openapi/` rather than regenerated per
+  index model.
+
+## [0.1.16] - 2026-06-20
+
+### Changed — Dedicated `bucket` database schema
+
+- Bucket entities are now isolated under a dedicated `bucket` PostgreSQL
+  schema rather than sharing `public`. Table, index and trigger
+  definitions in the create migrations are schema-qualified
+  (`bucket.stored_files`, …).
+- Audit triggers are schema-qualified with the `bucket` schema.
+- Repository table constants and seeders reference the
+  `bucket`-schema-qualified table names, and seed SQL templates were
+  updated to match.
+
+### Migration
+
+Consumers that already ran earlier migrations against `public` must
+migrate existing bucket tables into the new `bucket` schema (or start
+from a fresh database). New deployments pick up the `bucket` schema
+automatically.
+
+## [0.1.15] - 2026-06-20
+
+### Added
+
+- Integration coverage for the bulk delete, bulk restore and
+  restore-all CRUD endpoints.
+
+### Changed
+
+- Entities always serialize optional fields and expose relation metadata
+  for expansion (sparse-fieldset / relation-expansion alignment).
+- DTOs accept `snake_case` input aliases across all entities (stored
+  file DTOs and the remaining entity DTOs), so both `camelCase` and
+  `snake_case` request bodies are accepted.
+- `access_log`, `file_version` and `thumbnail` are no longer auto-wired
+  as top-level CRUD resources; they are managed through their owning
+  aggregates.
+
+### Fixed
+
+- Migrations now create the required enum types so a fresh database
+  migrates cleanly.
+
+## [0.1.14] - 2026-06-16
+
+### Changed
+
+- Bumped `backbone-framework` deps to v2.6.1 (relation-expansion
+  alignment retag).
+
+## [0.1.13] - 2026-06-07
+
+### Changed
+
+- Bumped `backbone-framework` to v2.6.0 for relation-expansion
+  alignment.
+
+## [0.1.12] - 2026-06-06
+
+### Changed
+
+- Bumped `backbone-framework` to v2.5.0 for field-level security
+  alignment.
+
+## [0.1.11] - 2026-06-06
+
+### Changed
+
+- Bumped `backbone-framework` to v2.4.0 to stay aligned with consumers
+  using sparse fieldsets.
+
+## [0.1.10] - 2026-06-05
+
+### Changed
+
+- Bumped `backbone-framework` to v2.3.0.
+
+## [0.1.9] - 2026-06-04
+
+### Changed
+
+- Bumped `backbone-framework` to v2.2.1.
+
+## [0.1.8] - 2026-06-02
+
+### Changed
+
+- Bumped `backbone-framework` to v2.2.0.
+
+## [0.1.7] - 2026-05-17
+
+### Added
+
+- `AuthContextExt` trait and a bearer-token extractor for generated auth
+  helpers.
+
+### Changed
+
+- Regenerated all four DDD layers (domain, application, infrastructure,
+  presentation), seeders, routes, workflows and integration-test
+  scaffolding against the patched codegen plugin. Generated entities and
+  DTOs now carry feature-gated `utoipa` imports.
+- Migrations renamed to the timestamp-prefixed `sqlx` convention.
+- Added the `utoipa` dependency for generated OpenAPI schemas.
+
+### Fixed
+
+- Repaired `// <<< CUSTOM` block boundaries disturbed by regeneration
+  (`with_database`, `lib.rs`, `pub mod auth`), so custom logic survives
+  future regens.
+- Removed orphan gRPC / GraphQL presentation modules left by earlier
+  scaffolding.
+
+## [0.1.6] - 2026-05-14
+
 Adds the file-serving surface so consumer workspaces (e.g.
 `bersihir-service`) can serve pretty-URL file downloads with auth
 enforcement and real SigV4-signed S3/MinIO URLs. See
