@@ -461,7 +461,7 @@ bucket/
 │   ├── bucket_module.rs       custom — crud_router / upload_router / serving_router
 │   └── lib.rs                 generated re-exports + custom `// <<<` block
 │
-├── migrations/                NNN_*.up.sql / .down.sql
+├── migrations/                <timestamp>_*.up.sql / .down.sql (sqlx convention)
 ├── docs/                      human-maintained docs (this README + serving.md + bucket-spec.md …)
 ├── tests/                     integration + workflow + bench tests
 └── examples/serving/          runnable wiring example
@@ -525,7 +525,7 @@ Two rules keep custom code safe across regeneration:
 
 1. **Inside generated files**, put hand-written code between
    `// <<< CUSTOM` and `// END CUSTOM` markers. Everything outside is
-   overwritten by `metaphor schema generate` / `backbone schema generate`.
+   overwritten by `metaphor schema schema generate`.
 2. **For larger surfaces**, create a sibling file like
    `account_service_custom.rs` — files that don't match the generated
    filename pattern are never touched.
@@ -542,9 +542,10 @@ The custom-safe surfaces in this module today:
 Regenerate everything:
 
 ```bash
-metaphor schema validate
+metaphor schema schema validate       # validate schema YAML
+metaphor schema schema generate       # regenerate code from schema
 metaphor make entity <Name>           # add a new entity from schema
-metaphor migration create <name>      # new migration
+metaphor migration generate <Entity> <module>   # new migration
 metaphor dev test                     # run the suite
 metaphor lint check
 ```
