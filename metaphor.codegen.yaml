@@ -1,0 +1,23 @@
+# Codegen policy for bucket.
+#
+# `user_owned` globs are files the schema generator must NEVER read, merge, or
+# delete — `metaphor schema generate [--force]` skips them wholesale.
+#
+# This module was scaffolded by an earlier generator generation and has since
+# grown hand-written subsystems throughout src/ (storage backends, upload/
+# serving/conversion services, quota logic). The current generator would
+# neither reproduce nor correctly preserve that layout, so the ENTIRE source
+# tree is declared user-owned: a `--force` run becomes a no-op instead of a
+# massacre.
+#
+# Pruning this list back to per-file entries requires a deliberate
+# modernization pass that reconciles the tree with the current generator's
+# layout — do not shrink it as part of routine schema edits.
+
+user_owned:
+  # Whole hand-grown source tree (see rationale above).
+  - "src/**"
+
+  # Hand-written tests and module documentation.
+  - "tests/**"
+  - "docs/**"
