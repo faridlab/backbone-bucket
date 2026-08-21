@@ -114,8 +114,7 @@ impl<R: FileShareProjectionRepository> FileShareEventHandler for FileShareProjec
             event.max_downloads,
             event.download_count,
             event.expires_at,
-            event.share_status,
-            event.is_active,
+            event.status,
             event.revoked_at,
             event.revoked_by,
             event.message,
@@ -141,8 +140,7 @@ impl<R: FileShareProjectionRepository> FileShareEventHandler for FileShareProjec
             projection.max_downloads = event.max_downloads;
             projection.download_count = event.download_count;
             projection.expires_at = event.expires_at;
-            projection.share_status = event.share_status;
-            projection.is_active = event.is_active;
+            projection.status = event.status;
             projection.revoked_at = event.revoked_at;
             projection.revoked_by = event.revoked_by;
             projection.message = event.message;

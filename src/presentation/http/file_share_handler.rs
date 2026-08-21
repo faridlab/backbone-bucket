@@ -252,7 +252,7 @@ pub async fn expire_transition(
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileShareState = entity.share_status.to_string().parse()
+    let current_state: FileShareState = entity.status.to_string().parse()
         .unwrap_or(FileShareState::default());
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Expire) {
@@ -261,7 +261,7 @@ pub async fn expire_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("share_status".to_string(), serde_json::Value::String("Expired".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("Expired".to_string()));
 
     match service.partial_update(&id, fields).await {
         Ok(Some(updated)) => {
@@ -303,7 +303,7 @@ pub async fn exhaust_transition(
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileShareState = entity.share_status.to_string().parse()
+    let current_state: FileShareState = entity.status.to_string().parse()
         .unwrap_or(FileShareState::default());
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Exhaust) {
@@ -312,7 +312,7 @@ pub async fn exhaust_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("share_status".to_string(), serde_json::Value::String("Exhausted".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("Exhausted".to_string()));
 
     match service.partial_update(&id, fields).await {
         Ok(Some(updated)) => {
@@ -354,7 +354,7 @@ pub async fn revoke_transition(
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileShareState = entity.share_status.to_string().parse()
+    let current_state: FileShareState = entity.status.to_string().parse()
         .unwrap_or(FileShareState::default());
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Revoke) {
@@ -363,7 +363,7 @@ pub async fn revoke_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("share_status".to_string(), serde_json::Value::String("Revoked".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("Revoked".to_string()));
 
     match service.partial_update(&id, fields).await {
         Ok(Some(updated)) => {

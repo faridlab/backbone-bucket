@@ -86,9 +86,11 @@ models:
         type: datetime?
         description: "When this version will be auto-deleted"
 
-      is_deleted:
-        type: bool
-        attributes: ["@default(false)"]
+      # Lifecycle
+      status:
+        type: FileVersionStatus
+        attributes: ["@default(active)"]
+        description: "Soft-delete marker as an explicit lifecycle state"
 
       deleted_at:
         type: datetime?
@@ -144,3 +146,12 @@ enums:
         description: "Restored from a previous version"
       - name: auto_save
         description: "Automatic save/backup"
+
+  - name: FileVersionStatus
+    description: "Lifecycle status of a file version"
+    variants:
+      - name: active
+        description: "Version is live and usable"
+        default: true
+      - name: deleted
+        description: "Version is soft-deleted; retained for history"

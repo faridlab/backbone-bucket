@@ -37,7 +37,7 @@ impl TestDataGenerator for FileVersionTestData {
             "is_current": false,
             "restored_from_id": null,
             "expires_at": now,
-            "is_deleted": false,
+            "status": "active",
             "size_bytes": null,
             "metadata": json!({}),
         })
@@ -61,7 +61,7 @@ impl TestDataGenerator for FileVersionTestData {
             "is_current": false,
             "restored_from_id": null,
             "expires_at": now,
-            "is_deleted": false,
+            "status": "active",
             "size_bytes": null,
             "metadata": json!({}),
         })

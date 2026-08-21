@@ -187,7 +187,7 @@ impl HasComputedFields for FileShare {
         let mut fields = ComputedFieldValues::new();
 
         // is_valid
-        fields.set("is_valid", serde_json::json!(self.is_active && !self.is_expired() && self.has_downloads_remaining()));
+        fields.set("is_valid", serde_json::json!(self.status == ShareStatus::Active && !self.is_expired() && self.has_downloads_remaining()));
 
         // share_url
         fields.set("share_url", serde_json::json!(format!("{}{}", "/share/", &self.token)));

@@ -8,13 +8,18 @@ model: file_share.model.yaml
 # State Machine - Share lifecycle
 # =============================================================================
 states:
-  field: share_status
+  field: status
 
   values:
     active:
       initial: true
       on_enter:
         - "emit: ShareCreatedEvent(share_id: id, file_id: file_id, shared_by_id: owner_id, shared_with_user_id: $context.shared_with, permission: permission)"
+
+    inactive:
+      final: true
+      on_enter:
+        - "log(share.inactive, { share_id: id, file_id: file_id })"
 
     expired:
       final: true
@@ -101,7 +106,7 @@ rules:
 
   cannot_modify_inactive:
     when: [update]
-    condition: "is_active == true || $actor.id == owner_id || $actor.has_role('admin')"
+    condition: "status == 'active' || $actor.id == owner_id || $actor.has_role('admin')"
     message: "Cannot modify inactive shares"
     code: SHARE_INACTIVE
 
@@ -140,7 +145,7 @@ permissions:
   guest:
     allow:
       - action: access
-        if: "is_active && (share_type == 'link' || (share_type == 'password' && $context.password_valid))"
+        if: "status == 'active' && (share_type == 'link' || (share_type == 'password' && $context.password_valid))"
     deny:
       - action: create
       - action: update
@@ -167,10 +172,10 @@ triggers:
       - "create: FileAccessLog(file_id: file_id, share_id: id, action: 'download', accessed_at: now())"
       - "emit: ShareAccessedEvent(share_id: id, file_id: file_id, user_id: $context.user_id)"
 
-  after_update_is_active:
+  after_update_status:
     actions:
-      - "log(share.status_changed, { share_id: id, is_active: is_active })"
-      - "emit: ShareStatusChangedEvent(share_id: id, is_active: is_active)"
+      - "log(share.status_changed, { share_id: id, status: status })"
+      - "emit: ShareStatusChangedEvent(share_id: id, status: status)"
 
   after_delete:
     actions:
@@ -181,7 +186,7 @@ triggers:
 # Computed Fields
 # =============================================================================
 computed:
-  is_valid: "is_active && !is_expired() && has_downloads_remaining()"
+  is_valid: "status == 'active' && !is_expired() && has_downloads_remaining()"
   share_url: "'/share/' + token"
   days_until_expiry: "expires_at != null ? (expires_at - now()).days() : null"
   downloads_remaining: "max_downloads != null ? (max_downloads - download_count) : null"

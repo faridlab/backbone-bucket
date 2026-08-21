@@ -9,7 +9,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::domain::entity::FileVersion;
+use crate::domain::entity::{FileVersion, FileVersionStatus};
 use crate::infrastructure::persistence::FileVersionRepository;
 use super::CommandHandler;
 
@@ -49,7 +49,7 @@ pub struct CreateFileVersionCommand {
     pub is_current: bool,
     pub restored_from_id: Option<Uuid>,
     pub expires_at: Option<DateTime<Utc>>,
-    pub is_deleted: bool,
+    pub status: FileVersionStatus,
     pub size_bytes: i64,
     pub metadata: serde_json::Value,
 }
@@ -86,7 +86,7 @@ impl<R: FileVersionRepository + 'static> CommandHandler<CreateFileVersionCommand
             .is_current(cmd.is_current)
             .restored_from_id(cmd.restored_from_id)
             .expires_at(cmd.expires_at)
-            .is_deleted(cmd.is_deleted)
+            .status(cmd.status)
             .size_bytes(cmd.size_bytes)
             .metadata(cmd.metadata)
             .build()?;
@@ -117,7 +117,7 @@ pub struct UpdateFileVersionCommand {
     pub is_current: Option<bool>,
     pub restored_from_id: Option<Uuid>,
     pub expires_at: Option<DateTime<Utc>>,
-    pub is_deleted: Option<bool>,
+    pub status: Option<FileVersionStatus>,
     pub size_bytes: Option<i64>,
     pub metadata: Option<serde_json::Value>,
 }
@@ -177,8 +177,8 @@ impl<R: FileVersionRepository + 'static> CommandHandler<UpdateFileVersionCommand
         }
         entity.restored_from_id = cmd.restored_from_id;
         entity.expires_at = cmd.expires_at;
-        if let Some(value) = cmd.is_deleted {
-            entity.is_deleted = value;
+        if let Some(value) = cmd.status {
+            entity.status = value;
         }
         if let Some(value) = cmd.size_bytes {
             entity.size_bytes = value;

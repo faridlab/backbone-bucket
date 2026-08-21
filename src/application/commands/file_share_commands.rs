@@ -45,8 +45,7 @@ pub struct CreateFileShareCommand {
     pub max_downloads: Option<i32>,
     pub download_count: i32,
     pub expires_at: Option<DateTime<Utc>>,
-    pub share_status: ShareStatus,
-    pub is_active: bool,
+    pub status: ShareStatus,
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_by: Option<Uuid>,
     pub message: Option<String>,
@@ -81,8 +80,7 @@ impl<R: FileShareRepository + 'static> CommandHandler<CreateFileShareCommand> fo
             .max_downloads(cmd.max_downloads)
             .download_count(cmd.download_count)
             .expires_at(cmd.expires_at)
-            .share_status(cmd.share_status)
-            .is_active(cmd.is_active)
+            .status(cmd.status)
             .revoked_at(cmd.revoked_at)
             .revoked_by(cmd.revoked_by)
             .message(cmd.message)
@@ -111,8 +109,7 @@ pub struct UpdateFileShareCommand {
     pub max_downloads: Option<i32>,
     pub download_count: Option<i32>,
     pub expires_at: Option<DateTime<Utc>>,
-    pub share_status: Option<ShareStatus>,
-    pub is_active: Option<bool>,
+    pub status: Option<ShareStatus>,
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_by: Option<Uuid>,
     pub message: Option<String>,
@@ -166,11 +163,8 @@ impl<R: FileShareRepository + 'static> CommandHandler<UpdateFileShareCommand> fo
             entity.download_count = value;
         }
         entity.expires_at = cmd.expires_at;
-        if let Some(value) = cmd.share_status {
-            entity.share_status = value;
-        }
-        if let Some(value) = cmd.is_active {
-            entity.is_active = value;
+        if let Some(value) = cmd.status {
+            entity.status = value;
         }
         entity.revoked_at = cmd.revoked_at;
         entity.revoked_by = cmd.revoked_by;

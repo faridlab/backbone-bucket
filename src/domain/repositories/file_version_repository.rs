@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use uuid::Uuid;
 
-use crate::domain::entity::{FileVersion, VersionType};
+use crate::domain::entity::{FileVersion, VersionType, FileVersionStatus};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -57,14 +57,14 @@ pub struct FileVersionFilter {
     pub change_summary: Option<String>,
     pub is_current: Option<bool>,
     pub restored_from_id: Option<Uuid>,
-    pub is_deleted: Option<bool>,
+    pub status: Option<FileVersionStatus>,
     pub size_bytes: Option<i64>,
 }
 
 impl FileVersionFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.file_id.is_some() || self.version_number.is_some() || self.version_type.is_some() || self.storage_key.is_some() || self.storage_backend.is_some() || self.name.is_some() || self.mime_type.is_some() || self.checksum_md5.is_some() || self.checksum_sha256.is_some() || self.created_by_id.is_some() || self.change_summary.is_some() || self.is_current.is_some() || self.restored_from_id.is_some() || self.is_deleted.is_some() || self.size_bytes.is_some()
+        self.file_id.is_some() || self.version_number.is_some() || self.version_type.is_some() || self.storage_key.is_some() || self.storage_backend.is_some() || self.name.is_some() || self.mime_type.is_some() || self.checksum_md5.is_some() || self.checksum_sha256.is_some() || self.created_by_id.is_some() || self.change_summary.is_some() || self.is_current.is_some() || self.restored_from_id.is_some() || self.status.is_some() || self.size_bytes.is_some()
     }
 }
 

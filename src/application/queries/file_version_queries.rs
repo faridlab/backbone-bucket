@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::entity::FileVersion;
+use crate::domain::entity::{FileVersion, FileVersionStatus};
 use crate::infrastructure::persistence::{FileVersionRepository, PaginationParams, PaginatedResult, FileVersionFilter};
 use super::QueryHandler;
 
@@ -79,7 +79,7 @@ pub struct ListFileVersionQuery {
     pub filter_change_summary: Option<String>,
     pub filter_is_current: Option<bool>,
     pub filter_restored_from_id: Option<Uuid>,
-    pub filter_is_deleted: Option<bool>,
+    pub filter_status: Option<FileVersionStatus>,
     pub filter_size_bytes: Option<i64>,
 }
 
@@ -101,7 +101,7 @@ impl Default for ListFileVersionQuery {
             filter_change_summary: None,
             filter_is_current: None,
             filter_restored_from_id: None,
-            filter_is_deleted: None,
+            filter_status: None,
             filter_size_bytes: None,
         }
     }
@@ -140,7 +140,7 @@ impl<R: FileVersionRepository + 'static> QueryHandler<ListFileVersionQuery> for 
             change_summary: query.filter_change_summary.clone(),
             is_current: query.filter_is_current.clone(),
             restored_from_id: query.filter_restored_from_id.clone(),
-            is_deleted: query.filter_is_deleted.clone(),
+            status: query.filter_status.clone(),
             size_bytes: query.filter_size_bytes.clone(),
             ..Default::default()
         };

@@ -58,14 +58,10 @@ models:
         description: "Share expiration (null = never)"
 
       # Status
-      share_status:
+      status:
         type: ShareStatus
         attributes: ["@default(active)"]
         description: "Share lifecycle status"
-
-      is_active:
-        type: bool
-        attributes: ["@default(true)"]
 
       revoked_at:
         type: datetime?
@@ -95,13 +91,11 @@ models:
       - type: index
         fields: [owner_id]
       - type: index
-        fields: [share_status]
-      - type: index
-        fields: [is_active]
+        fields: [status]
       - type: index
         fields: [expires_at]
       - type: index
-        fields: [file_id, share_status]
+        fields: [file_id, status]
 
 # =============================================================================
 # ENTITIES - Enhanced share with behavior
@@ -167,6 +161,8 @@ enums:
       - name: active
         description: "Share is active and accessible"
         default: true
+      - name: inactive
+        description: "Share deactivated without being revoked, expired, or exhausted"
       - name: expired
         description: "Share has expired"
       - name: exhausted

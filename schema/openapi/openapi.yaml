@@ -6094,8 +6094,7 @@ components:
         - permission
         - shared_with
         - download_count
-        - share_status
-        - is_active
+        - status
         - metadata
       properties:
         id:
@@ -6131,10 +6130,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        share_status:
+        status:
           type: string
-        is_active:
-          type: boolean
         revoked_at:
           nullable: true
           type: string
@@ -6172,8 +6169,7 @@ components:
         - permission
         - shared_with
         - download_count
-        - share_status
-        - is_active
+        - status
         - metadata
       properties:
         file_id:
@@ -6206,10 +6202,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        share_status:
+        status:
           type: string
-        is_active:
-          type: boolean
         revoked_at:
           nullable: true
           type: string
@@ -6234,8 +6228,7 @@ components:
         - permission
         - shared_with
         - download_count
-        - share_status
-        - is_active
+        - status
         - metadata
       properties:
         file_id:
@@ -6268,10 +6261,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        share_status:
+        status:
           type: string
-        is_active:
-          type: boolean
         revoked_at:
           nullable: true
           type: string
@@ -6319,10 +6310,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        share_status:
+        status:
           type: string
-        is_active:
-          type: boolean
         revoked_at:
           nullable: true
           type: string
@@ -6360,7 +6349,7 @@ components:
         - mime_type
         - created_by_id
         - is_current
-        - is_deleted
+        - status
         - size_bytes
         - metadata
       properties:
@@ -6409,8 +6398,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        is_deleted:
-          type: boolean
+        status:
+          type: string
         deleted_at:
           nullable: true
           type: string
@@ -6446,7 +6435,7 @@ components:
         - mime_type
         - created_by_id
         - is_current
-        - is_deleted
+        - status
         - size_bytes
         - metadata
       properties:
@@ -6492,8 +6481,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        is_deleted:
-          type: boolean
+        status:
+          type: string
         size_bytes:
           type: integer
           format: int64
@@ -6512,7 +6501,7 @@ components:
         - mime_type
         - created_by_id
         - is_current
-        - is_deleted
+        - status
         - size_bytes
         - metadata
       properties:
@@ -6558,8 +6547,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        is_deleted:
-          type: boolean
+        status:
+          type: string
         size_bytes:
           type: integer
           format: int64
@@ -6611,8 +6600,8 @@ components:
           nullable: true
           type: string
           format: date-time
-        is_deleted:
-          type: boolean
+        status:
+          type: string
         size_bytes:
           type: integer
           format: int64

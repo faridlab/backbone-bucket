@@ -19,6 +19,7 @@ use validator::Validate;
 use crate::domain::entity::FileVersion;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::VersionType;
+use crate::domain::entity::FileVersionStatus;
 
 // =============================================================================
 // Create DTO
@@ -72,9 +73,7 @@ pub struct CreateFileVersionDto {
     pub restored_from_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_deleted")]
-    pub is_deleted: bool,
+    pub status: FileVersionStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
@@ -132,9 +131,7 @@ pub struct UpdateFileVersionDto {
     pub restored_from_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_deleted")]
-    pub is_deleted: bool,
+    pub status: FileVersionStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
@@ -194,8 +191,8 @@ pub struct PatchFileVersionDto {
     #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "is_deleted")]
-    pub is_deleted: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<FileVersionStatus>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "size_bytes")]
     pub size_bytes: Option<i64>,
@@ -204,7 +201,7 @@ pub struct PatchFileVersionDto {
 impl PatchFileVersionDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.file_id.is_some() || self.version_number.is_some() || self.version_type.is_some() || self.storage_key.is_some() || self.storage_backend.is_some() || self.name.is_some() || self.mime_type.is_some() || self.checksum_md5.is_some() || self.checksum_sha256.is_some() || self.created_by_id.is_some() || self.change_summary.is_some() || self.is_current.is_some() || self.restored_from_id.is_some() || self.expires_at.is_some() || self.is_deleted.is_some() || self.size_bytes.is_some()
+        self.file_id.is_some() || self.version_number.is_some() || self.version_type.is_some() || self.storage_key.is_some() || self.storage_backend.is_some() || self.name.is_some() || self.mime_type.is_some() || self.checksum_md5.is_some() || self.checksum_sha256.is_some() || self.created_by_id.is_some() || self.change_summary.is_some() || self.is_current.is_some() || self.restored_from_id.is_some() || self.expires_at.is_some() || self.status.is_some() || self.size_bytes.is_some()
     }
 }
 
@@ -245,7 +242,7 @@ pub struct FileVersionResponseDto {
     pub restored_from_id: Option<Uuid>,
     pub expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    pub is_deleted: bool,
+    pub status: FileVersionStatus,
     pub deleted_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub size_bytes: i64,
@@ -334,7 +331,7 @@ impl From<FileVersion> for FileVersionResponseDto {
             is_current: entity.is_current,
             restored_from_id: entity.restored_from_id,
             expires_at: entity.expires_at,
-            is_deleted: entity.is_deleted,
+            status: entity.status,
             deleted_at: entity.deleted_at,
             size_bytes: entity.size_bytes,
             metadata: entity.metadata,
@@ -373,7 +370,7 @@ impl From<CreateFileVersionDto> for FileVersion {
             is_current: dto.is_current,
             restored_from_id: dto.restored_from_id,
             expires_at: dto.expires_at,
-            is_deleted: dto.is_deleted,
+            status: dto.status,
             deleted_at: None,
             size_bytes: dto.size_bytes,
             metadata: AuditMetadata::default(),
@@ -399,7 +396,7 @@ impl From<&FileVersion> for FileVersionResponseDto {
             is_current: entity.is_current.clone(),
             restored_from_id: entity.restored_from_id.clone(),
             expires_at: entity.expires_at.clone(),
-            is_deleted: entity.is_deleted.clone(),
+            status: entity.status.clone(),
             deleted_at: entity.deleted_at.clone(),
             size_bytes: entity.size_bytes.clone(),
             metadata: entity.metadata.clone(),
@@ -429,7 +426,7 @@ impl backbone_core::ApplyUpdateDto<UpdateFileVersionDto> for FileVersion {
         self.is_current = dto.is_current;
         self.restored_from_id = dto.restored_from_id;
         self.expires_at = dto.expires_at;
-        self.is_deleted = dto.is_deleted;
+        self.status = dto.status;
         self.size_bytes = dto.size_bytes;
         Ok(self)
     }

@@ -775,12 +775,11 @@ mod file_sharing_workflow {
             .owner_id(owner_id)
             .token(Uuid::new_v4().to_string())
             .share_type(ShareType::Link)
-            .share_status(ShareStatus::Active)
+            .status(ShareStatus::Active)
             .permission(SharePermission::View)
             .shared_with(vec![])
             .max_downloads(10)
             .download_count(0)
-            .is_active(true)
             .expires_at(Utc::now() + Duration::days(7))
             .build()
             .unwrap()
@@ -792,12 +791,11 @@ mod file_sharing_workflow {
             .owner_id(owner_id)
             .token(Uuid::new_v4().to_string())
             .share_type(ShareType::User)
-            .share_status(ShareStatus::Active)
+            .status(ShareStatus::Active)
             .permission(SharePermission::View)
             .shared_with(vec![viewer_id])
             .max_downloads(5)
             .download_count(0)
-            .is_active(true)
             .expires_at(Utc::now() + Duration::days(30))
             .build()
             .unwrap()
@@ -852,7 +850,7 @@ mod file_sharing_workflow {
         assert!(share.is_valid());
 
         share.revoke(owner_id);
-        assert_eq!(share.share_status, ShareStatus::Revoked);
+        assert_eq!(share.status, ShareStatus::Revoked);
         assert!(!share.is_valid());
         assert!(share.revoked_at.is_some());
         assert_eq!(share.revoked_by, Some(owner_id));
@@ -1114,12 +1112,11 @@ mod cross_entity_integration {
             .owner_id(owner_id)
             .token(Uuid::new_v4().to_string())
             .share_type(ShareType::User)
-            .share_status(ShareStatus::Active)
+            .status(ShareStatus::Active)
             .permission(SharePermission::View)
             .shared_with(vec![viewer_id])
             .max_downloads(5)
             .download_count(0)
-            .is_active(true)
             .expires_at(Utc::now() + Duration::days(30))
             .build()
             .unwrap();

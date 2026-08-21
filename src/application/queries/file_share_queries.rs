@@ -72,8 +72,7 @@ pub struct ListFileShareQuery {
     pub filter_share_type: Option<ShareType>,
     pub filter_permission: Option<SharePermission>,
     pub filter_password_hash: Option<String>,
-    pub filter_share_status: Option<ShareStatus>,
-    pub filter_is_active: Option<bool>,
+    pub filter_status: Option<ShareStatus>,
     pub filter_revoked_by: Option<Uuid>,
     pub filter_message: Option<String>,
 }
@@ -89,8 +88,7 @@ impl Default for ListFileShareQuery {
             filter_share_type: None,
             filter_permission: None,
             filter_password_hash: None,
-            filter_share_status: None,
-            filter_is_active: None,
+            filter_status: None,
             filter_revoked_by: None,
             filter_message: None,
         }
@@ -123,8 +121,7 @@ impl<R: FileShareRepository + 'static> QueryHandler<ListFileShareQuery> for List
             share_type: query.filter_share_type.clone(),
             permission: query.filter_permission.clone(),
             password_hash: query.filter_password_hash.clone(),
-            share_status: query.filter_share_status.clone(),
-            is_active: query.filter_is_active.clone(),
+            status: query.filter_status.clone(),
             revoked_by: query.filter_revoked_by.clone(),
             message: query.filter_message.clone(),
             ..Default::default()

@@ -66,8 +66,7 @@ pub struct FileShare {
     pub max_downloads: Option<i32>,
     pub download_count: i32,
     pub expires_at: Option<DateTime<Utc>>,
-    pub(crate) share_status: ShareStatus,
-    pub is_active: bool,
+    pub(crate) status: ShareStatus,
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_by: Option<Uuid>,
     pub message: Option<String>,
@@ -83,7 +82,7 @@ impl FileShare {
     }
 
     /// Create a new FileShare with required fields
-    pub fn new(file_id: Uuid, owner_id: Uuid, token: String, share_type: ShareType, permission: SharePermission, shared_with: Vec<Uuid>, download_count: i32, share_status: ShareStatus, is_active: bool) -> Self {
+    pub fn new(file_id: Uuid, owner_id: Uuid, token: String, share_type: ShareType, permission: SharePermission, shared_with: Vec<Uuid>, download_count: i32, status: ShareStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
             file_id,
@@ -96,8 +95,7 @@ impl FileShare {
             max_downloads: None,
             download_count,
             expires_at: None,
-            share_status,
-            is_active,
+            status,
             revoked_at: None,
             revoked_by: None,
             message: None,
@@ -200,15 +198,15 @@ impl FileShare {
     // State Machine
     // ==========================================================
 
-    /// Transition to a new state via the share_status state machine.
+    /// Transition to a new state via the share status state machine.
     ///
     /// Returns `Err` if the transition is not permitted from the current state.
-    /// Use this method instead of assigning `self.share_status` directly.
+    /// Use this method instead of assigning `self.status` directly.
     pub fn transition_to(&mut self, new_state: FileShareState) -> Result<(), StateMachineError> {
-        let current = self.share_status.to_string().parse::<FileShareState>()?;
+        let current = self.status.to_string().parse::<FileShareState>()?;
         let mut sm = FileShareStateMachine::from_state(current);
         sm.transition_to_state(new_state)?;
-        self.share_status = new_state.to_string().parse::<ShareStatus>()
+        self.status = new_state.to_string().parse::<ShareStatus>()
             .map_err(|e| StateMachineError::InvalidState(e.to_string()))?;
         Ok(())
     }
@@ -251,8 +249,8 @@ impl FileShare {
                 "expires_at" => {
                     if let Ok(v) = serde_json::from_value(value) { self.expires_at = v; }
                 }
-                "is_active" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.is_active = v; }
+                "status" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 "revoked_at" => {
                     if let Ok(v) = serde_json::from_value(value) { self.revoked_at = v; }
@@ -276,7 +274,7 @@ impl FileShare {
 
     /// Check if share is active, not expired, and has downloads remaining
     pub fn is_valid(&self) -> bool {
-        self.share_status == ShareStatus::Active
+        self.status == ShareStatus::Active
             && !self.is_expired()
             && self.has_downloads_remaining()
     }
@@ -317,8 +315,7 @@ impl FileShare {
 
     /// Revoke the share
     pub fn revoke(&mut self, by_user_id: Uuid) {
-        self.share_status = ShareStatus::Revoked;
-        self.is_active = false;
+        self.status = ShareStatus::Revoked;
         self.revoked_at = Some(Utc::now());
         self.revoked_by = Some(by_user_id);
     }
@@ -424,7 +421,7 @@ impl backbone_orm::EntityRepoMeta for FileShare {
         m.insert("owner_id".to_string(), "uuid".to_string());
         m.insert("share_type".to_string(), "share_type".to_string());
         m.insert("permission".to_string(), "share_permission".to_string());
-        m.insert("share_status".to_string(), "share_status".to_string());
+        m.insert("status".to_string(), "share_status".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -451,8 +448,7 @@ pub struct FileShareBuilder {
     max_downloads: Option<i32>,
     download_count: Option<i32>,
     expires_at: Option<DateTime<Utc>>,
-    share_status: Option<ShareStatus>,
-    is_active: Option<bool>,
+    status: Option<ShareStatus>,
     revoked_at: Option<DateTime<Utc>>,
     revoked_by: Option<Uuid>,
     message: Option<String>,
@@ -519,15 +515,9 @@ impl FileShareBuilder {
         self
     }
 
-    /// Set the share_status field (default: `ShareStatus::default()`)
-    pub fn share_status(mut self, value: ShareStatus) -> Self {
-        self.share_status = Some(value);
-        self
-    }
-
-    /// Set the is_active field (default: `true`)
-    pub fn is_active(mut self, value: bool) -> Self {
-        self.is_active = Some(value);
+    /// Set the status field (default: `ShareStatus::default()`)
+    pub fn status(mut self, value: ShareStatus) -> Self {
+        self.status = Some(value);
         self
     }
 
@@ -570,8 +560,7 @@ impl FileShareBuilder {
             max_downloads: self.max_downloads,
             download_count: self.download_count.unwrap_or(0),
             expires_at: self.expires_at,
-            share_status: self.share_status.unwrap_or(ShareStatus::default()),
-            is_active: self.is_active.unwrap_or(true),
+            status: self.status.unwrap_or(ShareStatus::default()),
             revoked_at: self.revoked_at,
             revoked_by: self.revoked_by,
             message: self.message,

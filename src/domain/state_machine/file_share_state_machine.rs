@@ -11,6 +11,8 @@ use std::str::FromStr;
 pub enum FileShareState {
     /// Initial state
     Active,
+    /// Final state; deactivated without being revoked, expired, or exhausted
+    Inactive,
     /// Final state
     Expired,
     /// Final state
@@ -29,6 +31,7 @@ impl std::fmt::Display for FileShareState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Active => write!(f, "active"),
+            Self::Inactive => write!(f, "inactive"),
             Self::Expired => write!(f, "expired"),
             Self::Exhausted => write!(f, "exhausted"),
             Self::Revoked => write!(f, "revoked"),
@@ -42,6 +45,7 @@ impl FromStr for FileShareState {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "active" => Ok(Self::Active),
+            "inactive" => Ok(Self::Inactive),
             "expired" => Ok(Self::Expired),
             "exhausted" => Ok(Self::Exhausted),
             "revoked" => Ok(Self::Revoked),
@@ -58,13 +62,14 @@ impl FileShareState {
 
     /// Check if this is a final state
     pub fn is_final(&self) -> bool {
-        matches!(self, Self::Expired | Self::Exhausted | Self::Revoked)
+        matches!(self, Self::Inactive | Self::Expired | Self::Exhausted | Self::Revoked)
     }
 
     /// Get all possible states
     pub fn all() -> Vec<Self> {
         vec![
             Self::Active,
+            Self::Inactive,
             Self::Expired,
             Self::Exhausted,
             Self::Revoked,
@@ -164,7 +169,7 @@ impl FileShareStateMachine {
 
     /// Check if a transition is allowed from the current state
     pub fn can_transition(&self, transition: FileShareTransition) -> bool {
-        if matches!(self.current_state, FileShareState::Expired | FileShareState::Exhausted | FileShareState::Revoked) {
+        if matches!(self.current_state, FileShareState::Inactive | FileShareState::Expired | FileShareState::Exhausted | FileShareState::Revoked) {
             return false;
         }
 

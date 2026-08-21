@@ -58,11 +58,7 @@ pub struct CreateFileShareDto {
     pub download_count: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[serde(alias = "share_status")]
-    pub share_status: ShareStatus,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_active")]
-    pub is_active: bool,
+    pub status: ShareStatus,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_at")]
     pub revoked_at: Option<DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_by")]
@@ -107,11 +103,7 @@ pub struct UpdateFileShareDto {
     pub download_count: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[serde(alias = "share_status")]
-    pub share_status: ShareStatus,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_active")]
-    pub is_active: bool,
+    pub status: ShareStatus,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_at")]
     pub revoked_at: Option<DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_by")]
@@ -158,11 +150,8 @@ pub struct PatchFileShareDto {
     pub download_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "share_status")]
-    pub share_status: Option<ShareStatus>,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "is_active")]
-    pub is_active: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<ShareStatus>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "revoked_at")]
     pub revoked_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "revoked_by")]
@@ -174,7 +163,7 @@ pub struct PatchFileShareDto {
 impl PatchFileShareDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.file_id.is_some() || self.owner_id.is_some() || self.token.is_some() || self.share_type.is_some() || self.permission.is_some() || self.shared_with.is_some() || self.password_hash.is_some() || self.max_downloads.is_some() || self.download_count.is_some() || self.expires_at.is_some() || self.share_status.is_some() || self.is_active.is_some() || self.revoked_at.is_some() || self.revoked_by.is_some() || self.message.is_some()
+        self.file_id.is_some() || self.owner_id.is_some() || self.token.is_some() || self.share_type.is_some() || self.permission.is_some() || self.shared_with.is_some() || self.password_hash.is_some() || self.max_downloads.is_some() || self.download_count.is_some() || self.expires_at.is_some() || self.status.is_some() || self.revoked_at.is_some() || self.revoked_by.is_some() || self.message.is_some()
     }
 }
 
@@ -206,9 +195,7 @@ pub struct FileShareResponseDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub download_count: i32,
     pub expires_at: Option<DateTime<Utc>>,
-    pub share_status: ShareStatus,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    pub is_active: bool,
+    pub status: ShareStatus,
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_by: Option<Uuid>,
     pub message: Option<String>,
@@ -293,8 +280,7 @@ impl From<FileShare> for FileShareResponseDto {
             max_downloads: entity.max_downloads,
             download_count: entity.download_count,
             expires_at: entity.expires_at,
-            share_status: entity.share_status,
-            is_active: entity.is_active,
+            status: entity.status,
             revoked_at: entity.revoked_at,
             revoked_by: entity.revoked_by,
             message: entity.message,
@@ -330,8 +316,7 @@ impl From<CreateFileShareDto> for FileShare {
             max_downloads: dto.max_downloads,
             download_count: dto.download_count,
             expires_at: dto.expires_at,
-            share_status: dto.share_status,
-            is_active: dto.is_active,
+            status: dto.status,
             revoked_at: dto.revoked_at,
             revoked_by: dto.revoked_by,
             message: dto.message,
@@ -354,8 +339,7 @@ impl From<&FileShare> for FileShareResponseDto {
             max_downloads: entity.max_downloads.clone(),
             download_count: entity.download_count.clone(),
             expires_at: entity.expires_at.clone(),
-            share_status: entity.share_status.clone(),
-            is_active: entity.is_active.clone(),
+            status: entity.status.clone(),
             revoked_at: entity.revoked_at.clone(),
             revoked_by: entity.revoked_by.clone(),
             message: entity.message.clone(),
@@ -382,8 +366,7 @@ impl backbone_core::ApplyUpdateDto<UpdateFileShareDto> for FileShare {
         self.max_downloads = dto.max_downloads;
         self.download_count = dto.download_count;
         self.expires_at = dto.expires_at;
-        self.share_status = dto.share_status;
-        self.is_active = dto.is_active;
+        self.status = dto.status;
         self.revoked_at = dto.revoked_at;
         self.revoked_by = dto.revoked_by;
         self.message = dto.message;

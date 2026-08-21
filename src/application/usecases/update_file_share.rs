@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use super::UseCase;
-use crate::domain::entity::FileShare;
+use crate::domain::entity::{FileShare, ShareStatus};
 use crate::infrastructure::persistence::FileShareRepository;
 
 /// Input for updating a FileShare
@@ -26,7 +26,7 @@ pub struct UpdateFileShareInput {
     pub max_downloads: Option<i32>,
     pub download_count: Option<i32>,
     pub expires_at: Option<DateTime<Utc>>,
-    pub is_active: Option<bool>,
+    pub status: Option<ShareStatus>,
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_by: Option<Uuid>,
     pub message: Option<String>,
@@ -91,8 +91,8 @@ impl UseCase for UpdateFileShareUseCase {
         if input.expires_at.is_some() {
             entity.expires_at = input.expires_at;
         }
-        if let Some(val) = input.is_active {
-            entity.is_active = val;
+        if let Some(val) = input.status {
+            entity.status = val;
         }
         if input.revoked_at.is_some() {
             entity.revoked_at = input.revoked_at;

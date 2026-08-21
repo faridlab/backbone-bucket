@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use super::UseCase;
-use crate::domain::entity::FileVersion;
+use crate::domain::entity::{FileVersion, FileVersionStatus};
 use crate::infrastructure::persistence::FileVersionRepository;
 
 /// Input for updating a FileVersion
@@ -31,7 +31,7 @@ pub struct UpdateFileVersionInput {
     pub is_current: Option<bool>,
     pub restored_from_id: Option<Uuid>,
     pub expires_at: Option<DateTime<Utc>>,
-    pub is_deleted: Option<bool>,
+    pub status: Option<FileVersionStatus>,
     pub deleted_at: Option<DateTime<Utc>>,
 }
 
@@ -109,8 +109,8 @@ impl UseCase for UpdateFileVersionUseCase {
         if let Some(val) = input.expires_at {
             entity.expires_at = val;
         }
-        if let Some(val) = input.is_deleted {
-            entity.is_deleted = val;
+        if let Some(val) = input.status {
+            entity.status = val;
         }
         if let Some(val) = input.deleted_at {
             entity.deleted_at = val;

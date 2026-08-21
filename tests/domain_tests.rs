@@ -437,8 +437,7 @@ mod file_share_tests {
             max_downloads: None,
             download_count: 0,
             expires_at: None,
-            share_status: ShareStatus::Active,
-            is_active: true,
+            status: ShareStatus::Active,
             revoked_at: None,
             revoked_by: None,
             message: None,
@@ -455,7 +454,7 @@ mod file_share_tests {
     #[test]
     fn test_is_valid_revoked_share() {
         let mut share = create_test_share();
-        share.share_status = ShareStatus::Revoked;
+        share.status = ShareStatus::Revoked;
         assert!(!share.is_valid());
     }
 
@@ -552,8 +551,7 @@ mod file_share_tests {
 
         share.revoke(revoker);
 
-        assert_eq!(share.share_status, ShareStatus::Revoked);
-        assert!(!share.is_active);
+        assert_eq!(share.status, ShareStatus::Revoked);
         assert!(share.revoked_at.is_some());
         assert_eq!(share.revoked_by, Some(revoker));
     }

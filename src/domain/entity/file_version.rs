@@ -4,6 +4,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use super::VersionType;
+use super::FileVersionStatus;
 use super::AuditMetadata;
 
 /// Strongly-typed ID for FileVersion
@@ -64,7 +65,7 @@ pub struct FileVersion {
     pub is_current: bool,
     pub restored_from_id: Option<Uuid>,
     pub expires_at: Option<DateTime<Utc>>,
-    pub is_deleted: bool,
+    pub status: FileVersionStatus,
     pub deleted_at: Option<DateTime<Utc>>,
     pub size_bytes: i64,
     #[serde(default)]
@@ -96,7 +97,7 @@ impl FileVersion {
             is_current,
             restored_from_id: None,
             expires_at: None,
-            is_deleted: Default::default(),
+            status: FileVersionStatus::default(),
             deleted_at: None,
             size_bytes,
             metadata: AuditMetadata::default(),
@@ -238,6 +239,9 @@ impl FileVersion {
                 "expires_at" => {
                     if let Ok(v) = serde_json::from_value(value) { self.expires_at = v; }
                 }
+                "status" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                }
                 "size_bytes" => {
                     if let Ok(v) = serde_json::from_value(value) { self.size_bytes = v; }
                 }
@@ -299,6 +303,7 @@ impl backbone_orm::EntityRepoMeta for FileVersion {
         m.insert("created_by_id".to_string(), "uuid".to_string());
         m.insert("restored_from_id".to_string(), "uuid".to_string());
         m.insert("version_type".to_string(), "version_type".to_string());
+        m.insert("status".to_string(), "file_version_status".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -329,6 +334,7 @@ pub struct FileVersionBuilder {
     is_current: Option<bool>,
     restored_from_id: Option<Uuid>,
     expires_at: Option<DateTime<Utc>>,
+    status: Option<FileVersionStatus>,
     size_bytes: Option<i64>,
 }
 
@@ -417,6 +423,12 @@ impl FileVersionBuilder {
         self
     }
 
+    /// Set the status field (default: `FileVersionStatus::default()`)
+    pub fn status(mut self, value: FileVersionStatus) -> Self {
+        self.status = Some(value);
+        self
+    }
+
     /// Set the size_bytes field (required)
     pub fn size_bytes(mut self, value: i64) -> Self {
         self.size_bytes = Some(value);
@@ -452,7 +464,7 @@ impl FileVersionBuilder {
             is_current: self.is_current.unwrap_or(false),
             restored_from_id: self.restored_from_id,
             expires_at: self.expires_at,
-            is_deleted: Default::default(),
+            status: self.status.unwrap_or(FileVersionStatus::default()),
             deleted_at: None,
             size_bytes,
             metadata: AuditMetadata::default(),

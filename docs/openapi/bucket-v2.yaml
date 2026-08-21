@@ -2193,7 +2193,7 @@ components:
 
     ShareStatus:
       type: string
-      enum: [active, expired, exhausted, revoked]
+      enum: [active, inactive, expired, exhausted, revoked]
 
     SharePermission:
       type: string
@@ -2202,6 +2202,10 @@ components:
     VersionType:
       type: string
       enum: [upload, replace, edit, restore, auto_save]
+
+    FileVersionStatus:
+      type: string
+      enum: [active, deleted]
 
     ProcessingJobType:
       type: string
@@ -2663,8 +2667,8 @@ components:
           type: string
           format: date-time
           nullable: true
-        is_deleted:
-          type: boolean
+        status:
+          $ref: "#/components/schemas/FileVersionStatus"
         size_bytes:
           type: integer
           format: int64
@@ -2714,9 +2718,9 @@ components:
           type: string
           format: date-time
           nullable: true
-        is_deleted:
-          type: boolean
-          default: false
+        status:
+          $ref: "#/components/schemas/FileVersionStatus"
+          default: active
         size_bytes:
           type: integer
           format: int64
@@ -2734,8 +2738,8 @@ components:
           type: string
         is_current:
           type: boolean
-        is_deleted:
-          type: boolean
+        status:
+          $ref: "#/components/schemas/FileVersionStatus"
         expires_at:
           type: string
           format: date-time
@@ -2780,10 +2784,8 @@ components:
           type: string
           format: date-time
           nullable: true
-        share_status:
+        status:
           $ref: "#/components/schemas/ShareStatus"
-        is_active:
-          type: boolean
         revoked_at:
           type: string
           format: date-time
@@ -2800,7 +2802,7 @@ components:
 
     CreateFileShare:
       type: object
-      required: [file_id, owner_id, token, share_type, permission, shared_with, share_status, metadata]
+      required: [file_id, owner_id, token, share_type, permission, shared_with, status, metadata]
       properties:
         file_id:
           type: string
@@ -2834,11 +2836,9 @@ components:
           type: string
           format: date-time
           nullable: true
-        share_status:
+        status:
           $ref: "#/components/schemas/ShareStatus"
-        is_active:
-          type: boolean
-          default: true
+          default: active
         message:
           type: string
           nullable: true
@@ -2865,10 +2865,8 @@ components:
         expires_at:
           type: string
           format: date-time
-        share_status:
+        status:
           $ref: "#/components/schemas/ShareStatus"
-        is_active:
-          type: boolean
         message:
           type: string
 

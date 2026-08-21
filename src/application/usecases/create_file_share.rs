@@ -8,7 +8,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use super::UseCase;
-use crate::domain::entity::FileShare;
+use crate::domain::entity::{FileShare, ShareStatus};
 use crate::infrastructure::persistence::FileShareRepository;
 
 /// Input for creating a FileShare
@@ -24,7 +24,7 @@ pub struct CreateFileShareInput {
     pub max_downloads: Option<i32>,
     pub download_count: i32,
     pub expires_at: Option<DateTime<Utc>>,
-    pub is_active: bool,
+    pub status: ShareStatus,
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_by: Option<Uuid>,
     pub message: Option<String>,
@@ -68,7 +68,7 @@ impl UseCase for CreateFileShareUseCase {
             max_downloads: input.max_downloads,
             download_count: input.download_count,
             expires_at: input.expires_at,
-            is_active: input.is_active,
+            status: input.status,
             revoked_at: input.revoked_at,
             revoked_by: input.revoked_by,
             message: input.message,

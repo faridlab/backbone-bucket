@@ -118,7 +118,7 @@ impl<R: FileVersionProjectionRepository> FileVersionEventHandler for FileVersion
             event.is_current,
             event.restored_from_id,
             event.expires_at,
-            event.is_deleted,
+            event.status,
             event.deleted_at,
             event.size_bytes,
             event.metadata
@@ -147,7 +147,7 @@ impl<R: FileVersionProjectionRepository> FileVersionEventHandler for FileVersion
             projection.is_current = event.is_current;
             projection.restored_from_id = event.restored_from_id;
             projection.expires_at = event.expires_at;
-            projection.is_deleted = event.is_deleted;
+            projection.status = event.status;
             projection.deleted_at = event.deleted_at;
             projection.size_bytes = event.size_bytes;
             projection.metadata = event.metadata;

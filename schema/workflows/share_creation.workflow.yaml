@@ -148,7 +148,7 @@ steps:
       access_level: "{{ context.access_level }}"
       expires_at: "{{ context.expires_at }}"
       max_downloads: "{{ context.max_downloads }}"
-      is_active: true
+      status: active
       revoked_at: null
       revoked_by_id: null
     on_success:

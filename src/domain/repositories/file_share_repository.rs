@@ -50,8 +50,7 @@ pub struct FileShareFilter {
     pub share_type: Option<ShareType>,
     pub permission: Option<SharePermission>,
     pub password_hash: Option<String>,
-    pub share_status: Option<ShareStatus>,
-    pub is_active: Option<bool>,
+    pub status: Option<ShareStatus>,
     pub revoked_by: Option<Uuid>,
     pub message: Option<String>,
 }
@@ -59,7 +58,7 @@ pub struct FileShareFilter {
 impl FileShareFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.file_id.is_some() || self.owner_id.is_some() || self.token.is_some() || self.share_type.is_some() || self.permission.is_some() || self.password_hash.is_some() || self.share_status.is_some() || self.is_active.is_some() || self.revoked_by.is_some() || self.message.is_some()
+        self.file_id.is_some() || self.owner_id.is_some() || self.token.is_some() || self.share_type.is_some() || self.permission.is_some() || self.password_hash.is_some() || self.status.is_some() || self.revoked_by.is_some() || self.message.is_some()
     }
 }
 

@@ -8,7 +8,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use super::UseCase;
-use crate::domain::entity::FileVersion;
+use crate::domain::entity::{FileVersion, FileVersionStatus};
 use crate::infrastructure::persistence::FileVersionRepository;
 
 /// Input for creating a FileVersion
@@ -29,7 +29,7 @@ pub struct CreateFileVersionInput {
     pub is_current: bool,
     pub restored_from_id: Uuid,
     pub expires_at: DateTime<Utc>,
-    pub is_deleted: bool,
+    pub status: FileVersionStatus,
     pub deleted_at: DateTime<Utc>,
 }
 
@@ -77,7 +77,7 @@ impl UseCase for CreateFileVersionUseCase {
             is_current: input.is_current,
             restored_from_id: input.restored_from_id,
             expires_at: input.expires_at,
-            is_deleted: input.is_deleted,
+            status: input.status,
             deleted_at: input.deleted_at,
         };
 
