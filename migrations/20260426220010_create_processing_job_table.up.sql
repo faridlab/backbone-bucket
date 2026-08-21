@@ -40,11 +40,11 @@ CREATE TABLE IF NOT EXISTS bucket.processing_jobs (
 
 CREATE INDEX IF NOT EXISTS idx_processing_jobs_file_id_status ON bucket.processing_jobs (file_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_status_priority_(metadata->>'created_at') ON bucket.processing_jobs (status, priority, ((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_status_priority_metadata_created_at ON bucket.processing_jobs (status, priority, ((metadata->>'created_at')));
 
 CREATE INDEX IF NOT EXISTS idx_processing_jobs_job_type_status ON bucket.processing_jobs (job_type, status);
 
-CREATE INDEX IF NOT EXISTS idx_processing_jobs_(metadata->>'created_at') ON bucket.processing_jobs (((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_created_at ON bucket.processing_jobs (((metadata->>'created_at')));
 
 -- GIN index for audit metadata JSONB queries
 CREATE INDEX IF NOT EXISTS idx_processing_jobs_metadata_gin ON bucket.processing_jobs USING GIN (metadata);

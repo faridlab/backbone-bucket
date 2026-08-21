@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS bucket.stored_files (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_stored_files_bucket_id_path_(metadata->>'deleted_at') ON bucket.stored_files (bucket_id, path, ((metadata->>'deleted_at')));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_stored_files_bucket_id_path_deleted_at ON bucket.stored_files (bucket_id, path, ((metadata->>'deleted_at')));
 
 CREATE INDEX IF NOT EXISTS idx_stored_files_owner_id ON bucket.stored_files (owner_id);
 
@@ -80,7 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_stored_files_mime_type ON bucket.stored_files (mi
 
 CREATE INDEX IF NOT EXISTS idx_stored_files_owner_id_status ON bucket.stored_files (owner_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_stored_files_(metadata->>'created_at') ON bucket.stored_files (((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_stored_files_metadata_created_at ON bucket.stored_files (((metadata->>'created_at')));
 
 CREATE INDEX IF NOT EXISTS idx_stored_files_checksum ON bucket.stored_files (checksum);
 

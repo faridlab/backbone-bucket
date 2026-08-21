@@ -31,7 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_conversion_jobs_source_file_id_status ON bucket.c
 
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_result_file_id ON bucket.conversion_jobs (result_file_id);
 
-CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status_(metadata->>'created_at') ON bucket.conversion_jobs (status, ((metadata->>'created_at')));
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status_metadata_created_at ON bucket.conversion_jobs (status, ((metadata->>'created_at')));
 
 -- GIN index for audit metadata JSONB queries
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_metadata_gin ON bucket.conversion_jobs USING GIN (metadata);
