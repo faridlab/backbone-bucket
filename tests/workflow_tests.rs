@@ -10,18 +10,19 @@ use chrono::{Duration, Utc};
 use uuid::Uuid;
 
 use backbone_bucket::domain::entity::*;
+use backbone_bucket::domain::state_machine::{ConversionJobState, ProcessingJobState};
 
 // ==========================================================================
 // Test Helpers
 // ==========================================================================
 
-fn create_test_bucket() -> Bucket {
+fn create_test_bucket_with(status: BucketStatus) -> Bucket {
     Bucket::builder()
         .name("test-bucket".to_string())
         .slug("test-bucket".to_string())
         .owner_id(Uuid::new_v4())
         .bucket_type(BucketType::User)
-        .status(BucketStatus::Active)
+        .status(status)
         .storage_backend(StorageBackend::Local)
         .root_path("/data/test-bucket".to_string())
         .file_count(0)
@@ -35,43 +36,31 @@ fn create_test_bucket() -> Bucket {
         .unwrap()
 }
 
+fn create_test_bucket() -> Bucket {
+    create_test_bucket_with(BucketStatus::Active)
+}
+
 fn create_test_file(bucket_id: Uuid, owner_id: Uuid) -> StoredFile {
-    StoredFile {
-        id: Uuid::new_v4(),
-        bucket_id,
-        owner_id,
-        path: "/docs/report.pdf".to_string(),
-        original_name: "report.pdf".to_string(),
-        size_bytes: 1024 * 1024,
-        mime_type: "application/pdf".to_string(),
-        checksum: Some("sha256:abc123".to_string()),
-        is_compressed: false,
-        original_size: None,
-        compression_algorithm: None,
-        is_scanned: false,
-        scan_result: None,
-        threat_level: None,
-        has_thumbnail: false,
-        thumbnail_path: None,
-        has_video_thumbnail: false,
-        has_document_preview: false,
-        processing_status: None,
-        content_hash_id: None,
-        cdn_url: None,
-        cdn_url_expires_at: None,
-        owner_module: None,
-        owner_entity: None,
-        owner_entity_id: None,
-        field_name: None,
-        sort_order: 0,
-        status: FileStatus::Active,
-        storage_key: format!("files/{}", Uuid::new_v4()),
-        version: 1,
-        previous_version_id: None,
-        download_count: 0,
-        last_accessed_at: None,
-        metadata: AuditMetadata::default(),
-    }
+    StoredFile::builder()
+        .bucket_id(bucket_id)
+        .owner_id(owner_id)
+        .path("/docs/report.pdf".to_string())
+        .original_name("report.pdf".to_string())
+        .size_bytes(1024 * 1024)
+        .mime_type("application/pdf".to_string())
+        .checksum("sha256:abc123".to_string())
+        .is_compressed(false)
+        .is_scanned(false)
+        .has_thumbnail(false)
+        .has_video_thumbnail(false)
+        .has_document_preview(false)
+        .sort_order(0)
+        .status(FileStatus::Active)
+        .storage_key(format!("files/{}", Uuid::new_v4()))
+        .version(1)
+        .download_count(0)
+        .build()
+        .unwrap()
 }
 
 fn create_test_video_file(bucket_id: Uuid, owner_id: Uuid) -> StoredFile {
@@ -116,7 +105,7 @@ mod file_upload_lifecycle {
 
         // 3. Create file
         let mut file = create_test_file(bucket.id, bucket.owner_id);
-        assert_eq!(file.status, FileStatus::Active);
+        assert_eq!(file.status(), &FileStatus::Active);
         assert!(!file.is_scanned);
         assert!(file.needs_processing());
 
@@ -184,7 +173,7 @@ mod file_upload_lifecycle {
 
         // Quarantine the file
         file.quarantine(vec!["malware detected".to_string()]);
-        assert_eq!(file.status, FileStatus::Quarantined);
+        assert_eq!(file.status(), &FileStatus::Quarantined);
         assert!(!file.is_accessible());
     }
 
@@ -245,7 +234,7 @@ mod multipart_upload_workflow {
         let bucket = create_test_bucket();
         let mut session = create_upload_session(bucket.id, bucket.owner_id);
 
-        assert_eq!(session.status, UploadStatus::Initiated);
+        assert_eq!(session.status(), &UploadStatus::Initiated);
         assert_eq!(session.uploaded_chunks, 0);
         assert_eq!(session.total_chunks, 20);
         assert!(!session.is_expired());
@@ -264,7 +253,7 @@ mod multipart_upload_workflow {
 
         // Mark complete
         session.mark_complete().unwrap();
-        assert_eq!(session.status, UploadStatus::Completed);
+        assert_eq!(session.status(), &UploadStatus::Completed);
     }
 
     #[test]
@@ -302,7 +291,7 @@ mod multipart_upload_workflow {
         session.add_part(2, "etag-2".to_string()).unwrap();
 
         session.mark_failed("Network timeout".to_string()).unwrap();
-        assert_eq!(session.status, UploadStatus::Failed);
+        assert_eq!(session.status(), &UploadStatus::Failed);
     }
 
     #[test]
@@ -505,11 +494,11 @@ mod conversion_workflow {
         let file_id = Uuid::new_v4();
         let mut job = create_conversion(file_id);
 
-        assert_eq!(job.status, ConversionStatus::Pending);
+        assert_eq!(job.status(), &ConversionStatus::Pending);
         assert_eq!(job.progress, 0);
         assert!(!job.is_complete());
 
-        job.status = ConversionStatus::Processing;
+        job.transition_to(ConversionJobState::Processing).unwrap();
         job.started_at = Some(Utc::now());
 
         job.update_progress(25).unwrap();
@@ -521,7 +510,7 @@ mod conversion_workflow {
 
         let result_file_id = Uuid::new_v4();
         job.complete(result_file_id).unwrap();
-        assert_eq!(job.status, ConversionStatus::Completed);
+        assert_eq!(job.status(), &ConversionStatus::Completed);
         assert_eq!(job.progress, 100);
         assert_eq!(job.result_file_id, Some(result_file_id));
         assert!(job.completed_at.is_some());
@@ -533,17 +522,17 @@ mod conversion_workflow {
         let file_id = Uuid::new_v4();
         let mut job = create_conversion(file_id);
 
-        job.status = ConversionStatus::Processing;
+        job.transition_to(ConversionJobState::Processing).unwrap();
         job.started_at = Some(Utc::now());
         job.update_progress(30).unwrap();
 
         job.fail("Out of memory".to_string()).unwrap();
-        assert_eq!(job.status, ConversionStatus::Failed);
+        assert_eq!(job.status(), &ConversionStatus::Failed);
         assert_eq!(job.error_message.as_deref(), Some("Out of memory"));
 
         // Retry with new job
         let mut retry_job = create_conversion(file_id);
-        retry_job.status = ConversionStatus::Processing;
+        retry_job.transition_to(ConversionJobState::Processing).unwrap();
         retry_job.started_at = Some(Utc::now());
 
         let result_id = Uuid::new_v4();
@@ -582,15 +571,15 @@ mod processing_job_workflow {
         let file_id = Uuid::new_v4();
         let mut job = create_processing_job(file_id, ProcessingJobType::VideoThumbnail);
 
-        assert_eq!(job.status, JobStatus::Pending);
+        assert_eq!(job.status(), &JobStatus::Pending);
 
         job.mark_started().unwrap();
-        assert_eq!(job.status, JobStatus::Running);
+        assert_eq!(job.status(), &JobStatus::Running);
         assert!(job.started_at.is_some());
 
         let result = serde_json::json!({"thumbnails": 3});
         job.mark_completed(result.clone()).unwrap();
-        assert_eq!(job.status, JobStatus::Completed);
+        assert_eq!(job.status(), &JobStatus::Completed);
         assert_eq!(job.result_data, Some(result));
         assert!(job.completed_at.is_some());
         assert!(job.duration().is_some());
@@ -603,19 +592,19 @@ mod processing_job_workflow {
 
         job.mark_started().unwrap();
         job.mark_failed("Timeout".to_string()).unwrap();
-        assert_eq!(job.status, JobStatus::Failed);
+        assert_eq!(job.status(), &JobStatus::Failed);
         assert!(job.can_retry());
 
         job.increment_retry();
         assert_eq!(job.retry_count, 1);
 
-        job.status = JobStatus::Pending;
+        job.transition_to(ProcessingJobState::Pending).unwrap();
         job.mark_started().unwrap();
         job.mark_failed("Timeout again".to_string()).unwrap();
         assert!(job.can_retry());
 
         job.increment_retry();
-        job.status = JobStatus::Pending;
+        job.transition_to(ProcessingJobState::Pending).unwrap();
         job.mark_started().unwrap();
         job.mark_failed("Third failure".to_string()).unwrap();
 
@@ -631,7 +620,7 @@ mod processing_job_workflow {
 
         job.mark_started().unwrap();
         job.cancel().unwrap();
-        assert_eq!(job.status, JobStatus::Cancelled);
+        assert_eq!(job.status(), &JobStatus::Cancelled);
     }
 
     #[test]
@@ -639,7 +628,7 @@ mod processing_job_workflow {
         let mut job = create_processing_job(Uuid::new_v4(), ProcessingJobType::VideoThumbnail);
         assert!(job.check_invariants().is_ok());
 
-        job.status = JobStatus::Running;
+        job.transition_to(ProcessingJobState::Running).unwrap();
         job.started_at = None;
         assert!(job.check_invariants().is_err());
     }
@@ -709,7 +698,7 @@ mod video_thumbnail_workflow {
 
         let result = serde_json::json!({"thumbnails_generated": true});
         job.mark_completed(result).unwrap();
-        assert_eq!(job.status, JobStatus::Completed);
+        assert_eq!(job.status(), &JobStatus::Completed);
     }
 
     #[test]
@@ -850,7 +839,7 @@ mod file_sharing_workflow {
         assert!(share.is_valid());
 
         share.revoke(owner_id);
-        assert_eq!(share.status, ShareStatus::Revoked);
+        assert_eq!(share.status(), &ShareStatus::Revoked);
         assert!(!share.is_valid());
         assert!(share.revoked_at.is_some());
         assert_eq!(share.revoked_by, Some(owner_id));
@@ -1017,8 +1006,7 @@ mod bucket_lifecycle_workflow {
 
     #[test]
     fn test_bucket_archived_blocks_access() {
-        let mut bucket = create_test_bucket();
-        bucket.status = BucketStatus::Archived;
+        let bucket = create_test_bucket_with(BucketStatus::Archived);
 
         assert!(!bucket.is_accessible());
         assert!(!bucket.can_upload(1024, "application/pdf"));
@@ -1215,7 +1203,7 @@ mod cross_entity_integration {
             .build()
             .unwrap();
 
-        conversion.status = ConversionStatus::Processing;
+        conversion.transition_to(ConversionJobState::Processing).unwrap();
         conversion.started_at = Some(Utc::now());
         conversion.update_progress(50).unwrap();
 
@@ -1227,42 +1215,26 @@ mod cross_entity_integration {
         assert_eq!(conversion.progress, 100);
 
         // The result file links back to original via previous_version_id
-        let converted_file = StoredFile {
-            id: result_file_id,
-            bucket_id: bucket.id,
-            owner_id: bucket.owner_id,
-            path: "/docs/report.webp".to_string(),
-            original_name: "report.webp".to_string(),
-            size_bytes: 512 * 1024,
-            mime_type: "image/webp".to_string(),
-            checksum: None,
-            is_compressed: false,
-            original_size: None,
-            compression_algorithm: None,
-            is_scanned: false,
-            scan_result: None,
-            threat_level: None,
-            has_thumbnail: false,
-            thumbnail_path: None,
-            has_video_thumbnail: false,
-            has_document_preview: false,
-            processing_status: None,
-            content_hash_id: None,
-            cdn_url: None,
-            cdn_url_expires_at: None,
-            owner_module: None,
-            owner_entity: None,
-            owner_entity_id: None,
-            field_name: None,
-            sort_order: 0,
-            status: FileStatus::Active,
-            storage_key: format!("files/{}", result_file_id),
-            version: 1,
-            previous_version_id: Some(file.id),
-            download_count: 0,
-            last_accessed_at: None,
-            metadata: AuditMetadata::default(),
-        };
+        let converted_file = StoredFile::builder()
+            .bucket_id(bucket.id)
+            .owner_id(bucket.owner_id)
+            .path("/docs/report.webp".to_string())
+            .original_name("report.webp".to_string())
+            .size_bytes(512 * 1024)
+            .mime_type("image/webp".to_string())
+            .is_compressed(false)
+            .is_scanned(false)
+            .has_thumbnail(false)
+            .has_video_thumbnail(false)
+            .has_document_preview(false)
+            .sort_order(0)
+            .status(FileStatus::Active)
+            .storage_key(format!("files/{}", result_file_id))
+            .version(1)
+            .previous_version_id(file.id)
+            .download_count(0)
+            .build()
+            .unwrap();
 
         assert_eq!(converted_file.previous_version_id, Some(file.id));
         assert!(converted_file.is_accessible());

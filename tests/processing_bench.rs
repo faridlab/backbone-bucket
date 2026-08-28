@@ -51,42 +51,25 @@ fn bench_entity_construction() {
     println!("\n=== Entity Construction Benchmarks ===");
 
     bench("StoredFile::new (direct)", 100_000, || {
-        let _file = StoredFile {
-            id: Uuid::new_v4(),
-            bucket_id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            path: "/test/file.pdf".to_string(),
-            original_name: "file.pdf".to_string(),
-            size_bytes: 1024 * 1024,
-            mime_type: "application/pdf".to_string(),
-            checksum: None,
-            is_compressed: false,
-            original_size: None,
-            compression_algorithm: None,
-            is_scanned: false,
-            scan_result: None,
-            threat_level: None,
-            has_thumbnail: false,
-            thumbnail_path: None,
-            has_video_thumbnail: false,
-            has_document_preview: false,
-            processing_status: None,
-            content_hash_id: None,
-            cdn_url: None,
-            cdn_url_expires_at: None,
-            owner_module: None,
-            owner_entity: None,
-            owner_entity_id: None,
-            field_name: None,
-            sort_order: 0,
-            status: FileStatus::Active,
-            storage_key: "key".to_string(),
-            version: 1,
-            previous_version_id: None,
-            download_count: 0,
-            last_accessed_at: None,
-            metadata: AuditMetadata::default(),
-        };
+        let _file = StoredFile::builder()
+            .bucket_id(Uuid::new_v4())
+            .owner_id(Uuid::new_v4())
+            .path("/test/file.pdf".to_string())
+            .original_name("file.pdf".to_string())
+            .size_bytes(1024 * 1024)
+            .mime_type("application/pdf".to_string())
+            .is_compressed(false)
+            .is_scanned(false)
+            .has_thumbnail(false)
+            .has_video_thumbnail(false)
+            .has_document_preview(false)
+            .sort_order(0)
+            .status(FileStatus::Active)
+            .storage_key("key".to_string())
+            .version(1)
+            .download_count(0)
+            .build()
+            .unwrap();
         std::hint::black_box(_file);
     });
 
@@ -206,83 +189,51 @@ fn bench_domain_logic() {
 
     // StoredFile operations
     bench("StoredFile::is_safe()", 1_000_000, || {
-        let mut file = StoredFile {
-            id: Uuid::nil(),
-            bucket_id: Uuid::nil(),
-            owner_id: Uuid::nil(),
-            path: "/test".to_string(),
-            original_name: "test".to_string(),
-            size_bytes: 1024,
-            mime_type: "text/plain".to_string(),
-            checksum: None,
-            is_compressed: false,
-            original_size: None,
-            compression_algorithm: None,
-            is_scanned: true,
-            scan_result: None,
-            threat_level: Some(ThreatLevel::Safe),
-            has_thumbnail: false,
-            thumbnail_path: None,
-            has_video_thumbnail: false,
-            has_document_preview: false,
-            processing_status: None,
-            content_hash_id: None,
-            cdn_url: None,
-            cdn_url_expires_at: None,
-            owner_module: None,
-            owner_entity: None,
-            owner_entity_id: None,
-            field_name: None,
-            sort_order: 0,
-            status: FileStatus::Active,
-            storage_key: "key".to_string(),
-            version: 1,
-            previous_version_id: None,
-            download_count: 0,
-            last_accessed_at: None,
-            metadata: AuditMetadata::default(),
-        };
+        let mut file = StoredFile::builder()
+            .bucket_id(Uuid::nil())
+            .owner_id(Uuid::nil())
+            .path("/test".to_string())
+            .original_name("test".to_string())
+            .size_bytes(1024)
+            .mime_type("text/plain".to_string())
+            .is_compressed(false)
+            .is_scanned(true)
+            .threat_level(ThreatLevel::Safe)
+            .has_thumbnail(false)
+            .has_video_thumbnail(false)
+            .has_document_preview(false)
+            .sort_order(0)
+            .status(FileStatus::Active)
+            .storage_key("key".to_string())
+            .version(1)
+            .download_count(0)
+            .build()
+            .unwrap();
         let safe = file.is_safe();
         std::hint::black_box(safe);
     });
 
     bench("StoredFile::record_access()", 1_000_000, || {
-        let mut file = StoredFile {
-            id: Uuid::nil(),
-            bucket_id: Uuid::nil(),
-            owner_id: Uuid::nil(),
-            path: "/test".to_string(),
-            original_name: "test".to_string(),
-            size_bytes: 1024,
-            mime_type: "text/plain".to_string(),
-            checksum: None,
-            is_compressed: false,
-            original_size: None,
-            compression_algorithm: None,
-            is_scanned: true,
-            scan_result: None,
-            threat_level: Some(ThreatLevel::Safe),
-            has_thumbnail: false,
-            thumbnail_path: None,
-            has_video_thumbnail: false,
-            has_document_preview: false,
-            processing_status: None,
-            content_hash_id: None,
-            cdn_url: None,
-            cdn_url_expires_at: None,
-            owner_module: None,
-            owner_entity: None,
-            owner_entity_id: None,
-            field_name: None,
-            sort_order: 0,
-            status: FileStatus::Active,
-            storage_key: "key".to_string(),
-            version: 1,
-            previous_version_id: None,
-            download_count: 0,
-            last_accessed_at: None,
-            metadata: AuditMetadata::default(),
-        };
+        let mut file = StoredFile::builder()
+            .bucket_id(Uuid::nil())
+            .owner_id(Uuid::nil())
+            .path("/test".to_string())
+            .original_name("test".to_string())
+            .size_bytes(1024)
+            .mime_type("text/plain".to_string())
+            .is_compressed(false)
+            .is_scanned(true)
+            .threat_level(ThreatLevel::Safe)
+            .has_thumbnail(false)
+            .has_video_thumbnail(false)
+            .has_document_preview(false)
+            .sort_order(0)
+            .status(FileStatus::Active)
+            .storage_key("key".to_string())
+            .version(1)
+            .download_count(0)
+            .build()
+            .unwrap();
         file.record_access();
         std::hint::black_box(&file);
     });
@@ -354,42 +305,41 @@ fn bench_domain_logic() {
 fn bench_serialization() {
     println!("\n=== Serialization Benchmarks ===");
 
-    let file = StoredFile {
-        id: Uuid::new_v4(),
-        bucket_id: Uuid::new_v4(),
-        owner_id: Uuid::new_v4(),
-        path: "/documents/report.pdf".to_string(),
-        original_name: "report.pdf".to_string(),
-        size_bytes: 5 * 1024 * 1024,
-        mime_type: "application/pdf".to_string(),
-        checksum: Some("sha256:abcdef123456".to_string()),
-        is_compressed: true,
-        original_size: Some(10 * 1024 * 1024),
-        compression_algorithm: Some("gzip".to_string()),
-        is_scanned: true,
-        scan_result: Some(serde_json::json!({"result": "clean"})),
-        threat_level: Some(ThreatLevel::Safe),
-        has_thumbnail: true,
-        thumbnail_path: Some("/thumbs/report.webp".to_string()),
-        has_video_thumbnail: false,
-        has_document_preview: true,
-        processing_status: Some(ProcessingStatus::Complete),
-        content_hash_id: Some(Uuid::new_v4()),
-        cdn_url: Some("/cdn/files/report.pdf?expires=12345".to_string()),
-        cdn_url_expires_at: Some(Utc::now()),
-        owner_module: Some("bersihir".to_string()),
-        owner_entity: Some("Product".to_string()),
-        owner_entity_id: Some(Uuid::new_v4()),
-        field_name: Some("image_url".to_string()),
-        sort_order: 0,
-        status: FileStatus::Active,
-        storage_key: "files/abcdef".to_string(),
-        version: 3,
-        previous_version_id: Some(Uuid::new_v4()),
-        download_count: 42,
-        last_accessed_at: Some(Utc::now()),
-        metadata: AuditMetadata::new(),
-    };
+    let file = StoredFile::builder()
+        .bucket_id(Uuid::new_v4())
+        .owner_id(Uuid::new_v4())
+        .path("/documents/report.pdf".to_string())
+        .original_name("report.pdf".to_string())
+        .size_bytes(5 * 1024 * 1024)
+        .mime_type("application/pdf".to_string())
+        .checksum("sha256:abcdef123456".to_string())
+        .is_compressed(true)
+        .original_size(10 * 1024 * 1024)
+        .compression_algorithm("gzip".to_string())
+        .is_scanned(true)
+        .scan_result(serde_json::json!({"result": "clean"}))
+        .threat_level(ThreatLevel::Safe)
+        .has_thumbnail(true)
+        .thumbnail_path("/thumbs/report.webp".to_string())
+        .has_video_thumbnail(false)
+        .has_document_preview(true)
+        .processing_status(ProcessingStatus::Complete)
+        .content_hash_id(Uuid::new_v4())
+        .cdn_url("/cdn/files/report.pdf?expires=12345".to_string())
+        .cdn_url_expires_at(Utc::now())
+        .owner_module("bersihir".to_string())
+        .owner_entity("Product".to_string())
+        .owner_entity_id(Uuid::new_v4())
+        .field_name("image_url".to_string())
+        .sort_order(0)
+        .status(FileStatus::Active)
+        .storage_key("files/abcdef".to_string())
+        .version(3)
+        .previous_version_id(Uuid::new_v4())
+        .download_count(42)
+        .last_accessed_at(Utc::now())
+        .build()
+        .unwrap();
 
     bench("StoredFile serialize (JSON)", 100_000, || {
         let json = serde_json::to_string(&file).unwrap();
@@ -433,84 +383,50 @@ fn bench_batch_operations() {
 
     bench("Create 1000 StoredFile entities", 100, || {
         let files: Vec<StoredFile> = (0..1000)
-            .map(|i| StoredFile {
-                id: Uuid::new_v4(),
-                bucket_id: Uuid::nil(),
-                owner_id: Uuid::nil(),
-                path: format!("/files/file_{}.dat", i),
-                original_name: format!("file_{}.dat", i),
-                size_bytes: 1024 * (i + 1) as i64,
-                mime_type: "application/octet-stream".to_string(),
-                checksum: None,
-                is_compressed: false,
-                original_size: None,
-                compression_algorithm: None,
-                is_scanned: false,
-                scan_result: None,
-                threat_level: None,
-                has_thumbnail: false,
-                thumbnail_path: None,
-                has_video_thumbnail: false,
-                has_document_preview: false,
-                processing_status: None,
-                content_hash_id: None,
-                cdn_url: None,
-                cdn_url_expires_at: None,
-                owner_module: None,
-                owner_entity: None,
-                owner_entity_id: None,
-                field_name: None,
-                sort_order: 0,
-                status: FileStatus::Active,
-                storage_key: format!("key_{}", i),
-                version: 1,
-                previous_version_id: None,
-                download_count: 0,
-                last_accessed_at: None,
-                metadata: AuditMetadata::default(),
-            })
+            .map(|i| StoredFile::builder()
+                .bucket_id(Uuid::nil())
+                .owner_id(Uuid::nil())
+                .path(format!("/files/file_{}.dat", i))
+                .original_name(format!("file_{}.dat", i))
+                .size_bytes(1024 * (i + 1) as i64)
+                .mime_type("application/octet-stream".to_string())
+                .is_compressed(false)
+                .is_scanned(false)
+                .has_thumbnail(false)
+                .has_video_thumbnail(false)
+                .has_document_preview(false)
+                .sort_order(0)
+                .status(FileStatus::Active)
+                .storage_key(format!("key_{}", i))
+                .version(1)
+                .download_count(0)
+                .build()
+                .unwrap())
             .collect();
         std::hint::black_box(files);
     });
 
     bench("Serialize 1000 StoredFiles to JSON array", 10, || {
         let files: Vec<StoredFile> = (0..1000)
-            .map(|i| StoredFile {
-                id: Uuid::new_v4(),
-                bucket_id: Uuid::nil(),
-                owner_id: Uuid::nil(),
-                path: format!("/files/file_{}.dat", i),
-                original_name: format!("file_{}.dat", i),
-                size_bytes: 1024 * (i + 1) as i64,
-                mime_type: "application/octet-stream".to_string(),
-                checksum: None,
-                is_compressed: false,
-                original_size: None,
-                compression_algorithm: None,
-                is_scanned: false,
-                scan_result: None,
-                threat_level: None,
-                has_thumbnail: false,
-                thumbnail_path: None,
-                has_video_thumbnail: false,
-                has_document_preview: false,
-                processing_status: None,
-                content_hash_id: None,
-                cdn_url: None,
-                cdn_url_expires_at: None,
-                owner_module: None,
-                owner_entity: None,
-                owner_entity_id: None,
-                field_name: None,
-                sort_order: 0,
-                status: FileStatus::Active,
-                storage_key: format!("key_{}", i),
-                version: 1,
-                previous_version_id: None,
-                download_count: 0,
-                last_accessed_at: None,
-                metadata: AuditMetadata::default(),
-            })
+            .map(|i| StoredFile::builder()
+                .bucket_id(Uuid::nil())
+                .owner_id(Uuid::nil())
+                .path(format!("/files/file_{}.dat", i))
+                .original_name(format!("file_{}.dat", i))
+                .size_bytes(1024 * (i + 1) as i64)
+                .mime_type("application/octet-stream".to_string())
+                .is_compressed(false)
+                .is_scanned(false)
+                .has_thumbnail(false)
+                .has_video_thumbnail(false)
+                .has_document_preview(false)
+                .sort_order(0)
+                .status(FileStatus::Active)
+                .storage_key(format!("key_{}", i))
+                .version(1)
+                .download_count(0)
+                .build()
+                .unwrap())
             .collect();
         let json = serde_json::to_string(&files).unwrap();
         std::hint::black_box(json);
@@ -572,42 +488,26 @@ fn bench_invariant_checks() {
         std::hint::black_box(result);
     });
 
-    let file = StoredFile {
-        id: Uuid::nil(),
-        bucket_id: Uuid::nil(),
-        owner_id: Uuid::nil(),
-        path: "/test".to_string(),
-        original_name: "test".to_string(),
-        size_bytes: 1024,
-        mime_type: "text/plain".to_string(),
-        checksum: None,
-        is_compressed: false,
-        original_size: None,
-        compression_algorithm: None,
-        is_scanned: true,
-        scan_result: None,
-        threat_level: Some(ThreatLevel::Safe),
-        has_thumbnail: false,
-        thumbnail_path: None,
-        has_video_thumbnail: false,
-        has_document_preview: false,
-        processing_status: None,
-        content_hash_id: None,
-        cdn_url: None,
-        cdn_url_expires_at: None,
-        owner_module: None,
-        owner_entity: None,
-        owner_entity_id: None,
-        field_name: None,
-        sort_order: 0,
-        status: FileStatus::Active,
-        storage_key: "key".to_string(),
-        version: 1,
-        previous_version_id: None,
-        download_count: 0,
-        last_accessed_at: None,
-        metadata: AuditMetadata::default(),
-    };
+    let file = StoredFile::builder()
+        .bucket_id(Uuid::nil())
+        .owner_id(Uuid::nil())
+        .path("/test".to_string())
+        .original_name("test".to_string())
+        .size_bytes(1024)
+        .mime_type("text/plain".to_string())
+        .is_compressed(false)
+        .is_scanned(true)
+        .threat_level(ThreatLevel::Safe)
+        .has_thumbnail(false)
+        .has_video_thumbnail(false)
+        .has_document_preview(false)
+        .sort_order(0)
+        .status(FileStatus::Active)
+        .storage_key("key".to_string())
+        .version(1)
+        .download_count(0)
+        .build()
+        .unwrap();
 
     bench("StoredFile::check_invariants()", 1_000_000, || {
         let result = file.check_invariants();

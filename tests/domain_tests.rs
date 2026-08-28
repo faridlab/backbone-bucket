@@ -3,6 +3,7 @@
 //! Comprehensive tests for core domain entities and services.
 
 use backbone_bucket::domain::entity::*;
+use backbone_bucket::domain::state_machine::ProcessingJobState;
 use bcrypt;
 use chrono::{Duration, Utc};
 use uuid::Uuid;
@@ -14,43 +15,32 @@ use uuid::Uuid;
 mod stored_file_tests {
     use super::*;
 
+    fn create_test_file_with(status: FileStatus) -> StoredFile {
+        StoredFile::builder()
+            .bucket_id(Uuid::new_v4())
+            .owner_id(Uuid::new_v4())
+            .path("documents/report.pdf".to_string())
+            .original_name("report.pdf".to_string())
+            .size_bytes(1024)
+            .mime_type("application/pdf".to_string())
+            .checksum("abc123".to_string())
+            .is_compressed(false)
+            .is_scanned(true)
+            .threat_level(ThreatLevel::Safe)
+            .has_thumbnail(false)
+            .has_video_thumbnail(false)
+            .has_document_preview(false)
+            .sort_order(0)
+            .status(status)
+            .storage_key("bucket/2024/01/01/abc-report.pdf".to_string())
+            .version(1)
+            .download_count(0)
+            .build()
+            .unwrap()
+    }
+
     fn create_test_file() -> StoredFile {
-        StoredFile {
-            id: Uuid::new_v4(),
-            bucket_id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            path: "documents/report.pdf".to_string(),
-            original_name: "report.pdf".to_string(),
-            size_bytes: 1024,
-            mime_type: "application/pdf".to_string(),
-            checksum: Some("abc123".to_string()),
-            is_compressed: false,
-            original_size: None,
-            compression_algorithm: None,
-            is_scanned: true,
-            scan_result: None,
-            threat_level: Some(ThreatLevel::Safe),
-            has_thumbnail: false,
-            thumbnail_path: None,
-            has_video_thumbnail: false,
-            has_document_preview: false,
-            processing_status: None,
-            content_hash_id: None,
-            cdn_url: None,
-            cdn_url_expires_at: None,
-            owner_module: None,
-            owner_entity: None,
-            owner_entity_id: None,
-            field_name: None,
-            sort_order: 0,
-            status: FileStatus::Active,
-            storage_key: "bucket/2024/01/01/abc-report.pdf".to_string(),
-            version: 1,
-            previous_version_id: None,
-            download_count: 0,
-            last_accessed_at: None,
-            metadata: AuditMetadata::default(),
-        }
+        create_test_file_with(FileStatus::Active)
     }
 
     #[test]
@@ -61,15 +51,13 @@ mod stored_file_tests {
 
     #[test]
     fn test_is_accessible_deleted_file() {
-        let mut file = create_test_file();
-        file.status = FileStatus::Deleted;
+        let mut file = create_test_file_with(FileStatus::Deleted);
         assert!(!file.is_accessible());
     }
 
     #[test]
     fn test_is_accessible_quarantined_file() {
-        let mut file = create_test_file();
-        file.status = FileStatus::Quarantined;
+        let mut file = create_test_file_with(FileStatus::Quarantined);
         assert!(!file.is_accessible());
     }
 
@@ -117,8 +105,7 @@ mod stored_file_tests {
 
     #[test]
     fn test_needs_processing_uploading() {
-        let mut file = create_test_file();
-        file.status = FileStatus::Uploading;
+        let mut file = create_test_file_with(FileStatus::Uploading);
         file.is_scanned = false;
         assert!(file.needs_processing());
     }
@@ -144,21 +131,20 @@ mod stored_file_tests {
     #[test]
     fn test_soft_delete() {
         let mut file = create_test_file();
-        assert_eq!(file.status, FileStatus::Active);
+        assert_eq!(file.status(), &FileStatus::Active);
 
         file.soft_delete();
 
-        assert_eq!(file.status, FileStatus::Deleted);
+        assert_eq!(file.status(), &FileStatus::Deleted);
     }
 
     #[test]
     fn test_restore() {
-        let mut file = create_test_file();
-        file.status = FileStatus::Deleted;
+        let mut file = create_test_file_with(FileStatus::Deleted);
 
         file.restore();
 
-        assert_eq!(file.status, FileStatus::Active);
+        assert_eq!(file.status(), &FileStatus::Active);
     }
 
     #[test]
@@ -168,7 +154,7 @@ mod stored_file_tests {
 
         file.quarantine(threats);
 
-        assert_eq!(file.status, FileStatus::Quarantined);
+        assert_eq!(file.status(), &FileStatus::Quarantined);
         assert!(file.scan_result.is_some());
     }
 
@@ -201,26 +187,27 @@ mod bucket_tests {
     use super::*;
 
     fn create_test_bucket() -> Bucket {
-        Bucket {
-            id: Uuid::new_v4(),
-            name: "Test Bucket".to_string(),
-            slug: "test-bucket".to_string(),
-            description: None,
-            owner_id: Uuid::new_v4(),
-            bucket_type: BucketType::User,
-            status: BucketStatus::Active,
-            storage_backend: StorageBackend::Local,
-            root_path: "/storage/test-bucket".to_string(),
-            file_count: 0,
-            total_size_bytes: 0,
-            max_file_size: Some(10 * 1024 * 1024), // 10MB
-            allowed_mime_types: vec![],
-            auto_delete_after_days: None,
-            enable_cdn: false,
-            enable_versioning: false,
-            enable_deduplication: false,
-            metadata: AuditMetadata::default(),
-        }
+        create_test_bucket_with(BucketStatus::Active)
+    }
+
+    fn create_test_bucket_with(status: BucketStatus) -> Bucket {
+        Bucket::builder()
+            .name("Test Bucket".to_string())
+            .slug("test-bucket".to_string())
+            .owner_id(Uuid::new_v4())
+            .bucket_type(BucketType::User)
+            .status(status)
+            .storage_backend(StorageBackend::Local)
+            .root_path("/storage/test-bucket".to_string())
+            .file_count(0)
+            .total_size_bytes(0)
+            .max_file_size(10 * 1024 * 1024)
+            .allowed_mime_types(vec![])
+            .enable_cdn(false)
+            .enable_versioning(false)
+            .enable_deduplication(false)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -237,8 +224,7 @@ mod bucket_tests {
 
     #[test]
     fn test_can_upload_inactive_bucket() {
-        let mut bucket = create_test_bucket();
-        bucket.status = BucketStatus::Deleted;
+        let mut bucket = create_test_bucket_with(BucketStatus::Deleted);
         assert!(!bucket.can_upload(1024, "text/plain"));
     }
 
@@ -281,13 +267,13 @@ mod bucket_tests {
 
     #[test]
     fn test_is_accessible() {
-        let mut bucket = create_test_bucket();
+        let bucket = create_test_bucket();
         assert!(bucket.is_accessible());
 
-        bucket.status = BucketStatus::Readonly;
+        let bucket = create_test_bucket_with(BucketStatus::Readonly);
         assert!(bucket.is_accessible());
 
-        bucket.status = BucketStatus::Archived;
+        let bucket = create_test_bucket_with(BucketStatus::Archived);
         assert!(!bucket.is_accessible());
     }
 
@@ -306,22 +292,19 @@ mod user_quota_tests {
     use super::*;
 
     fn create_test_quota() -> UserQuota {
-        UserQuota {
-            id: Uuid::new_v4(),
-            user_id: Uuid::new_v4(),
-            limit_bytes: 1024 * 1024 * 1024, // 1GB
-            used_bytes: 0,
-            file_count: 0,
-            max_file_size: Some(100 * 1024 * 1024), // 100MB
-            max_file_count: Some(1000),
-            tier: "free".to_string(),
-            quota_status: QuotaStatus::Normal,
-            warning_threshold_percent: 80,
-            last_warning_sent_at: None,
-            peak_usage_bytes: 0,
-            peak_usage_at: None,
-            metadata: AuditMetadata::default(),
-        }
+        UserQuota::builder()
+            .user_id(Uuid::new_v4())
+            .limit_bytes(1024 * 1024 * 1024)
+            .used_bytes(0)
+            .file_count(0)
+            .max_file_size(100 * 1024 * 1024)
+            .max_file_count(1000)
+            .tier("free".to_string())
+            .quota_status(QuotaStatus::Normal)
+            .warning_threshold_percent(80)
+            .peak_usage_bytes(0)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -425,24 +408,21 @@ mod file_share_tests {
     use super::*;
 
     fn create_test_share() -> FileShare {
-        FileShare {
-            id: Uuid::new_v4(),
-            file_id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            token: "abc123xyz".to_string(),
-            share_type: ShareType::Link,
-            permission: SharePermission::View,
-            shared_with: vec![],
-            password_hash: None,
-            max_downloads: None,
-            download_count: 0,
-            expires_at: None,
-            status: ShareStatus::Active,
-            revoked_at: None,
-            revoked_by: None,
-            message: None,
-            metadata: AuditMetadata::default(),
-        }
+        create_test_share_with(ShareStatus::Active)
+    }
+
+    fn create_test_share_with(status: ShareStatus) -> FileShare {
+        FileShare::builder()
+            .file_id(Uuid::new_v4())
+            .owner_id(Uuid::new_v4())
+            .token("abc123xyz".to_string())
+            .share_type(ShareType::Link)
+            .permission(SharePermission::View)
+            .shared_with(vec![])
+            .download_count(0)
+            .status(status)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -453,8 +433,7 @@ mod file_share_tests {
 
     #[test]
     fn test_is_valid_revoked_share() {
-        let mut share = create_test_share();
-        share.status = ShareStatus::Revoked;
+        let mut share = create_test_share_with(ShareStatus::Revoked);
         assert!(!share.is_valid());
     }
 
@@ -551,7 +530,7 @@ mod file_share_tests {
 
         share.revoke(revoker);
 
-        assert_eq!(share.status, ShareStatus::Revoked);
+        assert_eq!(share.status(), &ShareStatus::Revoked);
         assert!(share.revoked_at.is_some());
         assert_eq!(share.revoked_by, Some(revoker));
     }
@@ -581,22 +560,19 @@ mod property_tests {
     }
 
     fn create_quota(limit: i64, used: i64, file_count: i32, tier: String) -> UserQuota {
-        UserQuota {
-            id: Uuid::new_v4(),
-            user_id: Uuid::new_v4(),
-            limit_bytes: limit,
-            used_bytes: used.min(limit).max(0),
-            file_count,
-            max_file_size: Some(limit / 10),
-            max_file_count: Some(1000),
-            tier,
-            quota_status: QuotaStatus::Normal,
-            warning_threshold_percent: 80,
-            last_warning_sent_at: None,
-            peak_usage_bytes: used,
-            peak_usage_at: None,
-            metadata: AuditMetadata::default(),
-        }
+        UserQuota::builder()
+            .user_id(Uuid::new_v4())
+            .limit_bytes(limit)
+            .used_bytes(used.min(limit).max(0))
+            .file_count(file_count)
+            .max_file_size(limit / 10)
+            .max_file_count(1000)
+            .tier(tier)
+            .quota_status(QuotaStatus::Normal)
+            .warning_threshold_percent(80)
+            .peak_usage_bytes(used)
+            .build()
+            .unwrap()
     }
 
     proptest! {
@@ -746,16 +722,18 @@ mod file_lock_tests {
     use super::*;
 
     fn create_test_lock() -> FileLock {
-        FileLock {
-            id: Uuid::new_v4(),
-            file_id: Uuid::new_v4(),
-            user_id: Uuid::new_v4(),
-            locked_at: Utc::now() - Duration::minutes(5),
-            expires_at: Utc::now() + Duration::hours(1),
-            refreshed_at: None,
-            status: LockStatus::Active,
-            metadata: AuditMetadata::default(),
-        }
+        create_test_lock_with(LockStatus::Active)
+    }
+
+    fn create_test_lock_with(status: LockStatus) -> FileLock {
+        FileLock::builder()
+            .file_id(Uuid::new_v4())
+            .user_id(Uuid::new_v4())
+            .locked_at(Utc::now() - Duration::minutes(5))
+            .expires_at(Utc::now() + Duration::hours(1))
+            .status(status)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -773,8 +751,7 @@ mod file_lock_tests {
 
     #[test]
     fn test_is_valid_released() {
-        let mut lock = create_test_lock();
-        lock.status = LockStatus::Released;
+        let mut lock = create_test_lock_with(LockStatus::Released);
         assert!(!lock.is_valid());
     }
 
@@ -849,9 +826,8 @@ mod file_lock_tests {
 
     #[test]
     fn test_check_invariants_expires_before_locked() {
-        let mut lock = create_test_lock();
+        let mut lock = create_test_lock_with(LockStatus::Expired);
         lock.expires_at = lock.locked_at - Duration::hours(1);
-        lock.status = LockStatus::Expired;
         let result = lock.check_invariants();
         assert!(result.is_err());
     }
@@ -872,7 +848,7 @@ mod file_lock_tests {
 
         assert_eq!(lock.file_id, file_id);
         assert_eq!(lock.user_id, user_id);
-        assert_eq!(lock.status, LockStatus::Active);
+        assert_eq!(lock.status(), &LockStatus::Active);
     }
 
     #[test]
@@ -892,21 +868,19 @@ mod processing_job_tests {
     use super::*;
 
     fn create_test_job() -> ProcessingJob {
-        ProcessingJob {
-            id: Uuid::new_v4(),
-            file_id: Uuid::new_v4(),
-            job_type: ProcessingJobType::ThumbnailGeneration,
-            status: JobStatus::Pending,
-            priority: 0,
-            input_data: None,
-            result_data: None,
-            error_message: None,
-            started_at: None,
-            completed_at: None,
-            retry_count: 0,
-            max_retries: 3,
-            metadata: AuditMetadata::default(),
-        }
+        create_test_job_with(JobStatus::Pending)
+    }
+
+    fn create_test_job_with(status: JobStatus) -> ProcessingJob {
+        ProcessingJob::builder()
+            .file_id(Uuid::new_v4())
+            .job_type(ProcessingJobType::ThumbnailGeneration)
+            .status(status)
+            .priority(0)
+            .retry_count(0)
+            .max_retries(3)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -917,16 +891,14 @@ mod processing_job_tests {
 
     #[test]
     fn test_can_retry_failed_with_retries() {
-        let mut job = create_test_job();
-        job.status = JobStatus::Failed;
+        let mut job = create_test_job_with(JobStatus::Failed);
         job.retry_count = 1;
         assert!(job.can_retry());
     }
 
     #[test]
     fn test_can_retry_failed_max_retries() {
-        let mut job = create_test_job();
-        job.status = JobStatus::Failed;
+        let mut job = create_test_job_with(JobStatus::Failed);
         job.retry_count = 3;
         assert!(!job.can_retry());
     }
@@ -948,7 +920,7 @@ mod processing_job_tests {
         let mut job = create_test_job();
         job.mark_started().unwrap();
 
-        assert_eq!(job.status, JobStatus::Running);
+        assert_eq!(job.status(), &JobStatus::Running);
         assert!(job.started_at.is_some());
     }
 
@@ -960,7 +932,7 @@ mod processing_job_tests {
         let result = serde_json::json!({"output": "done"});
         job.mark_completed(result.clone()).unwrap();
 
-        assert_eq!(job.status, JobStatus::Completed);
+        assert_eq!(job.status(), &JobStatus::Completed);
         assert_eq!(job.result_data, Some(result));
         assert!(job.completed_at.is_some());
     }
@@ -971,7 +943,7 @@ mod processing_job_tests {
         job.mark_started().unwrap();
         job.mark_failed("out of memory".to_string()).unwrap();
 
-        assert_eq!(job.status, JobStatus::Failed);
+        assert_eq!(job.status(), &JobStatus::Failed);
         assert_eq!(job.error_message, Some("out of memory".to_string()));
     }
 
@@ -980,7 +952,7 @@ mod processing_job_tests {
         let mut job = create_test_job();
         job.cancel().unwrap();
 
-        assert_eq!(job.status, JobStatus::Cancelled);
+        assert_eq!(job.status(), &JobStatus::Cancelled);
     }
 
     #[test]
@@ -1017,16 +989,14 @@ mod processing_job_tests {
 
     #[test]
     fn test_check_invariants_running_no_started_at() {
-        let mut job = create_test_job();
-        job.status = JobStatus::Running;
+        let mut job = create_test_job_with(JobStatus::Running);
         job.started_at = None;
         assert!(job.check_invariants().is_err());
     }
 
     #[test]
     fn test_check_invariants_completed_no_completed_at() {
-        let mut job = create_test_job();
-        job.status = JobStatus::Completed;
+        let mut job = create_test_job_with(JobStatus::Completed);
         job.completed_at = None;
         assert!(job.check_invariants().is_err());
     }
@@ -1064,21 +1034,21 @@ mod processing_job_tests {
 
         // Pending -> Running
         job.mark_started().unwrap();
-        assert_eq!(job.status, JobStatus::Running);
+        assert_eq!(job.status(), &JobStatus::Running);
 
         // Running -> Failed
         job.mark_failed("timeout".to_string()).unwrap();
-        assert_eq!(job.status, JobStatus::Failed);
+        assert_eq!(job.status(), &JobStatus::Failed);
         assert!(job.can_retry());
 
         // Retry
         job.increment_retry();
-        job.status = JobStatus::Pending;
+        job.transition_to(ProcessingJobState::Pending).unwrap();
         job.mark_started().unwrap();
 
         // Running -> Completed
         job.mark_completed(serde_json::json!({"ok": true})).unwrap();
-        assert_eq!(job.status, JobStatus::Completed);
+        assert_eq!(job.status(), &JobStatus::Completed);
         assert!(!job.can_retry());
     }
 }
@@ -1250,19 +1220,17 @@ mod conversion_job_tests {
     use super::*;
 
     fn create_test_conversion() -> ConversionJob {
-        ConversionJob {
-            id: Uuid::new_v4(),
-            source_file_id: Uuid::new_v4(),
-            target_format: "webp".to_string(),
-            status: ConversionStatus::Pending,
-            conversion_options: None,
-            result_file_id: None,
-            progress: 0,
-            error_message: None,
-            started_at: None,
-            completed_at: None,
-            metadata: AuditMetadata::default(),
-        }
+        create_test_conversion_with(ConversionStatus::Pending)
+    }
+
+    fn create_test_conversion_with(status: ConversionStatus) -> ConversionJob {
+        ConversionJob::builder()
+            .source_file_id(Uuid::new_v4())
+            .target_format("webp".to_string())
+            .status(status)
+            .progress(0)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -1291,7 +1259,7 @@ mod conversion_job_tests {
 
         job.complete(result_id).unwrap();
 
-        assert_eq!(job.status, ConversionStatus::Completed);
+        assert_eq!(job.status(), &ConversionStatus::Completed);
         assert_eq!(job.result_file_id, Some(result_id));
         assert_eq!(job.progress, 100);
         assert!(job.completed_at.is_some());
@@ -1302,7 +1270,7 @@ mod conversion_job_tests {
         let mut job = create_test_conversion();
         job.fail("unsupported format".to_string()).unwrap();
 
-        assert_eq!(job.status, ConversionStatus::Failed);
+        assert_eq!(job.status(), &ConversionStatus::Failed);
         assert_eq!(job.error_message, Some("unsupported format".to_string()));
         assert!(job.completed_at.is_some());
     }
@@ -1333,16 +1301,14 @@ mod conversion_job_tests {
 
     #[test]
     fn test_check_invariants_completed_no_result() {
-        let mut job = create_test_conversion();
-        job.status = ConversionStatus::Completed;
+        let mut job = create_test_conversion_with(ConversionStatus::Completed);
         job.result_file_id = None;
         assert!(job.check_invariants().is_err());
     }
 
     #[test]
     fn test_check_invariants_failed_no_error() {
-        let mut job = create_test_conversion();
-        job.status = ConversionStatus::Failed;
+        let mut job = create_test_conversion_with(ConversionStatus::Failed);
         job.error_message = None;
         assert!(job.check_invariants().is_err());
     }
@@ -1395,24 +1361,26 @@ mod upload_session_tests {
     use super::*;
 
     fn create_test_session() -> UploadSession {
-        UploadSession {
-            id: Uuid::new_v4(),
-            bucket_id: Uuid::new_v4(),
-            user_id: Uuid::new_v4(),
-            path: "uploads/large-file.zip".to_string(),
-            filename: "large-file.zip".to_string(),
-            mime_type: Some("application/zip".to_string()),
-            file_size: 100 * 1024 * 1024,
-            chunk_size: 10 * 1024 * 1024,
-            total_chunks: 10,
-            uploaded_chunks: 0,
-            status: UploadStatus::Initiated,
-            storage_backend: StorageBackend::Local,
-            completed_parts: vec![],
-            part_etags: None,
-            expires_at: Utc::now() + Duration::hours(24),
-            metadata: AuditMetadata::default(),
-        }
+        create_test_session_with(UploadStatus::Initiated)
+    }
+
+    fn create_test_session_with(status: UploadStatus) -> UploadSession {
+        UploadSession::builder()
+            .bucket_id(Uuid::new_v4())
+            .user_id(Uuid::new_v4())
+            .path("uploads/large-file.zip".to_string())
+            .filename("large-file.zip".to_string())
+            .mime_type("application/zip".to_string())
+            .file_size(100 * 1024 * 1024)
+            .chunk_size(10 * 1024 * 1024)
+            .total_chunks(10)
+            .uploaded_chunks(0)
+            .status(status)
+            .storage_backend(StorageBackend::Local)
+            .completed_parts(vec![])
+            .expires_at(Utc::now() + Duration::hours(24))
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -1435,7 +1403,7 @@ mod upload_session_tests {
 
         assert_eq!(session.uploaded_chunks, 1);
         assert!(session.completed_parts.contains(&1));
-        assert_eq!(session.status, UploadStatus::Uploading);
+        assert_eq!(session.status(), &UploadStatus::Uploading);
     }
 
     #[test]
@@ -1504,8 +1472,7 @@ mod upload_session_tests {
 
     #[test]
     fn test_can_resume_uploading() {
-        let mut session = create_test_session();
-        session.status = UploadStatus::Uploading;
+        let mut session = create_test_session_with(UploadStatus::Uploading);
         assert!(session.can_resume());
     }
 
@@ -1518,8 +1485,7 @@ mod upload_session_tests {
 
     #[test]
     fn test_can_resume_completed() {
-        let mut session = create_test_session();
-        session.status = UploadStatus::Completed;
+        let mut session = create_test_session_with(UploadStatus::Completed);
         assert!(!session.can_resume());
     }
 
@@ -1529,7 +1495,7 @@ mod upload_session_tests {
         session.uploaded_chunks = 10;
 
         session.mark_complete().unwrap();
-        assert_eq!(session.status, UploadStatus::Completed);
+        assert_eq!(session.status(), &UploadStatus::Completed);
     }
 
     #[test]
@@ -1546,7 +1512,7 @@ mod upload_session_tests {
         let mut session = create_test_session();
         session.mark_failed("network error".to_string()).unwrap();
 
-        assert_eq!(session.status, UploadStatus::Failed);
+        assert_eq!(session.status(), &UploadStatus::Failed);
     }
 
     #[test]
@@ -1593,7 +1559,7 @@ mod upload_session_tests {
         assert!(session.is_complete());
 
         session.mark_complete().unwrap();
-        assert_eq!(session.status, UploadStatus::Completed);
+        assert_eq!(session.status(), &UploadStatus::Completed);
     }
 }
 
@@ -1715,42 +1681,30 @@ mod owner_context_tests {
         field_name: Option<&str>,
         sort_order: i32,
     ) -> StoredFile {
-        StoredFile {
-            id: Uuid::new_v4(),
-            bucket_id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            path: "uploads/photo.jpg".to_string(),
-            original_name: "photo.jpg".to_string(),
-            size_bytes: 2048,
-            mime_type: "image/jpeg".to_string(),
-            checksum: None,
-            is_compressed: false,
-            original_size: None,
-            compression_algorithm: None,
-            is_scanned: false,
-            scan_result: None,
-            threat_level: None,
-            has_thumbnail: false,
-            thumbnail_path: None,
-            has_video_thumbnail: false,
-            has_document_preview: false,
-            processing_status: None,
-            content_hash_id: None,
-            cdn_url: None,
-            cdn_url_expires_at: None,
-            owner_module: owner_module.map(String::from),
-            owner_entity: owner_entity.map(String::from),
-            owner_entity_id,
-            field_name: field_name.map(String::from),
-            sort_order,
-            status: FileStatus::Active,
-            storage_key: format!("bucket/{}", Uuid::new_v4()),
-            version: 1,
-            previous_version_id: None,
-            download_count: 0,
-            last_accessed_at: None,
-            metadata: AuditMetadata::default(),
-        }
+        let mut file = StoredFile::builder()
+            .bucket_id(Uuid::new_v4())
+            .owner_id(Uuid::new_v4())
+            .path("uploads/photo.jpg".to_string())
+            .original_name("photo.jpg".to_string())
+            .size_bytes(2048)
+            .mime_type("image/jpeg".to_string())
+            .is_compressed(false)
+            .is_scanned(false)
+            .has_thumbnail(false)
+            .has_video_thumbnail(false)
+            .has_document_preview(false)
+            .sort_order(sort_order)
+            .status(FileStatus::Active)
+            .storage_key(format!("bucket/{}", Uuid::new_v4()))
+            .version(1)
+            .download_count(0)
+            .build()
+            .unwrap();
+        file.owner_module = owner_module.map(String::from);
+        file.owner_entity = owner_entity.map(String::from);
+        file.owner_entity_id = owner_entity_id;
+        file.field_name = field_name.map(String::from);
+        file
     }
 
     #[test]
