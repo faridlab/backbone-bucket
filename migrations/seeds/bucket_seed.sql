@@ -65,7 +65,7 @@ BEGIN
     --   bersihir/OrderDelivery/{id}/proof-before-a2f.jpg
     --   bersihir/Product/gallery/{id}/img-001-c3d.webp
     --   bersihir/ProviderService/{id}/ktp-photo-b7m.jpg
-    INSERT INTO buckets (id, name, slug, description, owner_id, bucket_type, status, storage_backend,
+    INSERT INTO bucket.buckets (id, name, slug, description, owner_id, bucket_type, status, storage_backend,
         root_path, file_count, total_size_bytes, max_file_size, allowed_mime_types,
         auto_delete_after_days, enable_cdn, enable_versioning, enable_deduplication, metadata)
     VALUES (
@@ -82,7 +82,7 @@ BEGIN
     -- Path examples:
     --   sapiens/User/{id}/avatar-f9a.png
     --   sapiens/Profile/{id}/cover-photo-d2e.webp
-    INSERT INTO buckets (id, name, slug, description, owner_id, bucket_type, status, storage_backend,
+    INSERT INTO bucket.buckets (id, name, slug, description, owner_id, bucket_type, status, storage_backend,
         root_path, file_count, total_size_bytes, max_file_size, allowed_mime_types,
         auto_delete_after_days, enable_cdn, enable_versioning, enable_deduplication, metadata)
     VALUES (
