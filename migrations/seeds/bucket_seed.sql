@@ -59,25 +59,6 @@ BEGIN
         'updated_at', v_now
     );
 
-    -- Bersihir module bucket: all laundry service files
-    -- Path examples:
-    --   bersihir/Agent/{id}/photo-x4k.jpg
-    --   bersihir/OrderDelivery/{id}/proof-before-a2f.jpg
-    --   bersihir/Product/gallery/{id}/img-001-c3d.webp
-    --   bersihir/ProviderService/{id}/ktp-photo-b7m.jpg
-    INSERT INTO bucket.buckets (id, name, slug, description, owner_id, bucket_type, status, storage_backend,
-        root_path, file_count, total_size_bytes, max_file_size, allowed_mime_types,
-        auto_delete_after_days, enable_cdn, enable_versioning, enable_deduplication, metadata)
-    VALUES (
-        '45228f4f-1112-5540-b954-97faed77527f',
-        'Bersihir', 'bersihir',
-        'All files for the Bersihir laundry service module',
-        v_system_user_id, 'system', 'active', 'local',
-        '/bersihir', 0, 0, 26214400, -- 25MB max per file
-        ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'],
-        NULL, true, false, true, v_metadata
-    ) ON CONFLICT (slug) DO NOTHING;
-
     -- Sapiens module bucket: all user management files
     -- Path examples:
     --   sapiens/User/{id}/avatar-f9a.png
