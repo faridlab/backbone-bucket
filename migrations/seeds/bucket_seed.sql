@@ -53,6 +53,7 @@ DECLARE
     v_system_user_id UUID := '3ab63f4a-71d7-5138-8a65-5c8a6fe4a96c';
     v_now TEXT := to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
     v_metadata JSONB;
+    v_org_unit UUID;
 BEGIN
     v_metadata := jsonb_build_object(
         'created_at', v_now,
@@ -63,17 +64,33 @@ BEGIN
     -- Path examples:
     --   sapiens/User/{id}/avatar-f9a.png
     --   sapiens/Profile/{id}/cover-photo-d2e.webp
-    INSERT INTO bucket.buckets (id, name, slug, description, owner_id, bucket_type, status, storage_backend,
-        root_path, file_count, total_size_bytes, max_file_size, allowed_mime_types,
-        auto_delete_after_days, enable_cdn, enable_versioning, enable_deduplication, metadata)
-    VALUES (
-        '8ae8ed01-fff9-5178-825c-8ac1ec87a04b',
-        'Sapiens', 'sapiens',
-        'All files for the Sapiens user management module',
-        v_system_user_id, 'system', 'active', 'local',
-        '/sapiens', 0, 0, 10485760, -- 10MB max per file
-        ARRAY['image/jpeg', 'image/png', 'image/webp'],
-        NULL, true, false, true, v_metadata
-    ) ON CONFLICT (slug) DO NOTHING;
+    -- Tenancy (#611): buckets sit behind the org fence, so a seed row
+    -- needs the tenant's own company unit — derived here, since a seed run
+    -- carries no acting-unit GUC.
+    v_org_unit := (SELECT id FROM organization.org_units
+                    WHERE kind = 'company' ORDER BY id LIMIT 1);
+
+    -- One shared documents bucket PER COMPANY unit (#611): buckets sit
+    -- behind the org fence, and every member of the unit must see the
+    -- unit's own bucket. Deterministic id = uuid5(shared-documents, unit)
+    -- keeps re-runs and multi-company tenants idempotent. The FE resolves
+    -- its upload target as the first shared-or-system bucket in the list,
+    -- so the fence hands each employee their own company's bucket.
+    FOREACH v_org_unit IN ARRAY (
+        SELECT array_agg(id ORDER BY id) FROM organization.org_units WHERE kind = 'company'
+    ) LOOP
+        INSERT INTO bucket.buckets (id, name, slug, description, owner_id, bucket_type, status, storage_backend,
+            root_path, file_count, total_size_bytes, max_file_size, allowed_mime_types,
+            auto_delete_after_days, enable_cdn, enable_versioning, enable_deduplication, metadata, org_unit_id)
+        VALUES (
+            uuid_generate_v5('6ba7b810-9dad-11d1-80b4-00c04fd430c8'::uuid, 'shared-documents:' || v_org_unit::text),
+            'Shared documents', 'shared-documents',
+            'Shared employee documents: receipts, sick notes, evidence',
+            v_system_user_id, 'shared', 'active', 'local',
+            '/shared', 0, 0, 26214400, -- 25MB max per file
+            ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+            NULL, true, false, true, v_metadata, v_org_unit
+        ) ON CONFLICT DO NOTHING;
+    END LOOP;
 
 END $$;
