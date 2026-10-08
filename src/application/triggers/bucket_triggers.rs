@@ -341,4 +341,3 @@ pub fn bucket_trigger_registry() -> BucketTriggerRegistry {
         r.register(Arc::new(BucketOnEnterDeletedHandler::new()));
     })
 }
-

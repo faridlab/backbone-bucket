@@ -15,6 +15,7 @@
 //! - Workflow orchestrator
 
 #![recursion_limit = "1024"]
+#![allow(unused_imports)]
 
 // Generated modules
 pub mod domain;
@@ -22,8 +23,8 @@ pub mod infrastructure;
 pub mod application;
 pub mod presentation;
 pub mod seeders;
-
-// <<< CUSTOM - bucket-serving surface (see docs/serving.md)
+pub mod exports;
+// <<< CUSTOM MODULES
 pub mod error;
 pub mod storage;
 pub mod auth;
@@ -56,6 +57,7 @@ pub use presentation::http::{
     upload_router, UploadConfig, UploadContext, DEFAULT_CHUNK_BODY_LIMIT, DEFAULT_UPLOAD_BODY_LIMIT,
 };
 // END CUSTOM
+
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
 
@@ -120,22 +122,23 @@ use sqlx::PgPool;
 ///     .with_database(pool.clone())
 ///     .build()?;
 ///
-/// let router = bucket.routes();
+/// // Unguarded full CRUD (trusted/admin); compose a guarded router for production.
+/// let router = bucket.all_crud_routes();
 /// ```
 pub struct BucketModule {
-    pub access_log_service: Arc<AccessLogService>,
-    pub bucket_service: Arc<BucketService>,
-    pub content_hash_service: Arc<ContentHashService>,
-    pub conversion_job_service: Arc<ConversionJobService>,
-    pub file_comment_service: Arc<FileCommentService>,
-    pub file_lock_service: Arc<FileLockService>,
-    pub file_share_service: Arc<FileShareService>,
-    pub file_version_service: Arc<FileVersionService>,
-    pub processing_job_service: Arc<ProcessingJobService>,
-    pub stored_file_service: Arc<StoredFileService>,
-    pub thumbnail_service: Arc<ThumbnailService>,
-    pub upload_session_service: Arc<UploadSessionService>,
-    pub user_quota_service: Arc<UserQuotaService>,
+    pub(crate) access_log_service: Arc<AccessLogService>,
+    pub(crate) bucket_service: Arc<BucketService>,
+    pub(crate) content_hash_service: Arc<ContentHashService>,
+    pub(crate) conversion_job_service: Arc<ConversionJobService>,
+    pub(crate) file_comment_service: Arc<FileCommentService>,
+    pub(crate) file_lock_service: Arc<FileLockService>,
+    pub(crate) file_share_service: Arc<FileShareService>,
+    pub(crate) file_version_service: Arc<FileVersionService>,
+    pub(crate) processing_job_service: Arc<ProcessingJobService>,
+    pub(crate) stored_file_service: Arc<StoredFileService>,
+    pub(crate) thumbnail_service: Arc<ThumbnailService>,
+    pub(crate) upload_session_service: Arc<UploadSessionService>,
+    pub(crate) user_quota_service: Arc<UserQuotaService>,
     // <<< CUSTOM FIELDS
     // Custom business logic services
     pub locking_service: Arc<LockingService>,
@@ -164,10 +167,12 @@ impl BucketModule {
         BucketModuleBuilder::new()
     }
 
-    /// Configure HTTP routes for this module using Axum
-    ///
-    /// Returns an Axum Router with all 12 Backbone CRUD endpoints per entity.
-    pub fn routes(&self) -> Router {
+    /// Mount ALL generated CRUD endpoints (12 per entity) with NO domain
+    /// validation — the fully **unguarded** surface. A well-formed request can
+    /// create invalid rows or soft-delete a referenced master out from under its
+    /// dependents. Prefer a guarded composition (read + validated writes) for any
+    /// real deployment; use this only in trusted/admin/seeding contexts.
+    pub fn all_crud_routes(&self) -> Router {
         use presentation::http::{
             create_bucket_routes,
             create_content_hash_routes,
@@ -192,6 +197,48 @@ impl BucketModule {
             .merge(create_stored_file_routes(self.stored_file_service.clone()))
             .merge(create_upload_session_routes(self.upload_session_service.clone()))
             .merge(create_user_quota_routes(self.user_quota_service.clone()))
+    }
+
+    /// Deprecated alias for [`Self::all_crud_routes`]. `routes()` reads like
+    /// "the routes" but mounts UNVALIDATED generic CRUD on every entity — a naive
+    /// mount exposes unguarded writes. Compose a guarded router (read + validated
+    /// writes) for production, or call `all_crud_routes()` to opt into the full
+    /// unguarded surface explicitly.
+    #[deprecated(note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface")]
+    pub fn routes(&self) -> Router {
+        self.all_crud_routes()
+    }
+
+    /// Read-only routes for every entity (GET endpoints only) — the safe base.
+    ///
+    /// Generic mutation can't reach here, so this surface cannot bypass a
+    /// validated write service's invariants. Use this as the production base and
+    /// merge validated write routes (or a write service's HTTP layer) onto it.
+    pub fn readonly_routes(&self) -> Router {
+        use presentation::http::{
+            create_bucket_read_routes,
+            create_content_hash_read_routes,
+            create_conversion_job_read_routes,
+            create_file_comment_read_routes,
+            create_file_lock_read_routes,
+            create_file_share_read_routes,
+            create_processing_job_read_routes,
+            create_stored_file_read_routes,
+            create_upload_session_read_routes,
+            create_user_quota_read_routes,
+        };
+
+        Router::new()
+            .merge(create_bucket_read_routes(self.bucket_service.clone()))
+            .merge(create_content_hash_read_routes(self.content_hash_service.clone()))
+            .merge(create_conversion_job_read_routes(self.conversion_job_service.clone()))
+            .merge(create_file_comment_read_routes(self.file_comment_service.clone()))
+            .merge(create_file_lock_read_routes(self.file_lock_service.clone()))
+            .merge(create_file_share_read_routes(self.file_share_service.clone()))
+            .merge(create_processing_job_read_routes(self.processing_job_service.clone()))
+            .merge(create_stored_file_read_routes(self.stored_file_service.clone()))
+            .merge(create_upload_session_read_routes(self.upload_session_service.clone()))
+            .merge(create_user_quota_read_routes(self.user_quota_service.clone()))
     }
 
     // <<< CUSTOM METHODS
@@ -313,6 +360,7 @@ impl BucketModuleBuilder {
         // UserQuota service
         let user_quota_repository = Arc::new(UserQuotaRepository::new(db_pool.clone()));
         let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()));
+
         // <<< CUSTOM
         // Custom business logic services
         let locking_service = Arc::new(LockingService::new(

@@ -95,7 +95,7 @@ pub struct ContentHash {
 impl ContentHash {
     /// Create a builder for ContentHash
     pub fn builder() -> ContentHashBuilder {
-        ContentHashBuilder::default()
+        <ContentHashBuilder as Default>::default()
     }
 
     /// Create a new ContentHash with required fields
@@ -321,6 +321,8 @@ impl backbone_orm::EntityRepoMeta for ContentHash {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("storage_backend".to_string(), "storage_backend".to_string());
+        m.insert("first_uploaded_at".to_string(), "timestamptz".to_string());
+        m.insert("last_referenced_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -406,7 +408,7 @@ impl ContentHashBuilder {
             hash,
             size_bytes,
             storage_key,
-            storage_backend: self.storage_backend.unwrap_or(StorageBackend::default()),
+            storage_backend: self.storage_backend.unwrap_or_default(),
             reference_count: self.reference_count.unwrap_or(1),
             first_uploaded_at: self.first_uploaded_at.unwrap_or(Utc::now()),
             last_referenced_at: self.last_referenced_at.unwrap_or(Utc::now()),

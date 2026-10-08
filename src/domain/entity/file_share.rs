@@ -78,7 +78,7 @@ pub struct FileShare {
 impl FileShare {
     /// Create a builder for FileShare
     pub fn builder() -> FileShareBuilder {
-        FileShareBuilder::default()
+        <FileShareBuilder as Default>::default()
     }
 
     /// Create a new FileShare with required fields
@@ -203,7 +203,7 @@ impl FileShare {
     // State Machine
     // ==========================================================
 
-    /// Transition to a new state via the share status state machine.
+    /// Transition to a new state via the status state machine.
     ///
     /// Returns `Err` if the transition is not permitted from the current state.
     /// Use this method instead of assigning `self.status` directly.
@@ -253,9 +253,6 @@ impl FileShare {
                 }
                 "expires_at" => {
                     if let Ok(v) = serde_json::from_value(value) { self.expires_at = v; }
-                }
-                "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 "revoked_at" => {
                     if let Ok(v) = serde_json::from_value(value) { self.revoked_at = v; }
@@ -427,6 +424,8 @@ impl backbone_orm::EntityRepoMeta for FileShare {
         m.insert("share_type".to_string(), "share_type".to_string());
         m.insert("permission".to_string(), "share_permission".to_string());
         m.insert("status".to_string(), "share_status".to_string());
+        m.insert("expires_at".to_string(), "timestamptz".to_string());
+        m.insert("revoked_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -558,14 +557,14 @@ impl FileShareBuilder {
             file_id,
             owner_id,
             token,
-            share_type: self.share_type.unwrap_or(ShareType::default()),
-            permission: self.permission.unwrap_or(SharePermission::default()),
+            share_type: self.share_type.unwrap_or_default(),
+            permission: self.permission.unwrap_or_default(),
             shared_with,
             password_hash: self.password_hash,
             max_downloads: self.max_downloads,
             download_count: self.download_count.unwrap_or(0),
             expires_at: self.expires_at,
-            status: self.status.unwrap_or(ShareStatus::default()),
+            status: self.status.unwrap_or_default(),
             revoked_at: self.revoked_at,
             revoked_by: self.revoked_by,
             message: self.message,

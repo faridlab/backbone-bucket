@@ -74,7 +74,7 @@ pub struct Thumbnail {
 impl Thumbnail {
     /// Create a builder for Thumbnail
     pub fn builder() -> ThumbnailBuilder {
-        ThumbnailBuilder::default()
+        <ThumbnailBuilder as Default>::default()
     }
 
     /// Create a new Thumbnail with required fields
@@ -286,6 +286,8 @@ impl backbone_orm::EntityRepoMeta for Thumbnail {
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("file_id".to_string(), "uuid".to_string());
         m.insert("size".to_string(), "thumbnail_size".to_string());
+        m.insert("generated_at".to_string(), "timestamptz".to_string());
+        m.insert("cache_expires_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

@@ -294,4 +294,3 @@ pub fn file_lock_trigger_registry() -> FileLockTriggerRegistry {
         r.register(Arc::new(FileLockOnEnterReleasedHandler::new()));
     })
 }
-

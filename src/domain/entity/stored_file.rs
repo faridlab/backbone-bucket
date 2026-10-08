@@ -96,7 +96,7 @@ pub struct StoredFile {
 impl StoredFile {
     /// Create a builder for StoredFile
     pub fn builder() -> StoredFileBuilder {
-        StoredFileBuilder::default()
+        <StoredFileBuilder as Default>::default()
     }
 
     /// Create a new StoredFile with required fields
@@ -546,6 +546,8 @@ impl backbone_orm::EntityRepoMeta for StoredFile {
         m.insert("threat_level".to_string(), "threat_level".to_string());
         m.insert("processing_status".to_string(), "processing_status".to_string());
         m.insert("status".to_string(), "file_status".to_string());
+        m.insert("cdn_url_expires_at".to_string(), "timestamptz".to_string());
+        m.insert("last_accessed_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -829,7 +831,7 @@ impl StoredFileBuilder {
             owner_entity_id: self.owner_entity_id,
             field_name: self.field_name,
             sort_order: self.sort_order.unwrap_or(0),
-            status: self.status.unwrap_or(FileStatus::default()),
+            status: self.status.unwrap_or_default(),
             storage_key,
             version: self.version.unwrap_or(1),
             previous_version_id: self.previous_version_id,

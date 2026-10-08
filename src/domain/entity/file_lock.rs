@@ -95,7 +95,7 @@ pub struct FileLock {
 impl FileLock {
     /// Create a builder for FileLock
     pub fn builder() -> FileLockBuilder {
-        FileLockBuilder::default()
+        <FileLockBuilder as Default>::default()
     }
 
     /// Create a new FileLock with required fields
@@ -342,6 +342,9 @@ impl backbone_orm::EntityRepoMeta for FileLock {
         m.insert("file_id".to_string(), "uuid".to_string());
         m.insert("user_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "lock_status".to_string());
+        m.insert("locked_at".to_string(), "timestamptz".to_string());
+        m.insert("expires_at".to_string(), "timestamptz".to_string());
+        m.insert("refreshed_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -415,7 +418,7 @@ impl FileLockBuilder {
             locked_at: self.locked_at.unwrap_or(Utc::now()),
             expires_at,
             refreshed_at: self.refreshed_at,
-            status: self.status.unwrap_or(LockStatus::default()),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

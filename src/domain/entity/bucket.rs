@@ -80,7 +80,7 @@ pub struct Bucket {
 impl Bucket {
     /// Create a builder for Bucket
     pub fn builder() -> BucketBuilder {
-        BucketBuilder::default()
+        <BucketBuilder as Default>::default()
     }
 
     /// Create a new Bucket with required fields
@@ -514,9 +514,9 @@ impl BucketBuilder {
             slug,
             description: self.description,
             owner_id,
-            bucket_type: self.bucket_type.unwrap_or(BucketType::default()),
-            status: self.status.unwrap_or(BucketStatus::default()),
-            storage_backend: self.storage_backend.unwrap_or(StorageBackend::default()),
+            bucket_type: self.bucket_type.unwrap_or_default(),
+            status: self.status.unwrap_or_default(),
+            storage_backend: self.storage_backend.unwrap_or_default(),
             root_path,
             file_count: self.file_count.unwrap_or(0),
             total_size_bytes: self.total_size_bytes.unwrap_or(0),

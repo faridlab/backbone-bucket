@@ -492,4 +492,3 @@ pub fn user_quota_trigger_registry() -> UserQuotaTriggerRegistry {
         r.register(Arc::new(UserQuotaOnEnterExceededHandler::new()));
     })
 }
-

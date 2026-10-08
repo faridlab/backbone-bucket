@@ -8,7 +8,7 @@
 //! ## Usage from other modules
 //!
 //! ```text
-//! use bucket::exports::{AccessLogDto, BucketQueryService};
+//! use bucket::exports::{AccessLogDto};
 //! ```
 
 mod types;
@@ -66,9 +66,6 @@ pub use events::*;
 /// - `UserQuotaDto` - Data transfer object for UserQuota
 /// - `UserQuotaSummary` - Summary view of UserQuota
 /// - `UserQuotaId` - Type-safe ID wrapper
-///
-/// ## Public Services
-/// - `BucketQueryService` - Read-only queries
 ///
 /// ## Public Events
 /// - `AccessLogCreatedEvent` - Published when AccessLog is created

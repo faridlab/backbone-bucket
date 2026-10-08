@@ -401,4 +401,3 @@ pub fn processing_job_trigger_registry() -> ProcessingJobTriggerRegistry {
         r.register(Arc::new(ProcessingJobOnEnterCancelledHandler::new()));
     })
 }
-

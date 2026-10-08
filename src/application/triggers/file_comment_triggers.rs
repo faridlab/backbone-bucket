@@ -161,4 +161,3 @@ pub fn file_comment_trigger_registry() -> FileCommentTriggerRegistry {
         r.register(Arc::new(FileCommentAfterDeleteHandler3::new()));
     })
 }
-

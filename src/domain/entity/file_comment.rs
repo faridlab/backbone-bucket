@@ -99,7 +99,7 @@ pub struct FileComment {
 impl FileComment {
     /// Create a builder for FileComment
     pub fn builder() -> FileCommentBuilder {
-        FileCommentBuilder::default()
+        <FileCommentBuilder as Default>::default()
     }
 
     /// Create a new FileComment with required fields
@@ -377,6 +377,7 @@ impl backbone_orm::EntityRepoMeta for FileComment {
         m.insert("user_id".to_string(), "uuid".to_string());
         m.insert("parent_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "comment_status".to_string());
+        m.insert("resolved_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -483,7 +484,7 @@ impl FileCommentBuilder {
             resolved: self.resolved.unwrap_or(false),
             resolved_by: self.resolved_by,
             resolved_at: self.resolved_at,
-            status: self.status.unwrap_or(CommentStatus::default()),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

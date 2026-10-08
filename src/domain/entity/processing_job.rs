@@ -101,7 +101,7 @@ pub struct ProcessingJob {
 impl ProcessingJob {
     /// Create a builder for ProcessingJob
     pub fn builder() -> ProcessingJobBuilder {
-        ProcessingJobBuilder::default()
+        <ProcessingJobBuilder as Default>::default()
     }
 
     /// Create a new ProcessingJob with required fields
@@ -395,6 +395,8 @@ impl backbone_orm::EntityRepoMeta for ProcessingJob {
         m.insert("file_id".to_string(), "uuid".to_string());
         m.insert("job_type".to_string(), "processing_job_type".to_string());
         m.insert("status".to_string(), "job_status".to_string());
+        m.insert("started_at".to_string(), "timestamptz".to_string());
+        m.insert("completed_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -499,7 +501,7 @@ impl ProcessingJobBuilder {
             id: Uuid::new_v4(),
             file_id,
             job_type,
-            status: self.status.unwrap_or(JobStatus::default()),
+            status: self.status.unwrap_or_default(),
             priority: self.priority.unwrap_or(0),
             input_data: self.input_data,
             result_data: self.result_data,

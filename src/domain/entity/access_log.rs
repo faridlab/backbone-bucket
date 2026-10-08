@@ -76,7 +76,7 @@ pub struct AccessLog {
 impl AccessLog {
     /// Create a builder for AccessLog
     pub fn builder() -> AccessLogBuilder {
-        AccessLogBuilder::default()
+        <AccessLogBuilder as Default>::default()
     }
 
     /// Create a new AccessLog with required fields
@@ -347,6 +347,7 @@ impl backbone_orm::EntityRepoMeta for AccessLog {
         m.insert("user_id".to_string(), "uuid".to_string());
         m.insert("share_id".to_string(), "uuid".to_string());
         m.insert("action".to_string(), "access_action".to_string());
+        m.insert("accessed_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

@@ -1,6 +1,6 @@
 [package]
 name = "backbone-bucket"
-version = "0.1.50"
+version = "0.2.0"
 edition = "2021"
 description = "Bucket Bounded Context: File Storage Module for Backbone Framework"
 license = "MIT OR Apache-2.0"
@@ -12,10 +12,10 @@ path = "src/lib.rs"
 
 [dependencies]
 # Backbone Framework CORE dependencies
-backbone-core = { version = "2.7.35", features = ["postgres"] }
-backbone-orm = { version = "2.7.35" }
-backbone-auth = { version = "2.7.35" }
-backbone-messaging = { version = "2.7.35" }
+backbone-core = { version = "3.0.0", features = ["postgres"] }
+backbone-orm = { version = "3.0.0" }
+backbone-auth = { version = "3.0.0" }
+backbone-messaging = { version = "3.0.0" }
 
 # Core dependencies
 tokio = { version = "1.0", features = ["full"] }

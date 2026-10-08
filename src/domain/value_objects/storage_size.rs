@@ -24,7 +24,7 @@ impl StorageSize {
 
     /// Create a builder for StorageSize
     pub fn builder() -> StorageSizeBuilder {
-        StorageSizeBuilder::default()
+        <StorageSizeBuilder as Default>::default()
     }
 
 }

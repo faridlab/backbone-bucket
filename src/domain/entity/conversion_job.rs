@@ -98,7 +98,7 @@ pub struct ConversionJob {
 impl ConversionJob {
     /// Create a builder for ConversionJob
     pub fn builder() -> ConversionJobBuilder {
-        ConversionJobBuilder::default()
+        <ConversionJobBuilder as Default>::default()
     }
 
     /// Create a new ConversionJob with required fields
@@ -374,6 +374,8 @@ impl backbone_orm::EntityRepoMeta for ConversionJob {
         m.insert("source_file_id".to_string(), "uuid".to_string());
         m.insert("result_file_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "conversion_status".to_string());
+        m.insert("started_at".to_string(), "timestamptz".to_string());
+        m.insert("completed_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -464,7 +466,7 @@ impl ConversionJobBuilder {
             id: Uuid::new_v4(),
             source_file_id,
             target_format,
-            status: self.status.unwrap_or(ConversionStatus::default()),
+            status: self.status.unwrap_or_default(),
             conversion_options: self.conversion_options,
             result_file_id: self.result_file_id,
             progress: self.progress.unwrap_or(0),

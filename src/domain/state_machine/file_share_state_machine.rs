@@ -11,7 +11,7 @@ use std::str::FromStr;
 pub enum FileShareState {
     /// Initial state
     Active,
-    /// Final state; deactivated without being revoked, expired, or exhausted
+    /// Final state
     Inactive,
     /// Final state
     Expired,
@@ -292,8 +292,8 @@ mod tests {
 
     #[test]
     fn test_invalid_transition() {
-        let mut sm = FileShareStateMachine::from_state(FileShareState::Expired);
-        // Expire is not valid from Expired state
+        let mut sm = FileShareStateMachine::from_state(FileShareState::Inactive);
+        // Expire is not valid from Inactive state
         let result = sm.transition(FileShareTransition::Expire);
         assert!(result.is_err());
     }

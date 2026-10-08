@@ -459,6 +459,7 @@ pub struct FileShareDto {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileShareSummary {
     pub id: FileShareId,
+    pub status: ShareStatus,
 }
 
 /// Reference to FileShare for foreign key relationships
@@ -530,6 +531,7 @@ pub struct FileVersionDto {
 pub struct FileVersionSummary {
     pub id: FileVersionId,
     pub name: String,
+    pub status: FileVersionStatus,
 }
 
 /// Reference to FileVersion for foreign key relationships

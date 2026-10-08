@@ -424,4 +424,3 @@ pub fn upload_session_trigger_registry() -> UploadSessionTriggerRegistry {
         r.register(Arc::new(UploadSessionOnEnterExpiredHandler::new()));
     })
 }
-

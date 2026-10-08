@@ -402,4 +402,3 @@ pub fn conversion_job_trigger_registry() -> ConversionJobTriggerRegistry {
         r.register(Arc::new(ConversionJobOnEnterCancelledHandler::new()));
     })
 }
-

@@ -101,7 +101,7 @@ pub struct UserQuota {
 impl UserQuota {
     /// Create a builder for UserQuota
     pub fn builder() -> UserQuotaBuilder {
-        UserQuotaBuilder::default()
+        <UserQuotaBuilder as Default>::default()
     }
 
     /// Create a new UserQuota with required fields
@@ -399,6 +399,8 @@ impl backbone_orm::EntityRepoMeta for UserQuota {
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("user_id".to_string(), "uuid".to_string());
         m.insert("quota_status".to_string(), "quota_status".to_string());
+        m.insert("last_warning_sent_at".to_string(), "timestamptz".to_string());
+        m.insert("peak_usage_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -514,8 +516,8 @@ impl UserQuotaBuilder {
             file_count: self.file_count.unwrap_or(0),
             max_file_size: self.max_file_size,
             max_file_count: self.max_file_count,
-            tier: self.tier.unwrap_or(Default::default()),
-            quota_status: self.quota_status.unwrap_or(QuotaStatus::default()),
+            tier: self.tier.unwrap_or_default(),
+            quota_status: self.quota_status.unwrap_or_default(),
             warning_threshold_percent: self.warning_threshold_percent.unwrap_or(80),
             last_warning_sent_at: self.last_warning_sent_at,
             peak_usage_bytes: self.peak_usage_bytes.unwrap_or(0),

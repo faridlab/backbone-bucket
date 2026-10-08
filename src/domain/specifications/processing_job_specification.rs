@@ -30,11 +30,4 @@ pub use backbone_core::{AndSpecification, OrSpecification, NotSpecification};
 //         todo!()
 //     }
 // }
-// <<< CUSTOM SPECIFICATIONS START >>>
-// Add your custom specifications here
-// pub struct ProcessingJobHasValidEmailSpec;
-// impl ProcessingJobSpecification for ProcessingJobHasValidEmailSpec {
-//     fn is_satisfied_by(&self, entity: &ProcessingJob) -> bool {
-//         entity.email.contains('@')
-// END CUSTOM
 // END CUSTOM

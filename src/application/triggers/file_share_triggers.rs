@@ -267,6 +267,26 @@ impl TriggerHandler<FileShareTriggerContext, FileShareTriggerEvent> for FileShar
     }
 }
 
+/// Handler for entering inactive state
+pub struct FileShareOnEnterInactiveHandler {}
+
+impl FileShareOnEnterInactiveHandler {
+    pub fn new() -> Self { Self {} }
+}
+
+#[async_trait]
+impl TriggerHandler<FileShareTriggerContext, FileShareTriggerEvent> for FileShareOnEnterInactiveHandler {
+    fn events(&self) -> Vec<FileShareTriggerEvent> {
+        vec![TriggerEvent::OnEnterState("inactive".to_string())]
+    }
+
+    async fn handle(&self, ctx: &FileShareTriggerContext) -> anyhow::Result<()> {
+        let _ = &ctx; // Mark as used to avoid unused warning
+        tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
+        Ok(())
+    }
+}
+
 /// Handler for entering expired state
 pub struct FileShareOnEnterExpiredHandler {}
 
@@ -362,9 +382,9 @@ pub fn file_share_trigger_registry() -> FileShareTriggerRegistry {
         r.register(Arc::new(FileShareAfterCreateHandler4::new()));
         r.register(Arc::new(FileShareAfterDeleteHandler5::new()));
         r.register(Arc::new(FileShareOnEnterActiveHandler::new()));
+        r.register(Arc::new(FileShareOnEnterInactiveHandler::new()));
         r.register(Arc::new(FileShareOnEnterExpiredHandler::new()));
         r.register(Arc::new(FileShareOnEnterExhaustedHandler::new()));
         r.register(Arc::new(FileShareOnEnterRevokedHandler::new()));
     })
 }
-

@@ -104,7 +104,7 @@ pub struct UploadSession {
 impl UploadSession {
     /// Create a builder for UploadSession
     pub fn builder() -> UploadSessionBuilder {
-        UploadSessionBuilder::default()
+        <UploadSessionBuilder as Default>::default()
     }
 
     /// Create a new UploadSession with required fields
@@ -436,6 +436,7 @@ impl backbone_orm::EntityRepoMeta for UploadSession {
         m.insert("user_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "upload_status".to_string());
         m.insert("storage_backend".to_string(), "storage_backend".to_string());
+        m.insert("expires_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -575,8 +576,8 @@ impl UploadSessionBuilder {
             chunk_size,
             total_chunks,
             uploaded_chunks: self.uploaded_chunks.unwrap_or(0),
-            status: self.status.unwrap_or(UploadStatus::default()),
-            storage_backend: self.storage_backend.unwrap_or(StorageBackend::default()),
+            status: self.status.unwrap_or_default(),
+            storage_backend: self.storage_backend.unwrap_or_default(),
             completed_parts,
             part_etags: self.part_etags,
             expires_at,

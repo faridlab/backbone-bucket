@@ -7,7 +7,21 @@
 pub mod error;
 pub use error::{ServiceError, ServiceResult};
 
-// <<< CUSTOM - Custom business logic services
+pub mod access_log_service;
+pub mod bucket_service;
+pub mod content_hash_service;
+pub mod conversion_job_service;
+pub mod file_comment_service;
+pub mod file_lock_service;
+pub mod file_share_service;
+pub mod file_version_service;
+pub mod processing_job_service;
+pub mod stored_file_service;
+pub mod thumbnail_service;
+pub mod upload_session_service;
+pub mod user_quota_service;
+
+// <<< CUSTOM
 mod locking_service;
 mod deduplication_service;
 mod multipart_upload_service;
@@ -26,22 +40,6 @@ pub use cdn_service::CdnService;
 pub use video_thumbnail_service::VideoThumbnailService;
 pub use document_preview_service::DocumentPreviewService;
 pub use file_service::{FileMeta, FileService};
-// END CUSTOM
-pub mod access_log_service;
-pub mod bucket_service;
-pub mod content_hash_service;
-pub mod conversion_job_service;
-pub mod file_comment_service;
-pub mod file_lock_service;
-pub mod file_share_service;
-pub mod file_version_service;
-pub mod processing_job_service;
-pub mod stored_file_service;
-pub mod thumbnail_service;
-pub mod upload_session_service;
-pub mod user_quota_service;
-
-// <<< CUSTOM
 // END CUSTOM
 
 pub use access_log_service::AccessLogService;

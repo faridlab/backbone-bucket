@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use uuid::Uuid;
 
-use crate::domain::entity::{FileVersion, VersionType, FileVersionStatus};
+use crate::domain::entity::{FileVersion, FileVersionStatus, VersionType};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]

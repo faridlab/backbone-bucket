@@ -30,11 +30,4 @@ pub use backbone_core::{AndSpecification, OrSpecification, NotSpecification};
 //         todo!()
 //     }
 // }
-// <<< CUSTOM SPECIFICATIONS START >>>
-// Add your custom specifications here
-// pub struct ThumbnailHasValidEmailSpec;
-// impl ThumbnailSpecification for ThumbnailHasValidEmailSpec {
-//     fn is_satisfied_by(&self, entity: &Thumbnail) -> bool {
-//         entity.email.contains('@')
-// END CUSTOM
 // END CUSTOM

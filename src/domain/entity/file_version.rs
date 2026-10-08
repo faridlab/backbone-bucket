@@ -76,11 +76,11 @@ pub struct FileVersion {
 impl FileVersion {
     /// Create a builder for FileVersion
     pub fn builder() -> FileVersionBuilder {
-        FileVersionBuilder::default()
+        <FileVersionBuilder as Default>::default()
     }
 
     /// Create a new FileVersion with required fields
-    pub fn new(file_id: Uuid, version_number: i32, version_type: VersionType, storage_key: String, storage_backend: String, name: String, mime_type: String, created_by_id: Uuid, is_current: bool, size_bytes: i64) -> Self {
+    pub fn new(file_id: Uuid, version_number: i32, version_type: VersionType, storage_key: String, storage_backend: String, name: String, mime_type: String, created_by_id: Uuid, is_current: bool, status: FileVersionStatus, size_bytes: i64) -> Self {
         Self {
             id: Uuid::new_v4(),
             file_id,
@@ -97,7 +97,7 @@ impl FileVersion {
             is_current,
             restored_from_id: None,
             expires_at: None,
-            status: FileVersionStatus::default(),
+            status,
             deleted_at: None,
             size_bytes,
             metadata: AuditMetadata::default(),
@@ -152,6 +152,11 @@ impl FileVersion {
     /// Get who deleted this entity
     pub fn deleted_by(&self) -> Option<&Uuid> {
         self.metadata.deleted_by.as_ref()
+    }
+
+    /// Get the current status
+    pub fn status(&self) -> &FileVersionStatus {
+        &self.status
     }
 
 
@@ -267,6 +272,9 @@ impl super::Entity for FileVersion {
 }
 
 impl backbone_core::PersistentEntity for FileVersion {
+    fn write_protected_fields() -> &'static [&'static str] {
+        &["deleted_at"]
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }
@@ -304,6 +312,8 @@ impl backbone_orm::EntityRepoMeta for FileVersion {
         m.insert("restored_from_id".to_string(), "uuid".to_string());
         m.insert("version_type".to_string(), "version_type".to_string());
         m.insert("status".to_string(), "file_version_status".to_string());
+        m.insert("expires_at".to_string(), "timestamptz".to_string());
+        m.insert("deleted_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -464,7 +474,7 @@ impl FileVersionBuilder {
             is_current: self.is_current.unwrap_or(false),
             restored_from_id: self.restored_from_id,
             expires_at: self.expires_at,
-            status: self.status.unwrap_or(FileVersionStatus::default()),
+            status: self.status.unwrap_or_default(),
             deleted_at: None,
             size_bytes,
             metadata: AuditMetadata::default(),

@@ -438,4 +438,3 @@ pub fn stored_file_trigger_registry() -> StoredFileTriggerRegistry {
         r.register(Arc::new(StoredFileOnEnterPurgedHandler::new()));
     })
 }
-
