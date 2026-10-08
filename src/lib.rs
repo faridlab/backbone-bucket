@@ -136,7 +136,8 @@ pub struct BucketModule {
     pub thumbnail_service: Arc<ThumbnailService>,
     pub upload_session_service: Arc<UploadSessionService>,
     pub user_quota_service: Arc<UserQuotaService>,
-    // <<< CUSTOM - Custom business logic services
+    // <<< CUSTOM FIELDS
+    // Custom business logic services
     pub locking_service: Arc<LockingService>,
     pub deduplication_service: Arc<DeduplicationService>,
     pub multipart_upload_service: Arc<MultipartUploadService>,
@@ -192,12 +193,30 @@ impl BucketModule {
             .merge(create_upload_session_routes(self.upload_session_service.clone()))
             .merge(create_user_quota_routes(self.user_quota_service.clone()))
     }
+
+    // <<< CUSTOM METHODS
+    /// What [`upload_router`] needs, built from this module's own services.
+    ///
+    /// `None` until the module has both a storage backend and a config (the
+    /// file service is wired only then). A host mounts uploads with
+    /// `upload_router::<I>(bucket.upload_context()?, config)` and never holds
+    /// the generic bucket service itself.
+    pub fn upload_context(&self) -> Option<UploadContext> {
+        Some(UploadContext {
+            file_service: self.file_service.clone()?,
+            multipart_service: self.multipart_upload_service.clone(),
+            bucket_service: self.bucket_service.clone(),
+            storage: self.storage.clone()?,
+        })
+    }
+    // END CUSTOM
 }
 
 /// Builder for BucketModule
 pub struct BucketModuleBuilder {
     db_pool: Option<PgPool>,
-    // <<< CUSTOM - bucket-serving fields (see docs/serving.md)
+    // <<< CUSTOM BUILDER FIELDS
+    // bucket-serving fields (see docs/serving.md)
     storage: Option<Arc<dyn ObjectStorage>>,
     bucket_config: Option<BucketConfig>,
     // END CUSTOM
@@ -208,7 +227,7 @@ impl BucketModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
-            // <<< CUSTOM
+            // <<< CUSTOM BUILDER DEFAULTS
             storage: None,
             bucket_config: None,
             // END CUSTOM
@@ -221,7 +240,8 @@ impl BucketModuleBuilder {
         self
     }
 
-    // <<< CUSTOM - bucket-serving builder methods (see docs/serving.md)
+    // <<< CUSTOM - custom builder methods
+    // Bucket-serving builder methods (see docs/serving.md)
 
     /// Attach the bucket-module runtime config (storage + serving).
     pub fn with_config(mut self, config: BucketConfig) -> Self {
@@ -293,7 +313,8 @@ impl BucketModuleBuilder {
         // UserQuota service
         let user_quota_repository = Arc::new(UserQuotaRepository::new(db_pool.clone()));
         let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()));
-        // <<< CUSTOM - Custom business logic services
+        // <<< CUSTOM
+        // Custom business logic services
         let locking_service = Arc::new(LockingService::new(
             file_lock_repository, stored_file_repository.clone(),
         ));
@@ -317,7 +338,7 @@ impl BucketModuleBuilder {
             processing_job_repository, thumbnail_repository, stored_file_repository.clone(),
         ));
 
-        // <<< CUSTOM - bucket-serving wiring (see docs/serving.md)
+        // Bucket-serving wiring (see docs/serving.md)
         let bucket_config = self.bucket_config.map(Arc::new);
         let storage = self.storage;
         let file_service = match (&storage, &bucket_config) {
