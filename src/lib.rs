@@ -126,6 +126,7 @@ use sqlx::PgPool;
 /// let router = bucket.all_crud_routes();
 /// ```
 pub struct BucketModule {
+    #[allow(dead_code)]
     pub(crate) access_log_service: Arc<AccessLogService>,
     pub(crate) bucket_service: Arc<BucketService>,
     pub(crate) content_hash_service: Arc<ContentHashService>,
@@ -133,9 +134,11 @@ pub struct BucketModule {
     pub(crate) file_comment_service: Arc<FileCommentService>,
     pub(crate) file_lock_service: Arc<FileLockService>,
     pub(crate) file_share_service: Arc<FileShareService>,
+    #[allow(dead_code)]
     pub(crate) file_version_service: Arc<FileVersionService>,
     pub(crate) processing_job_service: Arc<ProcessingJobService>,
     pub(crate) stored_file_service: Arc<StoredFileService>,
+    #[allow(dead_code)]
     pub(crate) thumbnail_service: Arc<ThumbnailService>,
     pub(crate) upload_session_service: Arc<UploadSessionService>,
     pub(crate) user_quota_service: Arc<UserQuotaService>,

@@ -18,6 +18,9 @@ use crate::infrastructure::persistence::StoredFileRepository;
 /// Service for content-based file deduplication.
 pub struct DeduplicationService {
     hash_repo: Arc<ContentHashRepository>,
+    // Read once `link_file_to_hash` is implemented: every method below past the
+    // hash lookup is still a stub that answers "not yet implemented".
+    #[allow(dead_code)]
     file_repo: Arc<StoredFileRepository>,
 }
 

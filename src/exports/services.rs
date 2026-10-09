@@ -148,6 +148,9 @@ pub trait BucketQueryService: Send + Sync {
 
 /// Default implementation of BucketQueryService
 pub struct BucketQueryServiceImpl<R> {
+    // A legacy export the generator no longer emits. It is public, so it stays until
+    // the next breaking release; nothing reads its repository.
+    #[allow(dead_code)]
     repository: Arc<R>,
 }
 
