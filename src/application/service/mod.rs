@@ -23,7 +23,6 @@ pub mod user_quota_service;
 
 // <<< CUSTOM
 mod locking_service;
-mod deduplication_service;
 mod multipart_upload_service;
 mod conversion_service;
 mod cdn_service;
@@ -32,7 +31,6 @@ mod document_preview_service;
 mod file_service;
 
 pub use locking_service::LockingService;
-pub use deduplication_service::DeduplicationService;
 pub use multipart_upload_service::MultipartUploadService;
 pub use conversion_service::ConversionService;
 #[allow(deprecated)]

@@ -90,7 +90,6 @@ pub use application::service::UserQuotaService;
 
 // <<< CUSTOM - Custom service re-exports
 pub use application::service::LockingService;
-pub use application::service::DeduplicationService;
 pub use application::service::MultipartUploadService;
 pub use application::service::ConversionService;
 #[allow(deprecated)]
@@ -145,7 +144,6 @@ pub struct BucketModule {
     // <<< CUSTOM FIELDS
     // Custom business logic services
     pub locking_service: Arc<LockingService>,
-    pub deduplication_service: Arc<DeduplicationService>,
     pub multipart_upload_service: Arc<MultipartUploadService>,
     pub conversion_service: Arc<ConversionService>,
     #[allow(deprecated)]
@@ -369,9 +367,6 @@ impl BucketModuleBuilder {
         let locking_service = Arc::new(LockingService::new(
             file_lock_repository, stored_file_repository.clone(),
         ));
-        let deduplication_service = Arc::new(DeduplicationService::new(
-            content_hash_repository, stored_file_repository.clone(),
-        ));
         let multipart_upload_service = Arc::new(MultipartUploadService::new(
             upload_session_repository, bucket_repository.clone(), user_quota_repository,
         ));
@@ -418,7 +413,6 @@ impl BucketModuleBuilder {
             user_quota_service,
             // <<< CUSTOM
             locking_service,
-            deduplication_service,
             multipart_upload_service,
             conversion_service,
             cdn_service,
