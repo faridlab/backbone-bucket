@@ -22,7 +22,7 @@ models:
       # Share identification
       token:
         type: string
-        attributes: ["@unique", "@required", "@min(32)", "@max(64)"]
+        attributes: ["@unique", "@required", "@min(32)", "@max(64)", "@not_secret"]
         description: "Unique share token for URL"
 
       # Share type and permissions
@@ -42,6 +42,7 @@ models:
       # Security
       password_hash:
         type: string?
+        attributes: ["@sensitive"]
         description: "Optional password protection (bcrypt/argon2 hash)"
 
       # Limits

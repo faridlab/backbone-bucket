@@ -353,6 +353,12 @@ impl backbone_orm::EntityRepoMeta for AccessLog {
     fn search_fields() -> &'static [&'static str] {
         &[]
     }
+    fn relation_secret_fields(relation: &str) -> &'static [&'static str] {
+        match relation {
+            "share" => &["passwordHash"],
+            _ => &[],
+        }
+    }
     fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
         &[("file", "stored_files", "fileId"), ("bucket", "buckets", "bucketId"), ("share", "file_shares", "shareId")]
     }

@@ -431,6 +431,9 @@ impl backbone_orm::EntityRepoMeta for FileShare {
     fn search_fields() -> &'static [&'static str] {
         &["token"]
     }
+    fn secret_fields() -> &'static [&'static str] {
+        &["passwordHash"]
+    }
     fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
         &[("file", "stored_files", "fileId")]
     }
