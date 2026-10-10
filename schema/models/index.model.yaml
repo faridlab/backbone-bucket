@@ -65,6 +65,9 @@ config:
   audit: true
   default_timestamps: true
   generators:
+    # Off-by-default targets this module's released API still carries; it keeps
+    # them until its next breaking release.
+    opt_in: [seeder, specification, trigger]
     # Hook triggers written before only set and emit compiled: their problems are
     # warnings, not errors, until the declarations are rewritten.
     legacy_triggers: true
