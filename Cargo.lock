@@ -830,6 +830,7 @@ name = "backbone-bucket"
 version = "0.3.1"
 dependencies = [
  "anyhow",
+ "argon2",
  "async-graphql",
  "async-trait",
  "aws-config",

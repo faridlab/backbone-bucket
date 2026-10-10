@@ -94,8 +94,6 @@ pub struct UpdateFileShareDto {
     pub permission: SharePermission,
     #[serde(alias = "shared_with")]
     pub shared_with: Vec<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "password_hash")]
-    pub password_hash: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_downloads")]
     pub max_downloads: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
@@ -141,8 +139,6 @@ pub struct PatchFileShareDto {
     pub permission: Option<SharePermission>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "shared_with")]
     pub shared_with: Option<Vec<Uuid>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "password_hash")]
-    pub password_hash: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "max_downloads")]
     pub max_downloads: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
@@ -163,7 +159,7 @@ pub struct PatchFileShareDto {
 impl PatchFileShareDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.file_id.is_some() || self.owner_id.is_some() || self.token.is_some() || self.share_type.is_some() || self.permission.is_some() || self.shared_with.is_some() || self.password_hash.is_some() || self.max_downloads.is_some() || self.download_count.is_some() || self.expires_at.is_some() || self.status.is_some() || self.revoked_at.is_some() || self.revoked_by.is_some() || self.message.is_some()
+        self.file_id.is_some() || self.owner_id.is_some() || self.token.is_some() || self.share_type.is_some() || self.permission.is_some() || self.shared_with.is_some() || self.max_downloads.is_some() || self.download_count.is_some() || self.expires_at.is_some() || self.status.is_some() || self.revoked_at.is_some() || self.revoked_by.is_some() || self.message.is_some()
     }
 }
 
@@ -362,7 +358,6 @@ impl backbone_core::ApplyUpdateDto<UpdateFileShareDto> for FileShare {
         self.share_type = dto.share_type;
         self.permission = dto.permission;
         self.shared_with = dto.shared_with;
-        self.password_hash = dto.password_hash;
         self.max_downloads = dto.max_downloads;
         self.download_count = dto.download_count;
         self.expires_at = dto.expires_at;

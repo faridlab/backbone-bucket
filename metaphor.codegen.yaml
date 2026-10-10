@@ -169,6 +169,7 @@ user_owned:
   - "src/presentation/http/auth/upload_session_auth.rs"
   - "src/presentation/http/auth/user_quota_auth.rs"
   - "src/presentation/http/dto/mod.rs"
+  - "src/presentation/http/file_share_password.rs"
   - "src/presentation/http/serving.rs"
   - "src/presentation/http/upload.rs"
   - "src/presentation/middleware/mod.rs"

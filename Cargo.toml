@@ -71,6 +71,7 @@ image = "0.24"
 # HTTP Framework (Axum)
 axum = { version = "0.7", features = ["macros", "multipart"] }
 tower = "0.4"
+argon2 = "0.5"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
 # Configuration
@@ -110,6 +111,7 @@ test-utils = ["dep:dashmap"]
 tonic-build = "0.12"
 
 [dev-dependencies]
+tower = { version = "0.4", features = ["util"] }
 tempfile = "3.0"
 tokio-test = "0.4"
 mockall = "0.12"

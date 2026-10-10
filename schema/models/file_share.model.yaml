@@ -42,8 +42,8 @@ models:
       # Security
       password_hash:
         type: string?
-        attributes: ["@sensitive"]
-        description: "Optional password protection (bcrypt/argon2 hash)"
+        attributes: ["@sensitive", "@immutable"]
+        description: "Optional password protection: an argon2 hash, set only through the share-password verb"
 
       # Limits
       max_downloads:

@@ -387,6 +387,9 @@ impl super::Entity for FileShare {
 }
 
 impl backbone_core::PersistentEntity for FileShare {
+    fn write_protected_fields() -> &'static [&'static str] {
+        &["password_hash"]
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

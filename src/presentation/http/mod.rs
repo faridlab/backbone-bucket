@@ -19,6 +19,7 @@ pub mod user_quota_handler;
 // <<< CUSTOM
 #[cfg(feature = "auth")]
 pub mod auth;
+pub mod file_share_password;
 pub mod serving;
 pub mod upload;
 // END CUSTOM
