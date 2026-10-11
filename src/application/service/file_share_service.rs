@@ -76,6 +76,10 @@ impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
         if (create) && !r::holds(&r::or(r::ne(r::field(row, "share_type"), r::text("user")), r::and(r::is_not_null(r::field(row, "shared_with")), r::gt(r::length(r::field(row, "shared_with")), r::Val::Num(0.0_f64))))) {
             shadow.push(Violation::new("share_type", "missing_recipients", "User shares must specify recipients"));
         }
+        // `cannot_modify_inactive` (file_share.hook.yaml:107)
+        if (update) && !r::holds(&r::or(r::or(r::eq(r::field(row, "status"), r::text("active")), r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "owner_id"))), r::has_role(ctx.actor.as_deref(), "admin").await)) {
+            shadow.push(Violation::new("status", "share_inactive", "Cannot modify inactive shares"));
+        }
         GuardOutcome { refuse: Vec::new(), shadow }
     }
 }

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [0.4.3] - 2026-10-11
+
+### Added
+
+- 2 role checks (inactive shares and quarantined files are for admins) check writes in shadow. A
+  role check asks the roles source the composing service installs; a delete guard counts the rows
+  still referencing the row on the request's own connection. Requires backbone-core 3.6.
+
 ## [0.4.2] - 2026-10-11
 
 ### Added

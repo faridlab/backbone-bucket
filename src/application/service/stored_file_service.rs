@@ -75,6 +75,10 @@ impl backbone_core::write_guard::WriteGuard<StoredFile> for StoredFileRowRules {
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("purged"))) {
             shadow.push(Violation::new("status", "file_purged", "Cannot update purged files"));
         }
+        // `quarantine_admin_only` (stored_file.hook.yaml:199)
+        if (update) && !r::holds(&r::or(r::ne(r::field(row, "status"), r::text("quarantined")), r::has_role(ctx.actor.as_deref(), "admin").await)) {
+            shadow.push(Violation::new("status", "quarantine_restricted", "Only admins can modify quarantined files"));
+        }
         GuardOutcome { refuse: Vec::new(), shadow }
     }
 }
