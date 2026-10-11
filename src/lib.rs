@@ -25,38 +25,17 @@ pub mod presentation;
 pub mod seeders;
 pub mod exports;
 // <<< CUSTOM MODULES
-pub mod error;
-pub mod storage;
-pub mod auth;
-pub mod config;
-
-// ─── Essential (every consumer wires these) ─────────────────────────────
-pub use error::{BucketError, BucketResult};
-pub use config::{BucketConfig, ConfigEnvError, S3Config, ServingConfig, ServingMode, StorageConfig};
-
-// ─── Storage backends ───────────────────────────────────────────────────
-// `ObjectStorage` is the boundary trait. `LocalStorage` ships always;
-// `S3Storage` is gated on the `s3` feature; `InMemoryStorage` on `test-utils`.
-pub use storage::{ObjectMeta, ObjectStorage, LocalStorage};
-#[cfg(feature = "s3")]
-pub use storage::S3Storage;
-#[cfg(feature = "test-utils")]
-pub use storage::InMemoryStorage;
-
-// ─── Auth slots (consumer-implemented) ──────────────────────────────────
-pub use auth::{
-    ArcAuthzPolicy, AuthExtractor, AuthzDecision, AuthzPolicy, DefaultOwnerOnlyPolicy, HasOwnerId,
-};
-
-// ─── File operations (single-shot programmatic API) ─────────────────────
-pub use application::service::{FileMeta, FileService};
-
-// ─── HTTP surfaces (serving + multipart upload) ─────────────────────────
-pub use presentation::http::{lookup_by_key as lookup_file_by_key, serving_router, ServingContext};
-pub use presentation::http::{
-    upload_router, UploadConfig, UploadContext, DEFAULT_CHUNK_BODY_LIMIT, DEFAULT_UPLOAD_BODY_LIMIT,
-};
 // END CUSTOM
+
+// The module's extension (hand-written; ADR-0031).
+#[path = "lib.ext.rs"]
+mod lib_ext;
+pub use lib_ext::*;
+/// This crate's module and builder under fixed names, for the extension's `impl` blocks.
+#[allow(dead_code)]
+pub(crate) type ThisModule = BucketModule;
+#[allow(dead_code)]
+pub(crate) type ThisModuleBuilder = BucketModuleBuilder;
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -88,17 +67,6 @@ pub use application::service::ThumbnailService;
 pub use application::service::UploadSessionService;
 pub use application::service::UserQuotaService;
 
-// <<< CUSTOM - Custom service re-exports
-pub use application::service::LockingService;
-pub use application::service::MultipartUploadService;
-pub use application::service::ConversionService;
-#[allow(deprecated)]
-pub use application::service::CdnService;
-pub use application::service::VideoThumbnailService;
-pub use application::service::DocumentPreviewService;
-mod bucket_module; // Phase 6: http_routes() — regeneration-safe BucketModule extensions
-pub use bucket_module::RouterOptions;
-// END CUSTOM
 // Re-exports - Validation
 pub use application::validator::{ValidationError, ValidationResult};
 
@@ -141,25 +109,55 @@ pub struct BucketModule {
     pub(crate) thumbnail_service: Arc<ThumbnailService>,
     pub(crate) upload_session_service: Arc<UploadSessionService>,
     pub(crate) user_quota_service: Arc<UserQuotaService>,
+    /// The module's extension state (`lib.ext.rs`); its fields read through `Deref`.
+    pub(crate) ext: ModuleExt,
     // <<< CUSTOM FIELDS
-    // Custom business logic services
-    pub locking_service: Arc<LockingService>,
-    pub multipart_upload_service: Arc<MultipartUploadService>,
-    pub conversion_service: Arc<ConversionService>,
-    #[allow(deprecated)]
-    pub cdn_service: Arc<CdnService>,
-    pub video_thumbnail_service: Arc<VideoThumbnailService>,
-    pub document_preview_service: Arc<DocumentPreviewService>,
-    /// Storage backend (mode-B serving + uploads). None until `.with_storage()` is called.
-    pub storage: Option<Arc<dyn ObjectStorage>>,
-    /// Bucket-module config (storage + serving). None until `.with_config()` is called.
-    pub bucket_config: Option<Arc<BucketConfig>>,
-    /// High-level file operations service, wired when both `storage` and `bucket_config` are set.
-    pub file_service: Option<Arc<FileService>>,
-    /// Direct handle to the StoredFile repository — used by the mode-B
-    /// serving handler to look up files by `storage_key`.
-    pub stored_file_repository: Arc<infrastructure::persistence::StoredFileRepository>,
     // END CUSTOM
+}
+
+impl std::ops::Deref for BucketModule {
+    type Target = ModuleExt;
+    fn deref(&self) -> &Self::Target {
+        &self.ext
+    }
+}
+
+impl std::ops::DerefMut for BucketModule {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.ext
+    }
+}
+
+/// What the extension's `build` hook receives from the generated build (ADR-0031).
+#[allow(dead_code)]
+pub(crate) struct ModuleParts<'a> {
+    pub(crate) db_pool: &'a PgPool,
+    pub(crate) access_log_service: &'a Arc<AccessLogService>,
+    pub(crate) access_log_repository: &'a Arc<AccessLogRepository>,
+    pub(crate) bucket_service: &'a Arc<BucketService>,
+    pub(crate) bucket_repository: &'a Arc<BucketRepository>,
+    pub(crate) content_hash_service: &'a Arc<ContentHashService>,
+    pub(crate) content_hash_repository: &'a Arc<ContentHashRepository>,
+    pub(crate) conversion_job_service: &'a Arc<ConversionJobService>,
+    pub(crate) conversion_job_repository: &'a Arc<ConversionJobRepository>,
+    pub(crate) file_comment_service: &'a Arc<FileCommentService>,
+    pub(crate) file_comment_repository: &'a Arc<FileCommentRepository>,
+    pub(crate) file_lock_service: &'a Arc<FileLockService>,
+    pub(crate) file_lock_repository: &'a Arc<FileLockRepository>,
+    pub(crate) file_share_service: &'a Arc<FileShareService>,
+    pub(crate) file_share_repository: &'a Arc<FileShareRepository>,
+    pub(crate) file_version_service: &'a Arc<FileVersionService>,
+    pub(crate) file_version_repository: &'a Arc<FileVersionRepository>,
+    pub(crate) processing_job_service: &'a Arc<ProcessingJobService>,
+    pub(crate) processing_job_repository: &'a Arc<ProcessingJobRepository>,
+    pub(crate) stored_file_service: &'a Arc<StoredFileService>,
+    pub(crate) stored_file_repository: &'a Arc<StoredFileRepository>,
+    pub(crate) thumbnail_service: &'a Arc<ThumbnailService>,
+    pub(crate) thumbnail_repository: &'a Arc<ThumbnailRepository>,
+    pub(crate) upload_session_service: &'a Arc<UploadSessionService>,
+    pub(crate) upload_session_repository: &'a Arc<UploadSessionRepository>,
+    pub(crate) user_quota_service: &'a Arc<UserQuotaService>,
+    pub(crate) user_quota_repository: &'a Arc<UserQuotaRepository>,
 }
 
 impl BucketModule {
@@ -243,31 +241,29 @@ impl BucketModule {
     }
 
     // <<< CUSTOM METHODS
-    /// What [`upload_router`] needs, built from this module's own services.
-    ///
-    /// `None` until the module has both a storage backend and a config (the
-    /// file service is wired only then). A host mounts uploads with
-    /// `upload_router::<I>(bucket.upload_context()?, config)` and never holds
-    /// the generic bucket service itself.
-    pub fn upload_context(&self) -> Option<UploadContext> {
-        Some(UploadContext {
-            file_service: self.file_service.clone()?,
-            multipart_service: self.multipart_upload_service.clone(),
-            bucket_service: self.bucket_service.clone(),
-            storage: self.storage.clone()?,
-        })
-    }
     // END CUSTOM
 }
 
 /// Builder for BucketModule
 pub struct BucketModuleBuilder {
     db_pool: Option<PgPool>,
+    /// The builder's extension state (`lib.ext.rs`); its fields read through `Deref`.
+    ext: ModuleBuilderExt,
     // <<< CUSTOM BUILDER FIELDS
-    // bucket-serving fields (see docs/serving.md)
-    storage: Option<Arc<dyn ObjectStorage>>,
-    bucket_config: Option<BucketConfig>,
     // END CUSTOM
+}
+
+impl std::ops::Deref for BucketModuleBuilder {
+    type Target = ModuleBuilderExt;
+    fn deref(&self) -> &Self::Target {
+        &self.ext
+    }
+}
+
+impl std::ops::DerefMut for BucketModuleBuilder {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.ext
+    }
 }
 
 impl BucketModuleBuilder {
@@ -275,9 +271,8 @@ impl BucketModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
+            ext: Default::default(),
             // <<< CUSTOM BUILDER DEFAULTS
-            storage: None,
-            bucket_config: None,
             // END CUSTOM
         }
     }
@@ -289,20 +284,6 @@ impl BucketModuleBuilder {
     }
 
     // <<< CUSTOM - custom builder methods
-    // Bucket-serving builder methods (see docs/serving.md)
-
-    /// Attach the bucket-module runtime config (storage + serving).
-    pub fn with_config(mut self, config: BucketConfig) -> Self {
-        self.bucket_config = Some(config);
-        self
-    }
-
-    /// Attach the object-storage backend (`LocalStorage`, `S3Storage`, …).
-    pub fn with_storage(mut self, storage: Arc<dyn ObjectStorage>) -> Self {
-        self.storage = Some(storage);
-        self
-    }
-
     // END CUSTOM
 
     /// Build the module with configured dependencies
@@ -363,39 +344,38 @@ impl BucketModuleBuilder {
         let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()));
 
         // <<< CUSTOM
-        // Custom business logic services
-        let locking_service = Arc::new(LockingService::new(
-            file_lock_repository, stored_file_repository.clone(),
-        ));
-        let multipart_upload_service = Arc::new(MultipartUploadService::new(
-            upload_session_repository, bucket_repository.clone(), user_quota_repository,
-        ));
-        let conversion_service = Arc::new(ConversionService::new(
-            conversion_job_repository, stored_file_repository.clone(),
-        ));
-        #[allow(deprecated)]
-        let cdn_service = Arc::new(CdnService::new(
-            stored_file_repository.clone(), bucket_repository,
-        ));
-        let video_thumbnail_service = Arc::new(VideoThumbnailService::new(
-            processing_job_repository.clone(), thumbnail_repository.clone(), stored_file_repository.clone(),
-        ));
-        let document_preview_service = Arc::new(DocumentPreviewService::new(
-            processing_job_repository, thumbnail_repository, stored_file_repository.clone(),
-        ));
-
-        // Bucket-serving wiring (see docs/serving.md)
-        let bucket_config = self.bucket_config.map(Arc::new);
-        let storage = self.storage;
-        let file_service = match (&storage, &bucket_config) {
-            (Some(s), Some(c)) => Some(Arc::new(FileService::new(
-                s.clone(),
-                stored_file_repository.clone(),
-                c.clone(),
-            ))),
-            _ => None,
-        };
         // END CUSTOM
+
+        // The extension builds its own state from what the generated build made.
+        let ext = self.ext.build(&ModuleParts {
+            db_pool: &db_pool,
+            access_log_service: &access_log_service,
+            access_log_repository: &access_log_repository,
+            bucket_service: &bucket_service,
+            bucket_repository: &bucket_repository,
+            content_hash_service: &content_hash_service,
+            content_hash_repository: &content_hash_repository,
+            conversion_job_service: &conversion_job_service,
+            conversion_job_repository: &conversion_job_repository,
+            file_comment_service: &file_comment_service,
+            file_comment_repository: &file_comment_repository,
+            file_lock_service: &file_lock_service,
+            file_lock_repository: &file_lock_repository,
+            file_share_service: &file_share_service,
+            file_share_repository: &file_share_repository,
+            file_version_service: &file_version_service,
+            file_version_repository: &file_version_repository,
+            processing_job_service: &processing_job_service,
+            processing_job_repository: &processing_job_repository,
+            stored_file_service: &stored_file_service,
+            stored_file_repository: &stored_file_repository,
+            thumbnail_service: &thumbnail_service,
+            thumbnail_repository: &thumbnail_repository,
+            upload_session_service: &upload_session_service,
+            upload_session_repository: &upload_session_repository,
+            user_quota_service: &user_quota_service,
+            user_quota_repository: &user_quota_repository,
+        })?;
 
         Ok(BucketModule {
             access_log_service,
@@ -411,17 +391,8 @@ impl BucketModuleBuilder {
             thumbnail_service,
             upload_session_service,
             user_quota_service,
+            ext,
             // <<< CUSTOM
-            locking_service,
-            multipart_upload_service,
-            conversion_service,
-            cdn_service,
-            video_thumbnail_service,
-            document_preview_service,
-            storage,
-            bucket_config,
-            file_service,
-            stored_file_repository,
             // END CUSTOM
         })
     }
@@ -432,3 +403,6 @@ impl Default for BucketModuleBuilder {
         Self::new()
     }
 }
+
+// This directory's extension (hand-written; ADR-0031).
+include!("mod.ext.rs");

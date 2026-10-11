@@ -17,11 +17,6 @@ pub mod upload_session_handler;
 pub mod user_quota_handler;
 
 // <<< CUSTOM
-#[cfg(feature = "auth")]
-pub mod auth;
-pub mod file_share_password;
-pub mod serving;
-pub mod upload;
 // END CUSTOM
 
 // Re-exports
@@ -36,8 +31,7 @@ pub use stored_file_handler::{create_stored_file_routes, create_stored_file_read
 pub use upload_session_handler::{create_upload_session_routes, create_upload_session_read_routes, create_upload_session_write_routes};
 pub use user_quota_handler::{create_user_quota_routes, create_user_quota_read_routes, create_user_quota_write_routes};
 // <<< CUSTOM
-pub use serving::{lookup_by_key, serving_router, ServingContext};
-pub use upload::{
-    upload_router, UploadConfig, UploadContext, DEFAULT_CHUNK_BODY_LIMIT, DEFAULT_UPLOAD_BODY_LIMIT,
-};
 // END CUSTOM
+
+// This directory's extension (hand-written; ADR-0031).
+include!("mod.ext.rs");
