@@ -32,3 +32,42 @@ pub type FileCommentService = GenericCrudService<
     FileCommentRepository,
 >;
 
+/// The row rules the schema declares for FileComment, checked against the row a create or
+/// update would store. The generated build attaches it to [`FileCommentService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct FileCommentRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<FileComment> for FileCommentRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, FileComment>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let mut shadow = Vec::new();
+        // `content_required` (file_comment.hook.yaml:87)
+        if (create) && !r::holds(&r::and(r::is_not_null(r::field(row, "content")), r::gt(r::length(r::trim(r::field(row, "content"))), r::Val::Num(0.0_f64)))) {
+            shadow.push(Violation::new("content", "empty_comment", "Comment content is required"));
+        }
+        // `content_max_length` (file_comment.hook.yaml:93)
+        if (create || update) && !r::holds(&r::le(r::length(r::field(row, "content")), r::Val::Num(10000.0_f64))) {
+            shadow.push(Violation::new("content", "comment_too_long", "Comment content max 10000 characters"));
+        }
+        // `cannot_edit_deleted` (file_comment.hook.yaml:129)
+        if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
+            shadow.push(Violation::new("status", "comment_deleted", "Cannot edit deleted comment"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

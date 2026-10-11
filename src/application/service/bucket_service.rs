@@ -32,3 +32,58 @@ pub type BucketService = GenericCrudService<
     BucketRepository,
 >;
 
+/// The row rules the schema declares for Bucket, checked against the row a create or
+/// update would store. The generated build attaches it to [`BucketService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct BucketRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, Bucket>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let mut shadow = Vec::new();
+        // `name_format` (bucket.hook.yaml:71)
+        if (create || update) && !r::holds(&r::and(r::ge(r::length(r::field(row, "name")), r::Val::Num(1.0_f64)), r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64)))) {
+            shadow.push(Violation::new("name", "invalid_name_length", "Bucket name must be 1-255 characters"));
+        }
+        // `name_characters` (bucket.hook.yaml:77)
+        if (create || update) && !r::holds(&r::matches(r::field(row, "name"), "^[a-zA-Z0-9_-]+$")) {
+            shadow.push(Violation::new("name", "invalid_name_chars", "Bucket name must contain only alphanumeric characters, underscores, and hyphens"));
+        }
+        // `slug_format` (bucket.hook.yaml:83)
+        if (create || update) && !r::holds(&r::and(r::ge(r::length(r::field(row, "slug")), r::Val::Num(1.0_f64)), r::le(r::length(r::field(row, "slug")), r::Val::Num(255.0_f64)))) {
+            shadow.push(Violation::new("slug", "invalid_slug_length", "Bucket slug must be 1-255 characters"));
+        }
+        // `slug_characters` (bucket.hook.yaml:89)
+        if (create) && !r::holds(&r::matches(r::field(row, "slug"), "^[a-z0-9-]+$")) {
+            shadow.push(Violation::new("slug", "invalid_slug_chars", "Bucket slug must be lowercase with hyphens only"));
+        }
+        // `root_path_length` (bucket.hook.yaml:95)
+        if (create) && !r::holds(&r::le(r::length(r::field(row, "root_path")), r::Val::Num(1024.0_f64))) {
+            shadow.push(Violation::new("root_path", "path_too_long", "Root path too long"));
+        }
+        // `no_path_traversal` (bucket.hook.yaml:101)
+        if (create) && !r::holds(&r::not(r::contains(r::field(row, "root_path"), r::text("..")))) {
+            shadow.push(Violation::new("root_path", "path_traversal", "Path traversal not allowed in root path"));
+        }
+        // `cannot_modify_deleted` (bucket.hook.yaml:107)
+        if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
+            shadow.push(Violation::new("status", "bucket_deleted", "Cannot modify deleted buckets"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

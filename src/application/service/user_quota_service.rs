@@ -32,3 +32,38 @@ pub type UserQuotaService = GenericCrudService<
     UserQuotaRepository,
 >;
 
+/// The row rules the schema declares for UserQuota, checked against the row a create or
+/// update would store. The generated build attaches it to [`UserQuotaService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct UserQuotaRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<UserQuota> for UserQuotaRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, UserQuota>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let mut shadow = Vec::new();
+        // `valid_tier` (user_quota.hook.yaml:58)
+        if (create || update) && !r::holds(&r::in_list(r::field(row, "tier"), r::Val::List(vec![r::text("free"), r::text("pro"), r::text("enterprise")]))) {
+            shadow.push(Violation::new("tier", "invalid_tier", "Invalid tier. Must be free, pro, or enterprise"));
+        }
+        // `warning_threshold_valid` (user_quota.hook.yaml:88)
+        if (create || update) && !r::holds(&r::and(r::ge(r::field(row, "warning_threshold_percent"), r::Val::Num(50.0_f64)), r::le(r::field(row, "warning_threshold_percent"), r::Val::Num(99.0_f64)))) {
+            shadow.push(Violation::new("warning_threshold_percent", "invalid_warning_threshold", "Warning threshold must be between 50 and 99 percent"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

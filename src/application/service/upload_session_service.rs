@@ -32,3 +32,50 @@ pub type UploadSessionService = GenericCrudService<
     UploadSessionRepository,
 >;
 
+/// The row rules the schema declares for UploadSession, checked against the row a create or
+/// update would store. The generated build attaches it to [`UploadSessionService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct UploadSessionRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<UploadSession> for UploadSessionRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, UploadSession>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let mut shadow = Vec::new();
+        // `valid_file_size` (upload_session.hook.yaml:132)
+        if (create) && !r::holds(&r::gt(r::field(row, "file_size"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("file_size", "invalid_file_size", "File size must be positive"));
+        }
+        // `minimum_chunk_size` (upload_session.hook.yaml:138)
+        if (create) && !r::holds(&r::ge(r::field(row, "chunk_size"), r::Val::Num(5242880.0_f64))) {
+            shadow.push(Violation::new("chunk_size", "chunk_too_small", "Chunk size must be at least 5MB"));
+        }
+        // `reasonable_chunk_size` (upload_session.hook.yaml:144)
+        if (create) && !r::holds(&r::le(r::field(row, "chunk_size"), r::Val::Num(5368709120.0_f64))) {
+            shadow.push(Violation::new("chunk_size", "chunk_too_large", "Chunk size must not exceed 5GB"));
+        }
+        // `valid_chunk_count` (upload_session.hook.yaml:150)
+        if (create) && !r::holds(&r::eq(r::field(row, "total_chunks"), r::ceil(r::div(r::field(row, "file_size"), r::field(row, "chunk_size"))))) {
+            shadow.push(Violation::new("total_chunks", "invalid_chunk_count", "Total chunks must match file size and chunk size"));
+        }
+        // `valid_path` (upload_session.hook.yaml:156)
+        if (create) && !r::holds(&r::and(r::and(r::is_not_null(r::field(row, "path")), r::not(r::contains(r::field(row, "path"), r::text("..")))), r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64)))) {
+            shadow.push(Violation::new("path", "invalid_path", "Path must be valid and not contain traversal"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

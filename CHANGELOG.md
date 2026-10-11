@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [0.4.1] - 2026-10-11
+
+### Added
+
+- The schema's row rules (31: lengths, patterns, ranges and allowed values over one record's own
+  fields) now check every create and update through a generated `<Entity>RowRules` write guard.
+  They run in shadow: a break is logged under `backbone::write_guard` with the rule's code and the
+  write goes ahead. Requires backbone-core 3.4.
+
 ## [0.1.18] - 2026-07-03
 
 ### Documentation

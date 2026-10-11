@@ -32,3 +32,38 @@ pub type ProcessingJobService = GenericCrudService<
     ProcessingJobRepository,
 >;
 
+/// The row rules the schema declares for ProcessingJob, checked against the row a create or
+/// update would store. The generated build attaches it to [`ProcessingJobService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct ProcessingJobRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<ProcessingJob> for ProcessingJobRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, ProcessingJob>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let mut shadow = Vec::new();
+        // `priority_valid` (processing_job.hook.yaml:139)
+        if (create || update) && !r::holds(&r::and(r::ge(r::field(row, "priority"), r::Val::Num(0.0_f64)), r::le(r::field(row, "priority"), r::Val::Num(10.0_f64)))) {
+            shadow.push(Violation::new("priority", "invalid_priority", "Priority must be 0-10"));
+        }
+        // `cannot_modify_completed` (processing_job.hook.yaml:145)
+        if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("completed"))) {
+            shadow.push(Violation::new("status", "job_completed", "Cannot modify completed jobs"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

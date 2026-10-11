@@ -32,3 +32,50 @@ pub type StoredFileService = GenericCrudService<
     StoredFileRepository,
 >;
 
+/// The row rules the schema declares for StoredFile, checked against the row a create or
+/// update would store. The generated build attaches it to [`StoredFileService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct StoredFileRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<StoredFile> for StoredFileRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, StoredFile>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let mut shadow = Vec::new();
+        // `path_length` (stored_file.hook.yaml:169)
+        if (create || update) && !r::holds(&r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64))) {
+            shadow.push(Violation::new("path", "path_too_long", "File path too long (max 1024 characters)"));
+        }
+        // `no_path_traversal` (stored_file.hook.yaml:175)
+        if (create || update) && !r::holds(&r::not(r::contains(r::field(row, "path"), r::text("..")))) {
+            shadow.push(Violation::new("path", "path_traversal", "Path traversal not allowed"));
+        }
+        // `filename_length` (stored_file.hook.yaml:181)
+        if (create) && !r::holds(&r::le(r::length(r::field(row, "original_name")), r::Val::Num(255.0_f64))) {
+            shadow.push(Violation::new("original_name", "filename_too_long", "File name too long (max 255 characters)"));
+        }
+        // `valid_mime_type` (stored_file.hook.yaml:187)
+        if (create) && !r::holds(&r::matches(r::field(row, "mime_type"), "^[a-z]+/[a-z0-9.+-]+$")) {
+            shadow.push(Violation::new("mime_type", "invalid_mime_type", "Invalid MIME type format"));
+        }
+        // `file_not_purged` (stored_file.hook.yaml:193)
+        if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("purged"))) {
+            shadow.push(Violation::new("status", "file_purged", "Cannot update purged files"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

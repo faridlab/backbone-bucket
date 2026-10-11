@@ -32,3 +32,46 @@ pub type FileShareService = GenericCrudService<
     FileShareRepository,
 >;
 
+/// The row rules the schema declares for FileShare, checked against the row a create or
+/// update would store. The generated build attaches it to [`FileShareService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct FileShareRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, FileShare>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let mut shadow = Vec::new();
+        // `token_length` (file_share.hook.yaml:65)
+        if (create) && !r::holds(&r::and(r::ge(r::length(r::field(row, "token")), r::Val::Num(32.0_f64)), r::le(r::length(r::field(row, "token")), r::Val::Num(64.0_f64)))) {
+            shadow.push(Violation::new("token", "invalid_token_length", "Share token must be 32-64 characters"));
+        }
+        // `token_alphanumeric` (file_share.hook.yaml:71)
+        if (create) && !r::holds(&r::matches(r::field(row, "token"), "^[a-zA-Z0-9]+$")) {
+            shadow.push(Violation::new("token", "invalid_token_chars", "Share token must be alphanumeric"));
+        }
+        // `positive_downloads` (file_share.hook.yaml:95)
+        if (create || update) && !r::holds(&r::or(r::is_null(r::field(row, "max_downloads")), r::gt(r::field(row, "max_downloads"), r::Val::Num(0.0_f64)))) {
+            shadow.push(Violation::new("max_downloads", "invalid_max_downloads", "Maximum downloads must be positive"));
+        }
+        // `user_share_requires_recipients` (file_share.hook.yaml:101)
+        if (create) && !r::holds(&r::or(r::ne(r::field(row, "share_type"), r::text("user")), r::and(r::is_not_null(r::field(row, "shared_with")), r::gt(r::length(r::field(row, "shared_with")), r::Val::Num(0.0_f64))))) {
+            shadow.push(Violation::new("share_type", "missing_recipients", "User shares must specify recipients"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

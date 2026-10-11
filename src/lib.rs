@@ -285,7 +285,7 @@ impl BucketModuleBuilder {
 
         // Bucket service
         let bucket_repository = Arc::new(BucketRepository::new(db_pool.clone()));
-        let bucket_service = Arc::new(BucketService::with_repository(bucket_repository.clone()));
+        let bucket_service = Arc::new(BucketService::with_repository(bucket_repository.clone()).with_guard(Arc::new(crate::application::service::BucketRowRules)));
 
         // ContentHash service
         let content_hash_repository = Arc::new(ContentHashRepository::new(db_pool.clone()));
@@ -297,15 +297,15 @@ impl BucketModuleBuilder {
 
         // FileComment service
         let file_comment_repository = Arc::new(FileCommentRepository::new(db_pool.clone()));
-        let file_comment_service = Arc::new(FileCommentService::with_repository(file_comment_repository.clone()));
+        let file_comment_service = Arc::new(FileCommentService::with_repository(file_comment_repository.clone()).with_guard(Arc::new(crate::application::service::FileCommentRowRules)));
 
         // FileLock service
         let file_lock_repository = Arc::new(FileLockRepository::new(db_pool.clone()));
-        let file_lock_service = Arc::new(FileLockService::with_repository(file_lock_repository.clone()));
+        let file_lock_service = Arc::new(FileLockService::with_repository(file_lock_repository.clone()).with_guard(Arc::new(crate::application::service::FileLockRowRules)));
 
         // FileShare service
         let file_share_repository = Arc::new(FileShareRepository::new(db_pool.clone()));
-        let file_share_service = Arc::new(FileShareService::with_repository(file_share_repository.clone()));
+        let file_share_service = Arc::new(FileShareService::with_repository(file_share_repository.clone()).with_guard(Arc::new(crate::application::service::FileShareRowRules)));
 
         // FileVersion service
         let file_version_repository = Arc::new(FileVersionRepository::new(db_pool.clone()));
@@ -313,11 +313,11 @@ impl BucketModuleBuilder {
 
         // ProcessingJob service
         let processing_job_repository = Arc::new(ProcessingJobRepository::new(db_pool.clone()));
-        let processing_job_service = Arc::new(ProcessingJobService::with_repository(processing_job_repository.clone()));
+        let processing_job_service = Arc::new(ProcessingJobService::with_repository(processing_job_repository.clone()).with_guard(Arc::new(crate::application::service::ProcessingJobRowRules)));
 
         // StoredFile service
         let stored_file_repository = Arc::new(StoredFileRepository::new(db_pool.clone()));
-        let stored_file_service = Arc::new(StoredFileService::with_repository(stored_file_repository.clone()));
+        let stored_file_service = Arc::new(StoredFileService::with_repository(stored_file_repository.clone()).with_guard(Arc::new(crate::application::service::StoredFileRowRules)));
 
         // Thumbnail service
         let thumbnail_repository = Arc::new(ThumbnailRepository::new(db_pool.clone()));
@@ -325,11 +325,11 @@ impl BucketModuleBuilder {
 
         // UploadSession service
         let upload_session_repository = Arc::new(UploadSessionRepository::new(db_pool.clone()));
-        let upload_session_service = Arc::new(UploadSessionService::with_repository(upload_session_repository.clone()));
+        let upload_session_service = Arc::new(UploadSessionService::with_repository(upload_session_repository.clone()).with_guard(Arc::new(crate::application::service::UploadSessionRowRules)));
 
         // UserQuota service
         let user_quota_repository = Arc::new(UserQuotaRepository::new(db_pool.clone()));
-        let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()));
+        let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()).with_guard(Arc::new(crate::application::service::UserQuotaRowRules)));
 
 
         // The extension builds its own state from what the generated build made.
