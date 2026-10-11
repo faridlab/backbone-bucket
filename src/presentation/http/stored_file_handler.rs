@@ -244,8 +244,13 @@ pub async fn complete_upload_transition(
     };
     {
         let allowed_roles = StoredFileTransition::CompleteUpload.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:complete_upload");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("stored_file:transition:complete_upload");
+        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -312,8 +317,13 @@ pub async fn mark_safe_transition(
     };
     {
         let allowed_roles = StoredFileTransition::MarkSafe.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("stored_file:transition:mark_safe");
+        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -380,8 +390,13 @@ pub async fn quarantine_transition(
     };
     {
         let allowed_roles = StoredFileTransition::Quarantine.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:quarantine");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("stored_file:transition:quarantine");
+        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -448,8 +463,13 @@ pub async fn mark_safe_by_admin_transition(
     };
     {
         let allowed_roles = StoredFileTransition::MarkSafeByAdmin.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe_by_admin");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("stored_file:transition:mark_safe_by_admin");
+        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -506,8 +526,13 @@ pub async fn soft_delete_transition(
     };
     {
         let allowed_roles = StoredFileTransition::SoftDelete.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:soft_delete");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("stored_file:transition:soft_delete");
+        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -565,8 +590,13 @@ pub async fn restore_transition(
     };
     {
         let allowed_roles = StoredFileTransition::Restore.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:restore");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("stored_file:transition:restore");
+        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -624,8 +654,13 @@ pub async fn purge_transition(
     };
     {
         let allowed_roles = StoredFileTransition::Purge.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:purge");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("stored_file:transition:purge");
+        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {

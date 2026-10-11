@@ -248,8 +248,13 @@ pub async fn start_transition(
     };
     {
         let allowed_roles = ProcessingJobTransition::Start.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:start");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("processing_job:transition:start");
+        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -307,8 +312,13 @@ pub async fn complete_transition(
     };
     {
         let allowed_roles = ProcessingJobTransition::Complete.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:complete");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("processing_job:transition:complete");
+        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -365,8 +375,13 @@ pub async fn fail_transition(
     };
     {
         let allowed_roles = ProcessingJobTransition::Fail.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:fail");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("processing_job:transition:fail");
+        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -423,8 +438,13 @@ pub async fn cancel_pending_transition(
     };
     {
         let allowed_roles = ProcessingJobTransition::CancelPending.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_pending");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("processing_job:transition:cancel_pending");
+        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -482,8 +502,13 @@ pub async fn cancel_running_transition(
     };
     {
         let allowed_roles = ProcessingJobTransition::CancelRunning.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_running");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("processing_job:transition:cancel_running");
+        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -541,8 +566,13 @@ pub async fn retry_transition(
     };
     {
         let allowed_roles = ProcessingJobTransition::Retry.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:retry");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("processing_job:transition:retry");
+        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -609,8 +639,13 @@ pub async fn reprocess_transition(
     };
     {
         let allowed_roles = ProcessingJobTransition::Reprocess.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:reprocess");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("processing_job:transition:reprocess");
+        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {

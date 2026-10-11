@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [0.4.6] - 2026-10-12
+
+### Fixed
+
+- A generated state-machine transition is granted by wildcard permissions (`*:*`, `<model>:*`) as
+  well as the verb's own, as the rest of the permission model is.
+
 ## [0.4.5] - 2026-10-12
 
 ### Fixed

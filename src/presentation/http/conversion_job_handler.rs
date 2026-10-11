@@ -244,8 +244,13 @@ pub async fn start_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::Start.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:start");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:start");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -303,8 +308,13 @@ pub async fn update_progress_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::UpdateProgress.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:update_progress");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:update_progress");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -362,8 +372,13 @@ pub async fn complete_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::Complete.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:complete");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:complete");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -420,8 +435,13 @@ pub async fn fail_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::Fail.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:fail");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:fail");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -478,8 +498,13 @@ pub async fn cancel_pending_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::CancelPending.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:cancel_pending");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:cancel_pending");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -537,8 +562,13 @@ pub async fn cancel_running_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::CancelRunning.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:cancel_running");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:cancel_running");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -596,8 +626,13 @@ pub async fn retry_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::Retry.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:retry");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:retry");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -655,8 +690,13 @@ pub async fn reconvert_transition(
     };
     {
         let allowed_roles = ConversionJobTransition::Reconvert.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:reconvert");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "conversion_job:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("conversion_job:transition:reconvert");
+        let has_update_perm = granted("conversion_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {

@@ -251,8 +251,13 @@ pub async fn lock_transition(
     };
     {
         let allowed_roles = BucketTransition::Lock.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:lock");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("bucket:transition:lock");
+        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -310,8 +315,13 @@ pub async fn unlock_transition(
     };
     {
         let allowed_roles = BucketTransition::Unlock.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:unlock");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("bucket:transition:unlock");
+        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -369,8 +379,13 @@ pub async fn archive_transition(
     };
     {
         let allowed_roles = BucketTransition::Archive.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:archive");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("bucket:transition:archive");
+        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -428,8 +443,13 @@ pub async fn restore_transition(
     };
     {
         let allowed_roles = BucketTransition::Restore.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:restore");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("bucket:transition:restore");
+        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -487,8 +507,13 @@ pub async fn delete_transition(
     };
     {
         let allowed_roles = BucketTransition::Delete.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:delete");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("bucket:transition:delete");
+        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {

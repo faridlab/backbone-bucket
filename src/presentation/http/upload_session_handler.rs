@@ -260,8 +260,13 @@ pub async fn start_upload_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::StartUpload.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:start_upload");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:start_upload");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -319,8 +324,13 @@ pub async fn add_part_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::AddPart.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:add_part");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:add_part");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -378,8 +388,13 @@ pub async fn complete_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::Complete.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:complete");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:complete");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -446,8 +461,13 @@ pub async fn finish_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::Finish.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:finish");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:finish");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -504,8 +524,13 @@ pub async fn fail_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::Fail.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:fail");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:fail");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -562,8 +587,13 @@ pub async fn abort_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::Abort.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:abort");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:abort");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -621,8 +651,13 @@ pub async fn expire_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::Expire.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:expire");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:expire");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -680,8 +715,13 @@ pub async fn retry_transition(
     };
     {
         let allowed_roles = UploadSessionTransition::Retry.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:retry");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("upload_session:transition:retry");
+        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {

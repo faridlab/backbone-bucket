@@ -264,8 +264,13 @@ pub async fn resolve_transition(
     };
     {
         let allowed_roles = FileCommentTransition::Resolve.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:resolve");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("file_comment:transition:resolve");
+        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -323,8 +328,13 @@ pub async fn edit_transition(
     };
     {
         let allowed_roles = FileCommentTransition::Edit.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:edit");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("file_comment:transition:edit");
+        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -382,8 +392,13 @@ pub async fn delete_active_transition(
     };
     {
         let allowed_roles = FileCommentTransition::DeleteActive.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:delete_active");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("file_comment:transition:delete_active");
+        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -441,8 +456,13 @@ pub async fn reopen_transition(
     };
     {
         let allowed_roles = FileCommentTransition::Reopen.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:reopen");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("file_comment:transition:reopen");
+        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
@@ -500,8 +520,13 @@ pub async fn delete_resolved_transition(
     };
     {
         let allowed_roles = FileCommentTransition::DeleteResolved.allowed_roles();
-        let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:delete_resolved");
-        let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
+        let granted = |required: &str| auth.permissions.iter().any(|p| {
+            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
+            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
+                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
+        });
+        let has_specific_perm = granted("file_comment:transition:delete_resolved");
+        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
             if !has_update_perm {
