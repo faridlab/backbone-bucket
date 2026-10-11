@@ -56,27 +56,31 @@ impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
-        // `token_length` (file_share.hook.yaml:65)
+        // `status` belongs to a state machine: only its verbs move it
+        if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
+            shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `token_length` (file_share.hook.yaml:66)
         if (create) && !r::holds(&r::and(r::ge(r::length(r::field(row, "token")), r::Val::Num(32.0_f64)), r::le(r::length(r::field(row, "token")), r::Val::Num(64.0_f64)))) {
             shadow.push(Violation::new("token", "invalid_token_length", "Share token must be 32-64 characters"));
         }
-        // `token_alphanumeric` (file_share.hook.yaml:71)
+        // `token_alphanumeric` (file_share.hook.yaml:72)
         if (create) && !r::holds(&r::matches(r::field(row, "token"), "^[a-zA-Z0-9]+$")) {
             shadow.push(Violation::new("token", "invalid_token_chars", "Share token must be alphanumeric"));
         }
-        // `future_expiry` (file_share.hook.yaml:89)
+        // `future_expiry` (file_share.hook.yaml:90)
         if (create || (update && r::changed(old.as_ref(), row, &["expires_at"]))) && !r::holds(&r::or(r::is_null(r::field(row, "expires_at")), r::gt(r::field(row, "expires_at"), r::at(ctx.at)))) {
             shadow.push(Violation::new("expires_at", "expired_date", "Expiration date must be in the future"));
         }
-        // `positive_downloads` (file_share.hook.yaml:95)
+        // `positive_downloads` (file_share.hook.yaml:96)
         if (create || update) && !r::holds(&r::or(r::is_null(r::field(row, "max_downloads")), r::gt(r::field(row, "max_downloads"), r::Val::Num(0.0_f64)))) {
             shadow.push(Violation::new("max_downloads", "invalid_max_downloads", "Maximum downloads must be positive"));
         }
-        // `user_share_requires_recipients` (file_share.hook.yaml:101)
+        // `user_share_requires_recipients` (file_share.hook.yaml:102)
         if (create) && !r::holds(&r::or(r::ne(r::field(row, "share_type"), r::text("user")), r::and(r::is_not_null(r::field(row, "shared_with")), r::gt(r::length(r::field(row, "shared_with")), r::Val::Num(0.0_f64))))) {
             shadow.push(Violation::new("share_type", "missing_recipients", "User shares must specify recipients"));
         }
-        // `cannot_modify_inactive` (file_share.hook.yaml:107)
+        // `cannot_modify_inactive` (file_share.hook.yaml:108)
         if (update) && !r::holds(&r::or(r::or(r::eq(r::field(row, "status"), r::text("active")), r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "owner_id"))), r::has_role(ctx.actor.as_deref(), "admin").await)) {
             shadow.push(Violation::new("status", "share_inactive", "Cannot modify inactive shares"));
         }

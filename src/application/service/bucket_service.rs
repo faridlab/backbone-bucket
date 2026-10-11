@@ -54,32 +54,37 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
             return GuardOutcome::allow();
         };
         let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
-        // `name_format` (bucket.hook.yaml:71)
+        // `status` belongs to a state machine: only its verbs move it
+        if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
+            shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `name_format` (bucket.hook.yaml:72)
         if (create || update) && !r::holds(&r::and(r::ge(r::length(r::field(row, "name")), r::Val::Num(1.0_f64)), r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64)))) {
             shadow.push(Violation::new("name", "invalid_name_length", "Bucket name must be 1-255 characters"));
         }
-        // `name_characters` (bucket.hook.yaml:77)
+        // `name_characters` (bucket.hook.yaml:78)
         if (create || update) && !r::holds(&r::matches(r::field(row, "name"), "^[a-zA-Z0-9_-]+$")) {
             shadow.push(Violation::new("name", "invalid_name_chars", "Bucket name must contain only alphanumeric characters, underscores, and hyphens"));
         }
-        // `slug_format` (bucket.hook.yaml:83)
+        // `slug_format` (bucket.hook.yaml:84)
         if (create || update) && !r::holds(&r::and(r::ge(r::length(r::field(row, "slug")), r::Val::Num(1.0_f64)), r::le(r::length(r::field(row, "slug")), r::Val::Num(255.0_f64)))) {
             shadow.push(Violation::new("slug", "invalid_slug_length", "Bucket slug must be 1-255 characters"));
         }
-        // `slug_characters` (bucket.hook.yaml:89)
+        // `slug_characters` (bucket.hook.yaml:90)
         if (create) && !r::holds(&r::matches(r::field(row, "slug"), "^[a-z0-9-]+$")) {
             shadow.push(Violation::new("slug", "invalid_slug_chars", "Bucket slug must be lowercase with hyphens only"));
         }
-        // `root_path_length` (bucket.hook.yaml:95)
+        // `root_path_length` (bucket.hook.yaml:96)
         if (create) && !r::holds(&r::le(r::length(r::field(row, "root_path")), r::Val::Num(1024.0_f64))) {
             shadow.push(Violation::new("root_path", "path_too_long", "Root path too long"));
         }
-        // `no_path_traversal` (bucket.hook.yaml:101)
+        // `no_path_traversal` (bucket.hook.yaml:102)
         if (create) && !r::holds(&r::not(r::contains(r::field(row, "root_path"), r::text("..")))) {
             shadow.push(Violation::new("root_path", "path_traversal", "Path traversal not allowed in root path"));
         }
-        // `cannot_modify_deleted` (bucket.hook.yaml:107)
+        // `cannot_modify_deleted` (bucket.hook.yaml:108)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
             shadow.push(Violation::new("status", "bucket_deleted", "Cannot modify deleted buckets"));
         }

@@ -250,24 +250,30 @@ pub async fn start_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:start");
         let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for start transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for start transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "start", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:start or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: ProcessingJobState = entity.status.to_string().parse()
-        .unwrap_or(ProcessingJobState::default());
+    let current_state: ProcessingJobState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<ProcessingJobResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = ProcessingJobStateMachine::from_state(current_state);
     if !sm.can_transition(ProcessingJobTransition::Start) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ProcessingJobResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `processing_service.has_capacity(job_type)` not compiled (`processing_service` is not a field of ProcessingJob); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Running".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("running".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("start", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: ProcessingJobResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -301,14 +307,19 @@ pub async fn complete_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:complete");
         let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for complete transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for complete transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "complete", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:complete or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: ProcessingJobState = entity.status.to_string().parse()
-        .unwrap_or(ProcessingJobState::default());
+    let current_state: ProcessingJobState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<ProcessingJobResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = ProcessingJobStateMachine::from_state(current_state);
     if !sm.can_transition(ProcessingJobTransition::Complete) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ProcessingJobResponseDto>::error("Transition not allowed from current state")));
@@ -316,9 +327,9 @@ pub async fn complete_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Completed".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("completed".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("complete", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: ProcessingJobResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -352,14 +363,19 @@ pub async fn fail_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:fail");
         let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for fail transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for fail transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "fail", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:fail or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: ProcessingJobState = entity.status.to_string().parse()
-        .unwrap_or(ProcessingJobState::default());
+    let current_state: ProcessingJobState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<ProcessingJobResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = ProcessingJobStateMachine::from_state(current_state);
     if !sm.can_transition(ProcessingJobTransition::Fail) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ProcessingJobResponseDto>::error("Transition not allowed from current state")));
@@ -367,9 +383,9 @@ pub async fn fail_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Failed".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("failed".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("fail", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: ProcessingJobResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -403,24 +419,30 @@ pub async fn cancel_pending_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_pending");
         let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_pending transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_pending transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_pending", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_pending or a role of ["owner", "admin"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: ProcessingJobState = entity.status.to_string().parse()
-        .unwrap_or(ProcessingJobState::default());
+    let current_state: ProcessingJobState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<ProcessingJobResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = ProcessingJobStateMachine::from_state(current_state);
     if !sm.can_transition(ProcessingJobTransition::CancelPending) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ProcessingJobResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == file.owner_id || $actor.has_role('admin')` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Cancelled".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("cancelled".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("cancel_pending", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: ProcessingJobResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -454,24 +476,30 @@ pub async fn cancel_running_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_running");
         let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_running transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_running transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_running", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_running or a role of ["owner", "admin"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: ProcessingJobState = entity.status.to_string().parse()
-        .unwrap_or(ProcessingJobState::default());
+    let current_state: ProcessingJobState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<ProcessingJobResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = ProcessingJobStateMachine::from_state(current_state);
     if !sm.can_transition(ProcessingJobTransition::CancelRunning) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ProcessingJobResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == file.owner_id || $actor.has_role('admin')` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Cancelled".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("cancelled".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("cancel_running", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: ProcessingJobResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -505,24 +533,39 @@ pub async fn retry_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:retry");
         let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for retry transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for retry transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "retry", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:retry or a role of ["system", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: ProcessingJobState = entity.status.to_string().parse()
-        .unwrap_or(ProcessingJobState::default());
+    let current_state: ProcessingJobState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<ProcessingJobResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = ProcessingJobStateMachine::from_state(current_state);
     if !sm.can_transition(ProcessingJobTransition::Retry) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ProcessingJobResponseDto>::error("Transition not allowed from current state")));
     }
 
+    {
+        use backbone_core::row_rule as r;
+        let row = &serde_json::to_value(&entity).unwrap_or_default();
+        let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+        // Guard: retry_count < max_retries
+        if ["failed"].contains(&state) && !r::holds(&r::lt(r::field(row, "retry_count"), r::field(row, "max_retries"))) {
+            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<ProcessingJobResponseDto>::error("The retry transition's guard does not hold: retry_count < max_retries")));
+        }
+    }
+
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Pending".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("pending".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("retry", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: ProcessingJobResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -556,14 +599,19 @@ pub async fn reprocess_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:reprocess");
         let has_update_perm = auth.permissions.iter().any(|p| p == "processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for reprocess transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for reprocess transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "reprocess", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:reprocess or a role of ["owner", "admin"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: ProcessingJobState = entity.status.to_string().parse()
-        .unwrap_or(ProcessingJobState::default());
+    let current_state: ProcessingJobState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<ProcessingJobResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = ProcessingJobStateMachine::from_state(current_state);
     if !sm.can_transition(ProcessingJobTransition::Reprocess) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ProcessingJobResponseDto>::error("Transition not allowed from current state")));
@@ -571,9 +619,9 @@ pub async fn reprocess_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Pending".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("pending".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("reprocess", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: ProcessingJobResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))

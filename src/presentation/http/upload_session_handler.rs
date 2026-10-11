@@ -262,24 +262,30 @@ pub async fn start_upload_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:start_upload");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for start_upload transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for start_upload transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "start_upload", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:start_upload or a role of ["system", "user"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::StartUpload) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `now() - metadata.created_at <= INTERVAL '1 hour'` not compiled (unexpected `'1 hour'` after a complete expression); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Uploading".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("uploading".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("start_upload", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -313,24 +319,30 @@ pub async fn add_part_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:add_part");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for add_part transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for add_part transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "add_part", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:add_part or a role of ["system", "user"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::AddPart) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$context.part_number >= 1 && $context.part_number <= total_chunks && !completed_parts.contains($context.part_number)` not compiled (reads `$context.part_number`, which a row rule cannot); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Uploading".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("uploading".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("add_part", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -364,24 +376,39 @@ pub async fn complete_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:complete");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for complete transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for complete transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "complete", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:complete or a role of ["system", "user"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Complete) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
     }
 
+    {
+        use backbone_core::row_rule as r;
+        let row = &serde_json::to_value(&entity).unwrap_or_default();
+        let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+        // Guard: uploaded_chunks == total_chunks
+        if ["uploading"].contains(&state) && !r::holds(&r::eq(r::field(row, "uploaded_chunks"), r::field(row, "total_chunks"))) {
+            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<UploadSessionResponseDto>::error("The complete transition's guard does not hold: uploaded_chunks == total_chunks")));
+        }
+    }
+
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Completing".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("completing".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("complete", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -415,14 +442,19 @@ pub async fn finish_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:finish");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for finish transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for finish transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "finish", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:finish or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Finish) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
@@ -430,9 +462,9 @@ pub async fn finish_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Completed".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("completed".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("finish", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -466,14 +498,19 @@ pub async fn fail_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:fail");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for fail transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for fail transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "fail", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:fail or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Fail) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
@@ -481,9 +518,9 @@ pub async fn fail_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Failed".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("failed".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("fail", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -517,24 +554,30 @@ pub async fn abort_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:abort");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for abort transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for abort transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "abort", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:abort or a role of ["user", "admin"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Abort) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Failed".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("failed".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("abort", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -568,24 +611,30 @@ pub async fn expire_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:expire");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for expire transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for expire transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "expire", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:expire or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Expire) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `expires_at < now()` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Expired".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("expired".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("expire", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -619,24 +668,30 @@ pub async fn retry_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:retry");
         let has_update_perm = auth.permissions.iter().any(|p| p == "upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for retry transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for retry transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "retry", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:retry or a role of ["user"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UploadSessionState = entity.status.to_string().parse()
-        .unwrap_or(UploadSessionState::default());
+    let current_state: UploadSessionState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UploadSessionResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Retry) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Initiated".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("initiated".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("retry", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UploadSessionResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))

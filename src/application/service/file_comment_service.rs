@@ -54,20 +54,25 @@ impl backbone_core::write_guard::WriteGuard<FileComment> for FileCommentRowRules
             return GuardOutcome::allow();
         };
         let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
-        // `content_required` (file_comment.hook.yaml:87)
+        // `status` belongs to a state machine: only its verbs move it
+        if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
+            shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `content_required` (file_comment.hook.yaml:88)
         if (create) && !r::holds(&r::and(r::is_not_null(r::field(row, "content")), r::gt(r::length(r::trim(r::field(row, "content"))), r::Val::Num(0.0_f64)))) {
             shadow.push(Violation::new("content", "empty_comment", "Comment content is required"));
         }
-        // `content_max_length` (file_comment.hook.yaml:93)
+        // `content_max_length` (file_comment.hook.yaml:94)
         if (create || update) && !r::holds(&r::le(r::length(r::field(row, "content")), r::Val::Num(10000.0_f64))) {
             shadow.push(Violation::new("content", "comment_too_long", "Comment content max 10000 characters"));
         }
-        // `only_owner_can_edit` (file_comment.hook.yaml:123)
+        // `only_owner_can_edit` (file_comment.hook.yaml:124)
         if (update) && !r::holds(&r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "user_id"))) {
             shadow.push(Violation::new("user_id", "not_comment_owner", "Only comment owner can edit"));
         }
-        // `cannot_edit_deleted` (file_comment.hook.yaml:129)
+        // `cannot_edit_deleted` (file_comment.hook.yaml:130)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
             shadow.push(Violation::new("status", "comment_deleted", "Cannot edit deleted comment"));
         }

@@ -9,6 +9,7 @@ model: user_quota.model.yaml
 # =============================================================================
 states:
   field: quota_status
+  verbs: hand
 
   values:
     normal:

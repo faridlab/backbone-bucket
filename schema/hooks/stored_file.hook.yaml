@@ -10,6 +10,7 @@ model: stored_file.model.yaml
 # =============================================================================
 states:
   field: status
+  verbs: hand
 
   values:
     uploading:

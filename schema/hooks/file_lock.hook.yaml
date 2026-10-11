@@ -9,6 +9,7 @@ model: file_lock.model.yaml
 # =============================================================================
 states:
   field: status
+  verbs: hand
 
   values:
     active:

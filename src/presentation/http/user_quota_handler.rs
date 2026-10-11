@@ -254,24 +254,30 @@ pub async fn exceed_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "user_quota:transition:exceed");
         let has_update_perm = auth.permissions.iter().any(|p| p == "user_quota:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for exceed transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for exceed transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "exceed", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:exceed or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UserQuotaState = entity.quota_status.to_string().parse()
-        .unwrap_or(UserQuotaState::default());
+    let current_state: UserQuotaState = match entity.quota_status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UserQuotaResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UserQuotaStateMachine::from_state(current_state);
     if !sm.can_transition(UserQuotaTransition::Exceed) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UserQuotaResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `used_storage_bytes >= max_storage_bytes` not compiled (`used_storage_bytes` is not a field of UserQuota); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("quota_status".to_string(), serde_json::Value::String("Exceeded".to_string()));
+    fields.insert("quota_status".to_string(), serde_json::Value::String("exceeded".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("exceed", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UserQuotaResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -305,24 +311,30 @@ pub async fn restore_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "user_quota:transition:restore");
         let has_update_perm = auth.permissions.iter().any(|p| p == "user_quota:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for restore transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for restore transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "restore", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:restore or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: UserQuotaState = entity.quota_status.to_string().parse()
-        .unwrap_or(UserQuotaState::default());
+    let current_state: UserQuotaState = match entity.quota_status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<UserQuotaResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = UserQuotaStateMachine::from_state(current_state);
     if !sm.can_transition(UserQuotaTransition::Restore) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UserQuotaResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `used_storage_bytes < max_storage_bytes` not compiled (`used_storage_bytes` is not a field of UserQuota); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("quota_status".to_string(), serde_json::Value::String("Normal".to_string()));
+    fields.insert("quota_status".to_string(), serde_json::Value::String("normal".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("restore", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: UserQuotaResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))

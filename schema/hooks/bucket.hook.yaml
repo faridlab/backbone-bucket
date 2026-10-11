@@ -9,6 +9,7 @@ model: bucket.model.yaml
 # =============================================================================
 states:
   field: status
+  verbs: hand
 
   values:
     active:

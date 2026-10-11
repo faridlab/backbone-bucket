@@ -246,24 +246,39 @@ pub async fn complete_upload_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:complete_upload");
         let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for complete_upload transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for complete_upload transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "complete_upload", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:complete_upload or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: StoredFileState = entity.status.to_string().parse()
-        .unwrap_or(StoredFileState::default());
+    let current_state: StoredFileState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<StoredFileResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::CompleteUpload) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
     }
 
+    {
+        use backbone_core::row_rule as r;
+        let row = &serde_json::to_value(&entity).unwrap_or_default();
+        let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+        // Guard: size_bytes > 0
+        if ["uploading"].contains(&state) && !r::holds(&r::gt(r::field(row, "size_bytes"), r::Val::Num(0.0_f64))) {
+            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<StoredFileResponseDto>::error("The complete_upload transition's guard does not hold: size_bytes > 0")));
+        }
+    }
+
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Processing".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("processing".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("complete_upload", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: StoredFileResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -297,24 +312,39 @@ pub async fn mark_safe_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe");
         let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: StoredFileState = entity.status.to_string().parse()
-        .unwrap_or(StoredFileState::default());
+    let current_state: StoredFileState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<StoredFileResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::MarkSafe) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
     }
 
+    {
+        use backbone_core::row_rule as r;
+        let row = &serde_json::to_value(&entity).unwrap_or_default();
+        let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+        // Guard: is_scanned == true && (threat_level == null || threat_level == 'safe')
+        if ["processing"].contains(&state) && !r::holds(&r::and(r::eq(r::field(row, "is_scanned"), r::Val::Bool(true)), r::or(r::is_null(r::field(row, "threat_level")), r::eq(r::field(row, "threat_level"), r::text("safe"))))) {
+            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<StoredFileResponseDto>::error("The mark_safe transition's guard does not hold: is_scanned == true && (threat_level == null || threat_level == 'safe')")));
+        }
+    }
+
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("mark_safe", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: StoredFileResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -348,24 +378,39 @@ pub async fn quarantine_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:quarantine");
         let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for quarantine transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for quarantine transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "quarantine", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:quarantine or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: StoredFileState = entity.status.to_string().parse()
-        .unwrap_or(StoredFileState::default());
+    let current_state: StoredFileState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<StoredFileResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::Quarantine) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
     }
 
+    {
+        use backbone_core::row_rule as r;
+        let row = &serde_json::to_value(&entity).unwrap_or_default();
+        let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+        // Guard: threat_level != null && threat_level != 'safe'
+        if ["processing"].contains(&state) && !r::holds(&r::and(r::is_not_null(r::field(row, "threat_level")), r::ne(r::field(row, "threat_level"), r::text("safe")))) {
+            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<StoredFileResponseDto>::error("The quarantine transition's guard does not hold: threat_level != null && threat_level != 'safe'")));
+        }
+    }
+
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Quarantined".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("quarantined".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("quarantine", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: StoredFileResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -399,14 +444,19 @@ pub async fn mark_safe_by_admin_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe_by_admin");
         let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe_by_admin transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe_by_admin transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe_by_admin", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe_by_admin or a role of ["admin"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: StoredFileState = entity.status.to_string().parse()
-        .unwrap_or(StoredFileState::default());
+    let current_state: StoredFileState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<StoredFileResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::MarkSafeByAdmin) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
@@ -414,9 +464,9 @@ pub async fn mark_safe_by_admin_transition(
 
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("mark_safe_by_admin", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: StoredFileResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -450,24 +500,30 @@ pub async fn soft_delete_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:soft_delete");
         let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for soft_delete transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for soft_delete transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "soft_delete", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:soft_delete or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: StoredFileState = entity.status.to_string().parse()
-        .unwrap_or(StoredFileState::default());
+    let current_state: StoredFileState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<StoredFileResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::SoftDelete) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Deleted".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("deleted".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("soft_delete", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: StoredFileResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -501,24 +557,30 @@ pub async fn restore_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:restore");
         let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for restore transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for restore transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "restore", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:restore or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: StoredFileState = entity.status.to_string().parse()
-        .unwrap_or(StoredFileState::default());
+    let current_state: StoredFileState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<StoredFileResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::Restore) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `metadata.deleted_at != null && $actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("restore", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: StoredFileResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -552,24 +614,30 @@ pub async fn purge_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:purge");
         let has_update_perm = auth.permissions.iter().any(|p| p == "stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for purge transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for purge transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "purge", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:purge or a role of ["admin", "system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: StoredFileState = entity.status.to_string().parse()
-        .unwrap_or(StoredFileState::default());
+    let current_state: StoredFileState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<StoredFileResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::Purge) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `metadata.deleted_at != null && metadata.deleted_at < now() - 30.days` not compiled (`.days` reads a relation or a duration); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Purged".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("purged".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("purge", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: StoredFileResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))

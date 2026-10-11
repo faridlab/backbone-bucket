@@ -57,7 +57,11 @@ impl backbone_core::write_guard::WriteGuard<ConversionJob> for ConversionJobRowR
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let old_row = old.as_ref().unwrap_or(&serde_json::Value::Null);
         let mut shadow = Vec::new();
-        // `progress_monotonic` (conversion_job.hook.yaml:149)
+        // `status` belongs to a state machine: only its verbs move it
+        if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
+            shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `progress_monotonic` (conversion_job.hook.yaml:150)
         if (update) && !r::holds(&r::ge(r::field(row, "progress"), r::field(old_row, "progress"))) {
             shadow.push(Violation::new("progress", "invalid_progress", "Progress cannot decrease"));
         }

@@ -253,24 +253,30 @@ pub async fn lock_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:lock");
         let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for lock transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for lock transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "lock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:lock or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: BucketState = entity.status.to_string().parse()
-        .unwrap_or(BucketState::default());
+    let current_state: BucketState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<BucketResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = BucketStateMachine::from_state(current_state);
     if !sm.can_transition(BucketTransition::Lock) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<BucketResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Readonly".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("readonly".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("lock", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: BucketResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -304,24 +310,30 @@ pub async fn unlock_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:unlock");
         let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for unlock transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for unlock transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "unlock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:unlock or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: BucketState = entity.status.to_string().parse()
-        .unwrap_or(BucketState::default());
+    let current_state: BucketState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<BucketResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = BucketStateMachine::from_state(current_state);
     if !sm.can_transition(BucketTransition::Unlock) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<BucketResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("unlock", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: BucketResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -355,24 +367,30 @@ pub async fn archive_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:archive");
         let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for archive transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for archive transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "archive", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:archive or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: BucketState = entity.status.to_string().parse()
-        .unwrap_or(BucketState::default());
+    let current_state: BucketState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<BucketResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = BucketStateMachine::from_state(current_state);
     if !sm.can_transition(BucketTransition::Archive) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<BucketResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Archived".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("archived".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("archive", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: BucketResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -406,24 +424,30 @@ pub async fn restore_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:restore");
         let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for restore transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for restore transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "restore", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:restore or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: BucketState = entity.status.to_string().parse()
-        .unwrap_or(BucketState::default());
+    let current_state: BucketState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<BucketResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = BucketStateMachine::from_state(current_state);
     if !sm.can_transition(BucketTransition::Restore) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<BucketResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("restore", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: BucketResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -457,24 +481,30 @@ pub async fn delete_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:delete");
         let has_update_perm = auth.permissions.iter().any(|p| p == "bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for delete transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for delete transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "delete", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:delete or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: BucketState = entity.status.to_string().parse()
-        .unwrap_or(BucketState::default());
+    let current_state: BucketState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<BucketResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = BucketStateMachine::from_state(current_state);
     if !sm.can_transition(BucketTransition::Delete) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<BucketResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `file_count == 0 || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Deleted".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("deleted".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("delete", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: BucketResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))

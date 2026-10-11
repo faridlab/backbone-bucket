@@ -9,6 +9,7 @@ model: upload_session.model.yaml
 # =============================================================================
 states:
   field: status
+  verbs: hand
 
   values:
     initiated:

@@ -266,24 +266,30 @@ pub async fn resolve_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:resolve");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for resolve transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for resolve transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "resolve", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:resolve or a role of ["owner", "file_owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileCommentState = entity.status.to_string().parse()
-        .unwrap_or(FileCommentState::default());
+    let current_state: FileCommentState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileCommentResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::Resolve) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id || $actor.id == file.owner_id` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Resolved".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("resolved".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("resolve", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileCommentResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -317,24 +323,30 @@ pub async fn edit_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:edit");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for edit transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for edit transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "edit", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:edit or a role of ["owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileCommentState = entity.status.to_string().parse()
-        .unwrap_or(FileCommentState::default());
+    let current_state: FileCommentState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileCommentResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::Edit) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("edit", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileCommentResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -368,24 +380,30 @@ pub async fn delete_active_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:delete_active");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_active transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_active transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_active", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_active or a role of ["owner", "file_owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileCommentState = entity.status.to_string().parse()
-        .unwrap_or(FileCommentState::default());
+    let current_state: FileCommentState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileCommentResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::DeleteActive) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id || $actor.id == file.owner_id` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Deleted".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("deleted".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("delete_active", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileCommentResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -419,24 +437,30 @@ pub async fn reopen_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:reopen");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for reopen transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for reopen transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "reopen", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:reopen or a role of ["user"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileCommentState = entity.status.to_string().parse()
-        .unwrap_or(FileCommentState::default());
+    let current_state: FileCommentState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileCommentResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::Reopen) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `has_file_access($actor.id, file_id)` not compiled (`has_file_access()` is not a row-rule function); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("reopen", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileCommentResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -470,24 +494,30 @@ pub async fn delete_resolved_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:delete_resolved");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_resolved transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_resolved transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_resolved", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_resolved or a role of ["owner", "file_owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileCommentState = entity.status.to_string().parse()
-        .unwrap_or(FileCommentState::default());
+    let current_state: FileCommentState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileCommentResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::DeleteResolved) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id || $actor.id == file.owner_id` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Deleted".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("deleted".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("delete_resolved", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileCommentResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))

@@ -254,24 +254,30 @@ pub async fn expire_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:expire");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_share:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for expire transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for expire transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:expire or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileShareState = entity.status.to_string().parse()
-        .unwrap_or(FileShareState::default());
+    let current_state: FileShareState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<serde_json::Value>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Expire) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<serde_json::Value>::error("Transition not allowed from current state")));
     }
 
+    // Guard `expires_at != null && expires_at <= now()` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Expired".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("expired".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("expire", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileShareResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(backbone_core::http::without_secrets::<FileShare, _>(response))))
@@ -305,24 +311,39 @@ pub async fn exhaust_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:exhaust");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_share:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for exhaust transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for exhaust transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "exhaust", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:exhaust or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileShareState = entity.status.to_string().parse()
-        .unwrap_or(FileShareState::default());
+    let current_state: FileShareState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<serde_json::Value>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Exhaust) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<serde_json::Value>::error("Transition not allowed from current state")));
     }
 
+    {
+        use backbone_core::row_rule as r;
+        let row = &serde_json::to_value(&entity).unwrap_or_default();
+        let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+        // Guard: max_downloads != null && download_count >= max_downloads
+        if ["active"].contains(&state) && !r::holds(&r::and(r::is_not_null(r::field(row, "max_downloads")), r::ge(r::field(row, "download_count"), r::field(row, "max_downloads")))) {
+            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<serde_json::Value>::error("The exhaust transition's guard does not hold: max_downloads != null && download_count >= max_downloads")));
+        }
+    }
+
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Exhausted".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("exhausted".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("exhaust", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileShareResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(backbone_core::http::without_secrets::<FileShare, _>(response))))
@@ -356,24 +377,30 @@ pub async fn revoke_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:revoke");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_share:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for revoke transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for revoke transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "revoke", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:revoke or a role of ["admin", "owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileShareState = entity.status.to_string().parse()
-        .unwrap_or(FileShareState::default());
+    let current_state: FileShareState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<serde_json::Value>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Revoke) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<serde_json::Value>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Revoked".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("revoked".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("revoke", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileShareResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(backbone_core::http::without_secrets::<FileShare, _>(response))))

@@ -9,6 +9,7 @@ model: processing_job.model.yaml
 # =============================================================================
 states:
   field: status
+  verbs: hand
 
   values:
     pending:

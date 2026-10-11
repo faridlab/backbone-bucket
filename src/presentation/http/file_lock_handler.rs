@@ -250,24 +250,30 @@ pub async fn expire_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_lock:transition:expire");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_lock:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for expire transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for expire transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:expire or a role of ["system"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileLockState = entity.status.to_string().parse()
-        .unwrap_or(FileLockState::default());
+    let current_state: FileLockState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileLockResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileLockStateMachine::from_state(current_state);
     if !sm.can_transition(FileLockTransition::Expire) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileLockResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `expires_at <= now()` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Expired".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("expired".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("expire", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileLockResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -301,24 +307,30 @@ pub async fn release_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_lock:transition:release");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_lock:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for release transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for release transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "release", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:release or a role of ["owner", "admin"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileLockState = entity.status.to_string().parse()
-        .unwrap_or(FileLockState::default());
+    let current_state: FileLockState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileLockResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileLockStateMachine::from_state(current_state);
     if !sm.can_transition(FileLockTransition::Release) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileLockResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Released".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("released".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("release", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileLockResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
@@ -352,24 +364,30 @@ pub async fn refresh_transition(
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_lock:transition:refresh");
         let has_update_perm = auth.permissions.iter().any(|p| p == "file_lock:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_update_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for refresh transition")));
+        if !has_specific_perm && !has_role {
+            if !has_update_perm {
+                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for refresh transition")));
+            }
+            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "refresh", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:refresh or a role of ["owner"]");
         }
     }
 
     // Create state machine from entity's actual status and validate transition
-    let current_state: FileLockState = entity.status.to_string().parse()
-        .unwrap_or(FileLockState::default());
+    let current_state: FileLockState = match entity.status.to_string().parse() {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::CONFLICT, Json(ApiResponse::<FileLockResponseDto>::error("The stored state is not a state of this machine"))),
+    };
     let sm = FileLockStateMachine::from_state(current_state);
     if !sm.can_transition(FileLockTransition::Refresh) {
         return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileLockResponseDto>::error("Transition not allowed from current state")));
     }
 
+    // Guard `$actor.id == user_id && expires_at > now()` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
     // Apply transition via partial update
     let mut fields: HashMap<String, serde_json::Value> = HashMap::new();
-    fields.insert("status".to_string(), serde_json::Value::String("Active".to_string()));
+    fields.insert("status".to_string(), serde_json::Value::String("active".to_string()));
 
-    match service.partial_update(&id, fields).await {
+    match backbone_core::write_guard::as_transition("refresh", service.partial_update(&id, fields)).await {
         Ok(Some(updated)) => {
             let response: FileLockResponseDto = updated.into();
             (StatusCode::OK, Json(ApiResponse::ok(response)))
