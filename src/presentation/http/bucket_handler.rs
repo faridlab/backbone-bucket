@@ -15,7 +15,6 @@ use uuid::Uuid;
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -235,7 +234,7 @@ pub fn create_protected_bucket_routes<A: AuthMiddleware + Send + Sync + 'static>
 pub async fn lock_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -246,8 +245,10 @@ pub async fn lock_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<BucketResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<BucketResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = BucketTransition::Lock.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:lock");
@@ -257,7 +258,7 @@ pub async fn lock_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for lock transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "lock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:lock or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "lock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:lock or one of the roles admin, owner");
         }
     }
 
@@ -292,7 +293,7 @@ pub async fn lock_transition(
 pub async fn unlock_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -303,8 +304,10 @@ pub async fn unlock_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<BucketResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<BucketResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = BucketTransition::Unlock.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:unlock");
@@ -314,7 +317,7 @@ pub async fn unlock_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for unlock transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "unlock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:unlock or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "unlock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:unlock or one of the roles admin, owner");
         }
     }
 
@@ -349,7 +352,7 @@ pub async fn unlock_transition(
 pub async fn archive_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -360,8 +363,10 @@ pub async fn archive_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<BucketResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<BucketResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = BucketTransition::Archive.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:archive");
@@ -371,7 +376,7 @@ pub async fn archive_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for archive transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "archive", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:archive or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "archive", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:archive or one of the roles admin, owner");
         }
     }
 
@@ -406,7 +411,7 @@ pub async fn archive_transition(
 pub async fn restore_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -417,8 +422,10 @@ pub async fn restore_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<BucketResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<BucketResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = BucketTransition::Restore.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:restore");
@@ -428,7 +435,7 @@ pub async fn restore_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for restore transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "restore", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:restore or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "restore", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:restore or one of the roles admin, owner");
         }
     }
 
@@ -463,7 +470,7 @@ pub async fn restore_transition(
 pub async fn delete_transition(
     axum::extract::State(service): axum::extract::State<Arc<BucketService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -474,8 +481,10 @@ pub async fn delete_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<BucketResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<BucketResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = BucketTransition::Delete.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "bucket:transition:delete");
@@ -485,7 +494,7 @@ pub async fn delete_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for delete transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "delete", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:delete or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "delete", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:delete or one of the roles admin, owner");
         }
     }
 

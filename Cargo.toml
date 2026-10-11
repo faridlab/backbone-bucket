@@ -1,6 +1,6 @@
 [package]
 name = "backbone-bucket"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2021"
 description = "Bucket Bounded Context: File Storage Module for Backbone Framework"
 license = "MIT OR Apache-2.0"

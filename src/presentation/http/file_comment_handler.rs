@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -248,7 +247,7 @@ pub fn create_protected_file_comment_routes<A: AuthMiddleware + Send + Sync + 's
 pub async fn resolve_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -259,8 +258,10 @@ pub async fn resolve_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileCommentTransition::Resolve.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:resolve");
@@ -270,7 +271,7 @@ pub async fn resolve_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for resolve transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "resolve", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:resolve or a role of ["owner", "file_owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "resolve", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:resolve or one of the roles owner, file_owner");
         }
     }
 
@@ -305,7 +306,7 @@ pub async fn resolve_transition(
 pub async fn edit_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -316,8 +317,10 @@ pub async fn edit_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileCommentTransition::Edit.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:edit");
@@ -327,7 +330,7 @@ pub async fn edit_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for edit transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "edit", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:edit or a role of ["owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "edit", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:edit or one of the roles owner");
         }
     }
 
@@ -362,7 +365,7 @@ pub async fn edit_transition(
 pub async fn delete_active_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -373,8 +376,10 @@ pub async fn delete_active_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileCommentTransition::DeleteActive.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:delete_active");
@@ -384,7 +389,7 @@ pub async fn delete_active_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_active transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_active", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_active or a role of ["owner", "file_owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_active", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_active or one of the roles owner, file_owner");
         }
     }
 
@@ -419,7 +424,7 @@ pub async fn delete_active_transition(
 pub async fn reopen_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -430,8 +435,10 @@ pub async fn reopen_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileCommentTransition::Reopen.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:reopen");
@@ -441,7 +448,7 @@ pub async fn reopen_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for reopen transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "reopen", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:reopen or a role of ["user"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "reopen", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:reopen or one of the roles user");
         }
     }
 
@@ -476,7 +483,7 @@ pub async fn reopen_transition(
 pub async fn delete_resolved_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -487,8 +494,10 @@ pub async fn delete_resolved_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileCommentTransition::DeleteResolved.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_comment:transition:delete_resolved");
@@ -498,7 +507,7 @@ pub async fn delete_resolved_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_resolved transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_resolved", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_resolved or a role of ["owner", "file_owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_resolved", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_resolved or one of the roles owner, file_owner");
         }
     }
 

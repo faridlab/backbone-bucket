@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -236,7 +235,7 @@ pub fn create_protected_user_quota_routes<A: AuthMiddleware + Send + Sync + 'sta
 pub async fn exceed_transition(
     axum::extract::State(service): axum::extract::State<Arc<UserQuotaService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -247,8 +246,10 @@ pub async fn exceed_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UserQuotaResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UserQuotaResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UserQuotaTransition::Exceed.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "user_quota:transition:exceed");
@@ -258,7 +259,7 @@ pub async fn exceed_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for exceed transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "exceed", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:exceed or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "exceed", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:exceed or one of the roles system");
         }
     }
 
@@ -293,7 +294,7 @@ pub async fn exceed_transition(
 pub async fn restore_transition(
     axum::extract::State(service): axum::extract::State<Arc<UserQuotaService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -304,8 +305,10 @@ pub async fn restore_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UserQuotaResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UserQuotaResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UserQuotaTransition::Restore.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "user_quota:transition:restore");
@@ -315,7 +318,7 @@ pub async fn restore_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for restore transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "restore", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:restore or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "restore", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:restore or one of the roles system");
         }
     }
 

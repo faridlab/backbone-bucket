@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -232,7 +231,7 @@ pub fn create_protected_processing_job_routes<A: AuthMiddleware + Send + Sync + 
 pub async fn start_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -243,8 +242,10 @@ pub async fn start_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ProcessingJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ProcessingJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ProcessingJobTransition::Start.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:start");
@@ -254,7 +255,7 @@ pub async fn start_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for start transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "start", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:start or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "start", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:start or one of the roles system");
         }
     }
 
@@ -289,7 +290,7 @@ pub async fn start_transition(
 pub async fn complete_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -300,8 +301,10 @@ pub async fn complete_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ProcessingJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ProcessingJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ProcessingJobTransition::Complete.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:complete");
@@ -311,7 +314,7 @@ pub async fn complete_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for complete transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "complete", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:complete or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "complete", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:complete or one of the roles system");
         }
     }
 
@@ -345,7 +348,7 @@ pub async fn complete_transition(
 pub async fn fail_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -356,8 +359,10 @@ pub async fn fail_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ProcessingJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ProcessingJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ProcessingJobTransition::Fail.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:fail");
@@ -367,7 +372,7 @@ pub async fn fail_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for fail transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "fail", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:fail or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "fail", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:fail or one of the roles system");
         }
     }
 
@@ -401,7 +406,7 @@ pub async fn fail_transition(
 pub async fn cancel_pending_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -412,8 +417,10 @@ pub async fn cancel_pending_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ProcessingJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ProcessingJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ProcessingJobTransition::CancelPending.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_pending");
@@ -423,7 +430,7 @@ pub async fn cancel_pending_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_pending transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_pending", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_pending or a role of ["owner", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_pending", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_pending or one of the roles owner, admin");
         }
     }
 
@@ -458,7 +465,7 @@ pub async fn cancel_pending_transition(
 pub async fn cancel_running_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -469,8 +476,10 @@ pub async fn cancel_running_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ProcessingJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ProcessingJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ProcessingJobTransition::CancelRunning.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:cancel_running");
@@ -480,7 +489,7 @@ pub async fn cancel_running_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_running transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_running", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_running or a role of ["owner", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_running", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_running or one of the roles owner, admin");
         }
     }
 
@@ -515,7 +524,7 @@ pub async fn cancel_running_transition(
 pub async fn retry_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -526,8 +535,10 @@ pub async fn retry_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ProcessingJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ProcessingJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ProcessingJobTransition::Retry.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:retry");
@@ -537,7 +548,7 @@ pub async fn retry_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for retry transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "retry", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:retry or a role of ["system", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "retry", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:retry or one of the roles system, owner");
         }
     }
 
@@ -581,7 +592,7 @@ pub async fn retry_transition(
 pub async fn reprocess_transition(
     axum::extract::State(service): axum::extract::State<Arc<ProcessingJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -592,8 +603,10 @@ pub async fn reprocess_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ProcessingJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ProcessingJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ProcessingJobTransition::Reprocess.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "processing_job:transition:reprocess");
@@ -603,7 +616,7 @@ pub async fn reprocess_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for reprocess transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "reprocess", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:reprocess or a role of ["owner", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "reprocess", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:reprocess or one of the roles owner, admin");
         }
     }
 

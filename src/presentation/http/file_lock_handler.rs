@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -232,7 +231,7 @@ pub fn create_protected_file_lock_routes<A: AuthMiddleware + Send + Sync + 'stat
 pub async fn expire_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileLockService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -243,8 +242,10 @@ pub async fn expire_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileLockResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileLockResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileLockTransition::Expire.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_lock:transition:expire");
@@ -254,7 +255,7 @@ pub async fn expire_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for expire transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:expire or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:expire or one of the roles system");
         }
     }
 
@@ -289,7 +290,7 @@ pub async fn expire_transition(
 pub async fn release_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileLockService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -300,8 +301,10 @@ pub async fn release_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileLockResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileLockResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileLockTransition::Release.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_lock:transition:release");
@@ -311,7 +314,7 @@ pub async fn release_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for release transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "release", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:release or a role of ["owner", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "release", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:release or one of the roles owner, admin");
         }
     }
 
@@ -346,7 +349,7 @@ pub async fn release_transition(
 pub async fn refresh_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileLockService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -357,8 +360,10 @@ pub async fn refresh_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileLockResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileLockResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileLockTransition::Refresh.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_lock:transition:refresh");
@@ -368,7 +373,7 @@ pub async fn refresh_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for refresh transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "refresh", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:refresh or a role of ["owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "refresh", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:refresh or one of the roles owner");
         }
     }
 

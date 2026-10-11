@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -244,7 +243,7 @@ pub fn create_protected_upload_session_routes<A: AuthMiddleware + Send + Sync + 
 pub async fn start_upload_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -255,8 +254,10 @@ pub async fn start_upload_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::StartUpload.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:start_upload");
@@ -266,7 +267,7 @@ pub async fn start_upload_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for start_upload transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "start_upload", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:start_upload or a role of ["system", "user"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "start_upload", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:start_upload or one of the roles system, user");
         }
     }
 
@@ -301,7 +302,7 @@ pub async fn start_upload_transition(
 pub async fn add_part_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -312,8 +313,10 @@ pub async fn add_part_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::AddPart.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:add_part");
@@ -323,7 +326,7 @@ pub async fn add_part_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for add_part transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "add_part", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:add_part or a role of ["system", "user"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "add_part", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:add_part or one of the roles system, user");
         }
     }
 
@@ -358,7 +361,7 @@ pub async fn add_part_transition(
 pub async fn complete_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -369,8 +372,10 @@ pub async fn complete_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::Complete.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:complete");
@@ -380,7 +385,7 @@ pub async fn complete_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for complete transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "complete", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:complete or a role of ["system", "user"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "complete", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:complete or one of the roles system, user");
         }
     }
 
@@ -424,7 +429,7 @@ pub async fn complete_transition(
 pub async fn finish_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -435,8 +440,10 @@ pub async fn finish_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::Finish.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:finish");
@@ -446,7 +453,7 @@ pub async fn finish_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for finish transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "finish", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:finish or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "finish", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:finish or one of the roles system");
         }
     }
 
@@ -480,7 +487,7 @@ pub async fn finish_transition(
 pub async fn fail_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -491,8 +498,10 @@ pub async fn fail_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::Fail.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:fail");
@@ -502,7 +511,7 @@ pub async fn fail_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for fail transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "fail", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:fail or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "fail", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:fail or one of the roles system");
         }
     }
 
@@ -536,7 +545,7 @@ pub async fn fail_transition(
 pub async fn abort_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -547,8 +556,10 @@ pub async fn abort_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::Abort.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:abort");
@@ -558,7 +569,7 @@ pub async fn abort_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for abort transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "abort", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:abort or a role of ["user", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "abort", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:abort or one of the roles user, admin");
         }
     }
 
@@ -593,7 +604,7 @@ pub async fn abort_transition(
 pub async fn expire_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -604,8 +615,10 @@ pub async fn expire_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::Expire.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:expire");
@@ -615,7 +628,7 @@ pub async fn expire_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for expire transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "expire", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:expire or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "expire", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:expire or one of the roles system");
         }
     }
 
@@ -650,7 +663,7 @@ pub async fn expire_transition(
 pub async fn retry_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -661,8 +674,10 @@ pub async fn retry_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = UploadSessionTransition::Retry.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "upload_session:transition:retry");
@@ -672,7 +687,7 @@ pub async fn retry_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for retry transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "retry", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:retry or a role of ["user"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "retry", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:retry or one of the roles user");
         }
     }
 

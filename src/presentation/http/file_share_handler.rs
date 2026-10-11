@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -236,7 +235,7 @@ pub fn create_protected_file_share_routes<A: AuthMiddleware + Send + Sync + 'sta
 pub async fn expire_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -247,8 +246,10 @@ pub async fn expire_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<serde_json::Value>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileShareTransition::Expire.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:expire");
@@ -258,7 +259,7 @@ pub async fn expire_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for expire transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:expire or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:expire or one of the roles system");
         }
     }
 
@@ -293,7 +294,7 @@ pub async fn expire_transition(
 pub async fn exhaust_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -304,8 +305,10 @@ pub async fn exhaust_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<serde_json::Value>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileShareTransition::Exhaust.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:exhaust");
@@ -315,7 +318,7 @@ pub async fn exhaust_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for exhaust transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "exhaust", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:exhaust or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "exhaust", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:exhaust or one of the roles system");
         }
     }
 
@@ -359,7 +362,7 @@ pub async fn exhaust_transition(
 pub async fn revoke_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -370,8 +373,10 @@ pub async fn revoke_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<serde_json::Value>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = FileShareTransition::Revoke.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "file_share:transition:revoke");
@@ -381,7 +386,7 @@ pub async fn revoke_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for revoke transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "revoke", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:revoke or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "revoke", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:revoke or one of the roles admin, owner");
         }
     }
 

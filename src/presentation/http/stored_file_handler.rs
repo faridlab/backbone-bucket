@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -228,7 +227,7 @@ pub fn create_protected_stored_file_routes<A: AuthMiddleware + Send + Sync + 'st
 pub async fn complete_upload_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -239,8 +238,10 @@ pub async fn complete_upload_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = StoredFileTransition::CompleteUpload.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:complete_upload");
@@ -250,7 +251,7 @@ pub async fn complete_upload_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for complete_upload transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "complete_upload", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:complete_upload or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "complete_upload", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:complete_upload or one of the roles system");
         }
     }
 
@@ -294,7 +295,7 @@ pub async fn complete_upload_transition(
 pub async fn mark_safe_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -305,8 +306,10 @@ pub async fn mark_safe_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = StoredFileTransition::MarkSafe.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe");
@@ -316,7 +319,7 @@ pub async fn mark_safe_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe or one of the roles system");
         }
     }
 
@@ -360,7 +363,7 @@ pub async fn mark_safe_transition(
 pub async fn quarantine_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -371,8 +374,10 @@ pub async fn quarantine_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = StoredFileTransition::Quarantine.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:quarantine");
@@ -382,7 +387,7 @@ pub async fn quarantine_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for quarantine transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "quarantine", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:quarantine or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "quarantine", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:quarantine or one of the roles system");
         }
     }
 
@@ -426,7 +431,7 @@ pub async fn quarantine_transition(
 pub async fn mark_safe_by_admin_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -437,8 +442,10 @@ pub async fn mark_safe_by_admin_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = StoredFileTransition::MarkSafeByAdmin.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:mark_safe_by_admin");
@@ -448,7 +455,7 @@ pub async fn mark_safe_by_admin_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe_by_admin transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe_by_admin", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe_by_admin or a role of ["admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe_by_admin", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe_by_admin or one of the roles admin");
         }
     }
 
@@ -482,7 +489,7 @@ pub async fn mark_safe_by_admin_transition(
 pub async fn soft_delete_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -493,8 +500,10 @@ pub async fn soft_delete_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = StoredFileTransition::SoftDelete.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:soft_delete");
@@ -504,7 +513,7 @@ pub async fn soft_delete_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for soft_delete transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "soft_delete", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:soft_delete or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "soft_delete", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:soft_delete or one of the roles admin, owner");
         }
     }
 
@@ -539,7 +548,7 @@ pub async fn soft_delete_transition(
 pub async fn restore_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -550,8 +559,10 @@ pub async fn restore_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = StoredFileTransition::Restore.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:restore");
@@ -561,7 +572,7 @@ pub async fn restore_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for restore transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "restore", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:restore or a role of ["admin", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "restore", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:restore or one of the roles admin, owner");
         }
     }
 
@@ -596,7 +607,7 @@ pub async fn restore_transition(
 pub async fn purge_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -607,8 +618,10 @@ pub async fn purge_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = StoredFileTransition::Purge.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "stored_file:transition:purge");
@@ -618,7 +631,7 @@ pub async fn purge_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for purge transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "purge", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:purge or a role of ["admin", "system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "purge", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:purge or one of the roles admin, system");
         }
     }
 

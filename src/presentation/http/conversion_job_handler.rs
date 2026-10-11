@@ -16,7 +16,6 @@ use chrono::{DateTime, Utc};
 use backbone_core::http::{ApiResponse, BackboneCrudHandler};
 
 // Auth integration (optional)
-#[cfg(feature = "auth")]
 use backbone_auth::middleware::AuthContext;
 #[cfg(feature = "auth")]
 use backbone_auth::AuthMiddleware;
@@ -228,7 +227,7 @@ pub fn create_protected_conversion_job_routes<A: AuthMiddleware + Send + Sync + 
 pub async fn start_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -239,8 +238,10 @@ pub async fn start_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::Start.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:start");
@@ -250,7 +251,7 @@ pub async fn start_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for start transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "start", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:start or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "start", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:start or one of the roles system");
         }
     }
 
@@ -285,7 +286,7 @@ pub async fn start_transition(
 pub async fn update_progress_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -296,8 +297,10 @@ pub async fn update_progress_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::UpdateProgress.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:update_progress");
@@ -307,7 +310,7 @@ pub async fn update_progress_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for update_progress transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "update_progress", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:update_progress or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "update_progress", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:update_progress or one of the roles system");
         }
     }
 
@@ -342,7 +345,7 @@ pub async fn update_progress_transition(
 pub async fn complete_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -353,8 +356,10 @@ pub async fn complete_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::Complete.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:complete");
@@ -364,7 +369,7 @@ pub async fn complete_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for complete transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "complete", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:complete or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "complete", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:complete or one of the roles system");
         }
     }
 
@@ -398,7 +403,7 @@ pub async fn complete_transition(
 pub async fn fail_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -409,8 +414,10 @@ pub async fn fail_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::Fail.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:fail");
@@ -420,7 +427,7 @@ pub async fn fail_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for fail transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "fail", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:fail or a role of ["system"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "fail", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:fail or one of the roles system");
         }
     }
 
@@ -454,7 +461,7 @@ pub async fn fail_transition(
 pub async fn cancel_pending_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -465,8 +472,10 @@ pub async fn cancel_pending_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::CancelPending.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:cancel_pending");
@@ -476,7 +485,7 @@ pub async fn cancel_pending_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for cancel_pending transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "cancel_pending", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:cancel_pending or a role of ["owner", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "cancel_pending", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:cancel_pending or one of the roles owner, admin");
         }
     }
 
@@ -511,7 +520,7 @@ pub async fn cancel_pending_transition(
 pub async fn cancel_running_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -522,8 +531,10 @@ pub async fn cancel_running_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::CancelRunning.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:cancel_running");
@@ -533,7 +544,7 @@ pub async fn cancel_running_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for cancel_running transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "cancel_running", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:cancel_running or a role of ["owner", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "cancel_running", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:cancel_running or one of the roles owner, admin");
         }
     }
 
@@ -568,7 +579,7 @@ pub async fn cancel_running_transition(
 pub async fn retry_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -579,8 +590,10 @@ pub async fn retry_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::Retry.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:retry");
@@ -590,7 +603,7 @@ pub async fn retry_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for retry transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "retry", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:retry or a role of ["system", "owner"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "retry", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:retry or one of the roles system, owner");
         }
     }
 
@@ -625,7 +638,7 @@ pub async fn retry_transition(
 pub async fn reconvert_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    #[cfg(feature = "auth")] axum::Extension(auth): axum::Extension<AuthContext>,
+    auth: Option<axum::Extension<AuthContext>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
 
@@ -636,8 +649,10 @@ pub async fn reconvert_transition(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
     };
 
-    // Check permission (if auth enabled)
-    #[cfg(feature = "auth")]
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
+    };
     {
         let allowed_roles = ConversionJobTransition::Reconvert.allowed_roles();
         let has_specific_perm = auth.permissions.iter().any(|p| p == "conversion_job:transition:reconvert");
@@ -647,7 +662,7 @@ pub async fn reconvert_transition(
             if !has_update_perm {
                 return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("Insufficient permissions for reconvert transition")));
             }
-            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "reconvert", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:reconvert or a role of ["owner", "admin"]");
+            tracing::warn!(target: "backbone::write_guard", entity = "ConversionJob", verb = "reconvert", code = "transition_by_update_permission", "a transition granted only by conversion_job:update, running in shadow; it needs conversion_job:transition:reconvert or one of the roles owner, admin");
         }
     }
 
