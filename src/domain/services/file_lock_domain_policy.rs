@@ -14,7 +14,6 @@ pub struct FileLockDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<FileLock> for FileLockDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &FileLock) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<FileLock> for FileLockDomainPolicy {
     //         Err("locked file_lock cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

@@ -11,8 +11,6 @@ use crate::domain::entity::StoredFile;
 /// enum containing a `Crud(CrudEvent<StoredFile>)` variant.
 pub type StoredFileEvent = CrudEvent<StoredFile>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

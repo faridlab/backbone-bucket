@@ -14,7 +14,6 @@ pub struct ProcessingJobDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<ProcessingJob> for ProcessingJobDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &ProcessingJob) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<ProcessingJob> for ProcessingJobDomainPolicy {
     //         Err("locked processing_job cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

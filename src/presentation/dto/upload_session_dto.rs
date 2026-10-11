@@ -403,7 +403,7 @@ impl backbone_core::ApplyUpdateDto<UpdateUploadSessionDto> for UploadSession {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to UploadSession here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

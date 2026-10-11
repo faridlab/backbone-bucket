@@ -32,5 +32,3 @@ pub type StoredFileService = GenericCrudService<
     StoredFileRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

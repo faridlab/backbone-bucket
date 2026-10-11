@@ -18,5 +18,3 @@ use crate::domain::entity::ContentHash;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type ContentHashDomainPolicy = PermitAllPolicy<ContentHash>;
 
-// <<< CUSTOM
-// END CUSTOM

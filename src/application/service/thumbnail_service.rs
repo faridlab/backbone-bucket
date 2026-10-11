@@ -32,5 +32,3 @@ pub type ThumbnailService = GenericCrudService<
     ThumbnailRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

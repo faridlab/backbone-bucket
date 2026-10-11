@@ -268,13 +268,11 @@ impl TriggerHandler<ConversionJobTriggerContext, ConversionJobTriggerEvent> for 
     async fn handle(&self, ctx: &ConversionJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set started_at to current timestamp
-        // <<< CUSTOM SET: started_at = now >>>
         // ctx.entity.started_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit conversionstartedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: conversionstartedevent
-            // <<< CUSTOM EMIT: conversionstartedevent >>>
         }
         Ok(())
     }
@@ -302,15 +300,12 @@ impl TriggerHandler<ConversionJobTriggerContext, ConversionJobTriggerEvent> for 
     async fn handle(&self, ctx: &ConversionJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set completed_at to current timestamp
-        // <<< CUSTOM SET: completed_at = now >>>
         // ctx.entity.completed_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
-        // <<< CUSTOM SET: progress = 100 >>>
         // ctx.entity.progress = 100; // or Some(100) if optional
         // Emit conversioncompletedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: conversioncompletedevent
-            // <<< CUSTOM EMIT: conversioncompletedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -339,13 +334,11 @@ impl TriggerHandler<ConversionJobTriggerContext, ConversionJobTriggerEvent> for 
     async fn handle(&self, ctx: &ConversionJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set completed_at to current timestamp
-        // <<< CUSTOM SET: completed_at = now >>>
         // ctx.entity.completed_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit conversionfailedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: conversionfailedevent
-            // <<< CUSTOM EMIT: conversionfailedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -374,13 +367,11 @@ impl TriggerHandler<ConversionJobTriggerContext, ConversionJobTriggerEvent> for 
     async fn handle(&self, ctx: &ConversionJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set completed_at to current timestamp
-        // <<< CUSTOM SET: completed_at = now >>>
         // ctx.entity.completed_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit conversioncancelledevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: conversioncancelledevent
-            // <<< CUSTOM EMIT: conversioncancelledevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -402,3 +393,4 @@ pub fn conversion_job_trigger_registry() -> ConversionJobTriggerRegistry {
         r.register(Arc::new(ConversionJobOnEnterCancelledHandler::new()));
     })
 }
+

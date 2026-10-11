@@ -14,7 +14,6 @@ pub struct UserQuotaDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<UserQuota> for UserQuotaDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &UserQuota) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<UserQuota> for UserQuotaDomainPolicy {
     //         Err("locked user_quota cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

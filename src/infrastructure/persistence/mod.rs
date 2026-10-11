@@ -19,8 +19,6 @@ mod upload_session_repository;
 mod user_quota_repository;
 
 // Custom persistence modules
-// <<< CUSTOM
-// END CUSTOM
 
 // Re-exports
 pub use access_log_repository::AccessLogRepository;
@@ -45,5 +43,3 @@ pub use backbone_orm::repository::{
 };
 
 // Re-export custom persistence types
-// <<< CUSTOM
-// END CUSTOM

@@ -20,5 +20,3 @@ pub mod thumbnail_specification;
 pub mod upload_session_specification;
 pub mod user_quota_specification;
 
-// <<< CUSTOM
-// END CUSTOM

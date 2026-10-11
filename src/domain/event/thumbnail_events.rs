@@ -11,8 +11,6 @@ use crate::domain::entity::Thumbnail;
 /// enum containing a `Crud(CrudEvent<Thumbnail>)` variant.
 pub type ThumbnailEvent = CrudEvent<Thumbnail>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

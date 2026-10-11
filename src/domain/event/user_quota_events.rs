@@ -11,8 +11,6 @@ use crate::domain::entity::UserQuota;
 /// enum containing a `Crud(CrudEvent<UserQuota>)` variant.
 pub type UserQuotaEvent = CrudEvent<UserQuota>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

@@ -445,7 +445,7 @@ impl backbone_core::ApplyUpdateDto<UpdateAccessLogDto> for AccessLog {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to AccessLog here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

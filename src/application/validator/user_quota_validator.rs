@@ -20,7 +20,6 @@ pub fn user_quota_validator() -> UserQuotaValidator {
         .rule(NonNegative::new("file_count", |e: &UserQuota| e.file_count as i64))
         .rule(RequiredString::new("tier", |e: &UserQuota| &e.tier))
         .rule(NonNegative::new("peak_usage_bytes", |e: &UserQuota| e.peak_usage_bytes))
-    // <<< CUSTOM RULES
     // hook rule: user_exists (implement in CUSTOM zone)
     // hook rule: unique_user_quota (implement in CUSTOM zone)
     // hook rule: valid_tier (implement in CUSTOM zone)
@@ -29,8 +28,5 @@ pub fn user_quota_validator() -> UserQuotaValidator {
     // hook rule: max_file_size_within_storage (implement in CUSTOM zone)
     // hook rule: downgrade_allowed (implement in CUSTOM zone)
     // hook rule: warning_threshold_valid (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

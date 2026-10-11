@@ -269,13 +269,11 @@ impl TriggerHandler<ProcessingJobTriggerContext, ProcessingJobTriggerEvent> for 
     async fn handle(&self, ctx: &ProcessingJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set started_at to current timestamp
-        // <<< CUSTOM SET: started_at = now >>>
         // ctx.entity.started_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit jobstartedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: jobstartedevent
-            // <<< CUSTOM EMIT: jobstartedevent >>>
         }
         Ok(())
     }
@@ -303,13 +301,11 @@ impl TriggerHandler<ProcessingJobTriggerContext, ProcessingJobTriggerEvent> for 
     async fn handle(&self, ctx: &ProcessingJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set completed_at to current timestamp
-        // <<< CUSTOM SET: completed_at = now >>>
         // ctx.entity.completed_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit jobcompletedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: jobcompletedevent
-            // <<< CUSTOM EMIT: jobcompletedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -338,13 +334,11 @@ impl TriggerHandler<ProcessingJobTriggerContext, ProcessingJobTriggerEvent> for 
     async fn handle(&self, ctx: &ProcessingJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set completed_at to current timestamp
-        // <<< CUSTOM SET: completed_at = now >>>
         // ctx.entity.completed_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit jobfailedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: jobfailedevent
-            // <<< CUSTOM EMIT: jobfailedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -373,13 +367,11 @@ impl TriggerHandler<ProcessingJobTriggerContext, ProcessingJobTriggerEvent> for 
     async fn handle(&self, ctx: &ProcessingJobTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set completed_at to current timestamp
-        // <<< CUSTOM SET: completed_at = now >>>
         // ctx.entity.completed_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit jobcancelledevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: jobcancelledevent
-            // <<< CUSTOM EMIT: jobcancelledevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -401,3 +393,4 @@ pub fn processing_job_trigger_registry() -> ProcessingJobTriggerRegistry {
         r.register(Arc::new(ProcessingJobOnEnterCancelledHandler::new()));
     })
 }
+

@@ -141,7 +141,6 @@ impl TriggerHandler<FileShareTriggerContext, FileShareTriggerEvent> for FileShar
         // Emit shareaccessedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: shareaccessedevent
-            // <<< CUSTOM EMIT: shareaccessedevent >>>
         }
         Ok(())
     }
@@ -186,7 +185,6 @@ impl TriggerHandler<FileShareTriggerContext, FileShareTriggerEvent> for FileShar
         // Emit sharestatuschangedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: sharestatuschangedevent
-            // <<< CUSTOM EMIT: sharestatuschangedevent >>>
         }
         Ok(())
     }
@@ -331,7 +329,6 @@ impl TriggerHandler<FileShareTriggerContext, FileShareTriggerEvent> for FileShar
         // Emit sharedownloadlimitreachedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: sharedownloadlimitreachedevent
-            // <<< CUSTOM EMIT: sharedownloadlimitreachedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -360,13 +357,11 @@ impl TriggerHandler<FileShareTriggerContext, FileShareTriggerEvent> for FileShar
     async fn handle(&self, ctx: &FileShareTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set revoked_at to current timestamp
-        // <<< CUSTOM SET: revoked_at = now >>>
         // ctx.entity.revoked_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit sharerevokedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: sharerevokedevent
-            // <<< CUSTOM EMIT: sharerevokedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -388,3 +383,4 @@ pub fn file_share_trigger_registry() -> FileShareTriggerRegistry {
         r.register(Arc::new(FileShareOnEnterRevokedHandler::new()));
     })
 }
+

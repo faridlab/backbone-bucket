@@ -16,8 +16,6 @@ pub mod stored_file_handler;
 pub mod upload_session_handler;
 pub mod user_quota_handler;
 
-// <<< CUSTOM
-// END CUSTOM
 
 // Re-exports
 pub use bucket_handler::{create_bucket_routes, create_bucket_read_routes, create_bucket_write_routes};
@@ -30,8 +28,6 @@ pub use processing_job_handler::{create_processing_job_routes, create_processing
 pub use stored_file_handler::{create_stored_file_routes, create_stored_file_read_routes, create_stored_file_write_routes};
 pub use upload_session_handler::{create_upload_session_routes, create_upload_session_read_routes, create_upload_session_write_routes};
 pub use user_quota_handler::{create_user_quota_routes, create_user_quota_read_routes, create_user_quota_write_routes};
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

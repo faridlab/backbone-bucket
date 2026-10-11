@@ -32,5 +32,3 @@ pub type BucketService = GenericCrudService<
     BucketRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

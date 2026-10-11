@@ -434,7 +434,7 @@ impl backbone_core::ApplyUpdateDto<UpdateFileVersionDto> for FileVersion {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to FileVersion here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

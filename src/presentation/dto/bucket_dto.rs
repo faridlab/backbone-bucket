@@ -426,7 +426,7 @@ impl backbone_core::ApplyUpdateDto<UpdateBucketDto> for Bucket {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to Bucket here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

@@ -17,7 +17,6 @@ pub fn conversion_job_validator() -> ConversionJobValidator {
     EntityValidator::new()
         .rule(RequiredString::new("target_format", |e: &ConversionJob| &e.target_format))
         .rule(OptionalNotBlank::new("error_message", |e: &ConversionJob| e.error_message.as_deref()))
-    // <<< CUSTOM RULES
     // hook rule: source_file_must_exist (implement in CUSTOM zone)
     // hook rule: source_must_be_accessible (implement in CUSTOM zone)
     // hook rule: valid_target_format (implement in CUSTOM zone)
@@ -25,8 +24,5 @@ pub fn conversion_job_validator() -> ConversionJobValidator {
     // hook rule: sufficient_quota (implement in CUSTOM zone)
     // hook rule: no_duplicate_pending (implement in CUSTOM zone)
     // hook rule: progress_monotonic (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

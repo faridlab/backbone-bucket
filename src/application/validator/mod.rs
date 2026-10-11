@@ -33,5 +33,3 @@ pub use thumbnail_validator::{ThumbnailValidator, thumbnail_validator};
 pub use upload_session_validator::{UploadSessionValidator, upload_session_validator};
 pub use user_quota_validator::{UserQuotaValidator, user_quota_validator};
 
-// <<< CUSTOM
-// END CUSTOM

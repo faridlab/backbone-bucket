@@ -32,5 +32,3 @@ pub type FileVersionService = GenericCrudService<
     FileVersionRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

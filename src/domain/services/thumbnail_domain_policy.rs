@@ -18,5 +18,3 @@ use crate::domain::entity::Thumbnail;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type ThumbnailDomainPolicy = PermitAllPolicy<Thumbnail>;
 
-// <<< CUSTOM
-// END CUSTOM

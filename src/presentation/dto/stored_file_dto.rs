@@ -641,7 +641,7 @@ impl backbone_core::ApplyUpdateDto<UpdateStoredFileDto> for StoredFile {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to StoredFile here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

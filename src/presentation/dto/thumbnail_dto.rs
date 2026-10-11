@@ -423,7 +423,7 @@ impl backbone_core::ApplyUpdateDto<UpdateThumbnailDto> for Thumbnail {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to Thumbnail here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

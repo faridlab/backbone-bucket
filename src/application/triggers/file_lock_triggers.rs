@@ -214,7 +214,6 @@ impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockOn
         // Emit filelockacquiredevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: filelockacquiredevent
-            // <<< CUSTOM EMIT: filelockacquiredevent >>>
         }
         Ok(())
     }
@@ -245,7 +244,6 @@ impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockOn
         // Emit filelockexpiredevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: filelockexpiredevent
-            // <<< CUSTOM EMIT: filelockexpiredevent >>>
         }
         Ok(())
     }
@@ -276,7 +274,6 @@ impl TriggerHandler<FileLockTriggerContext, FileLockTriggerEvent> for FileLockOn
         // Emit filelockreleasedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: filelockreleasedevent
-            // <<< CUSTOM EMIT: filelockreleasedevent >>>
         }
         Ok(())
     }
@@ -294,3 +291,4 @@ pub fn file_lock_trigger_registry() -> FileLockTriggerRegistry {
         r.register(Arc::new(FileLockOnEnterReleasedHandler::new()));
     })
 }
+

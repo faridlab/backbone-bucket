@@ -328,7 +328,7 @@ impl backbone_core::ApplyUpdateDto<UpdateContentHashDto> for ContentHash {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to ContentHash here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

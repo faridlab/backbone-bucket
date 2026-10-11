@@ -32,5 +32,3 @@ pub type UploadSessionService = GenericCrudService<
     UploadSessionRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

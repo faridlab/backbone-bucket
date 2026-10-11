@@ -14,7 +14,6 @@ pub struct UploadSessionDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<UploadSession> for UploadSessionDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &UploadSession) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<UploadSession> for UploadSessionDomainPolicy {
     //         Err("locked upload_session cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

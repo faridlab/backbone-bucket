@@ -373,7 +373,7 @@ impl backbone_core::ApplyUpdateDto<UpdateFileShareDto> for FileShare {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to FileShare here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

@@ -11,8 +11,6 @@ use crate::domain::entity::AccessLog;
 /// enum containing a `Crud(CrudEvent<AccessLog>)` variant.
 pub type AccessLogEvent = CrudEvent<AccessLog>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

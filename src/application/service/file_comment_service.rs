@@ -32,5 +32,3 @@ pub type FileCommentService = GenericCrudService<
     FileCommentRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

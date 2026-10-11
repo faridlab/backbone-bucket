@@ -14,7 +14,6 @@ pub struct FileShareDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<FileShare> for FileShareDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &FileShare) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<FileShare> for FileShareDomainPolicy {
     //         Err("locked file_share cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

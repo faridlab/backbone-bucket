@@ -11,8 +11,6 @@ use crate::domain::entity::FileLock;
 /// enum containing a `Crud(CrudEvent<FileLock>)` variant.
 pub type FileLockEvent = CrudEvent<FileLock>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

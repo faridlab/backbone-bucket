@@ -18,5 +18,3 @@ use crate::domain::entity::AccessLog;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type AccessLogDomainPolicy = PermitAllPolicy<AccessLog>;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -141,13 +141,11 @@ impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for Stored
     async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set last_accessed_at to current timestamp
-        // <<< CUSTOM SET: last_accessed_at = now >>>
         // ctx.entity.last_accessed_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Emit filedownloadedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: filedownloadedevent
-            // <<< CUSTOM EMIT: filedownloadedevent >>>
         }
         Ok(())
     }
@@ -253,7 +251,6 @@ impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for Stored
     async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
-        // <<< CUSTOM SET: processing_status = 'pending' >>>
         // ctx.entity.processing_status = "pending".to_string(); // or Some(...) if optional
         Ok(())
     }
@@ -277,7 +274,6 @@ impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for Stored
         // Unknown action type 'queue': scanfile
         // Unknown action type 'queue': generatethumbnail
         // Unknown action type 'queue': checkdeduplication
-        // <<< CUSTOM SET: processing_status = 'processing' >>>
         // ctx.entity.processing_status = "processing".to_string(); // or Some(...) if optional
         Ok(())
     }
@@ -307,11 +303,9 @@ impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for Stored
         // Emit fileactivatedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: fileactivatedevent
-            // <<< CUSTOM EMIT: fileactivatedevent >>>
         }
         // Unknown action type 'update': bucket
         // Unknown action type 'update': userquota
-        // <<< CUSTOM SET: processing_status = 'complete' >>>
         // ctx.entity.processing_status = "complete".to_string(); // or Some(...) if optional
         Ok(())
     }
@@ -343,13 +337,11 @@ impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for Stored
         // Emit filequarantinedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: filequarantinedevent
-            // <<< CUSTOM EMIT: filequarantinedevent >>>
         }
         // Send notification
         if let Some(executor) = &self.action_executor {
             executor.notify(ctx, "default").await?;
         }
-        // <<< CUSTOM SET: processing_status = 'failed' >>>
         // ctx.entity.processing_status = "failed".to_string(); // or Some(...) if optional
         Ok(())
     }
@@ -377,7 +369,6 @@ impl TriggerHandler<StoredFileTriggerContext, StoredFileTriggerEvent> for Stored
     async fn handle(&self, ctx: &StoredFileTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set metadata.deleted_at to current timestamp
-        // <<< CUSTOM SET: metadata.deleted_at = now >>>
         // ctx.entity.metadata.deleted_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Unknown action type 'update': bucket
@@ -438,3 +429,4 @@ pub fn stored_file_trigger_registry() -> StoredFileTriggerRegistry {
         r.register(Arc::new(StoredFileOnEnterPurgedHandler::new()));
     })
 }
+

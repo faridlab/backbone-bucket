@@ -30,5 +30,3 @@ pub use thumbnail_domain_policy::ThumbnailDomainPolicy;
 pub use upload_session_domain_policy::UploadSessionDomainPolicy;
 pub use user_quota_domain_policy::UserQuotaDomainPolicy;
 
-// <<< CUSTOM
-// END CUSTOM

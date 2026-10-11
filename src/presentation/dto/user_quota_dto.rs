@@ -370,7 +370,7 @@ impl backbone_core::ApplyUpdateDto<UpdateUserQuotaDto> for UserQuota {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to UserQuota here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

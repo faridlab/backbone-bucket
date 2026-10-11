@@ -343,7 +343,7 @@ impl backbone_core::ApplyUpdateDto<UpdateProcessingJobDto> for ProcessingJob {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to ProcessingJob here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

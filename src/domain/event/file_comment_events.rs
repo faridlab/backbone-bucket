@@ -11,8 +11,6 @@ use crate::domain::entity::FileComment;
 /// enum containing a `Crud(CrudEvent<FileComment>)` variant.
 pub type FileCommentEvent = CrudEvent<FileComment>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

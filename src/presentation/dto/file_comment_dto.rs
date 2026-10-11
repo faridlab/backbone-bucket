@@ -330,7 +330,7 @@ impl backbone_core::ApplyUpdateDto<UpdateFileCommentDto> for FileComment {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to FileComment here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

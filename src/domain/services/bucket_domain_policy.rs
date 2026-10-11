@@ -14,7 +14,6 @@ pub struct BucketDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<Bucket> for BucketDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &Bucket) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<Bucket> for BucketDomainPolicy {
     //         Err("locked bucket cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

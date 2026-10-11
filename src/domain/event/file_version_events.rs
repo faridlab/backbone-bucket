@@ -11,8 +11,6 @@ use crate::domain::entity::FileVersion;
 /// enum containing a `Crud(CrudEvent<FileVersion>)` variant.
 pub type FileVersionEvent = CrudEvent<FileVersion>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

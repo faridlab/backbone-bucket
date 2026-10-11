@@ -19,7 +19,6 @@ pub fn upload_session_validator() -> UploadSessionValidator {
         .rule(RequiredString::new("filename", |e: &UploadSession| &e.filename))
         .rule(OptionalNotBlank::new("mime_type", |e: &UploadSession| e.mime_type.as_deref()))
         .rule(NonNegative::new("uploaded_chunks", |e: &UploadSession| e.uploaded_chunks as i64))
-    // <<< CUSTOM RULES
     // hook rule: bucket_must_exist (implement in CUSTOM zone)
     // hook rule: bucket_must_accept_uploads (implement in CUSTOM zone)
     // hook rule: valid_file_size (implement in CUSTOM zone)
@@ -30,8 +29,5 @@ pub fn upload_session_validator() -> UploadSessionValidator {
     // hook rule: valid_expiration (implement in CUSTOM zone)
     // hook rule: reasonable_expiration (implement in CUSTOM zone)
     // hook rule: session_not_expired (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

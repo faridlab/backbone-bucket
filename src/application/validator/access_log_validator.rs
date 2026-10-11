@@ -21,9 +21,5 @@ pub fn access_log_validator() -> AccessLogValidator {
         .rule(OptionalNotBlank::new("country_code", |e: &AccessLog| e.country_code.as_deref()))
         .rule(OptionalNotBlank::new("city", |e: &AccessLog| e.city.as_deref()))
         .rule(OptionalNotBlank::new("error_message", |e: &AccessLog| e.error_message.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

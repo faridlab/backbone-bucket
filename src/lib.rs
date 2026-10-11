@@ -24,8 +24,6 @@ pub mod application;
 pub mod presentation;
 pub mod seeders;
 pub mod exports;
-// <<< CUSTOM MODULES
-// END CUSTOM
 
 // The module's extension (hand-written; ADR-0031).
 #[path = "lib.ext.rs"]
@@ -111,8 +109,6 @@ pub struct BucketModule {
     pub(crate) user_quota_service: Arc<UserQuotaService>,
     /// The module's extension state (`lib.ext.rs`); its fields read through `Deref`.
     pub(crate) ext: ModuleExt,
-    // <<< CUSTOM FIELDS
-    // END CUSTOM
 }
 
 impl std::ops::Deref for BucketModule {
@@ -240,8 +236,6 @@ impl BucketModule {
             .merge(create_user_quota_read_routes(self.user_quota_service.clone()))
     }
 
-    // <<< CUSTOM METHODS
-    // END CUSTOM
 }
 
 /// Builder for BucketModule
@@ -249,8 +243,6 @@ pub struct BucketModuleBuilder {
     db_pool: Option<PgPool>,
     /// The builder's extension state (`lib.ext.rs`); its fields read through `Deref`.
     ext: ModuleBuilderExt,
-    // <<< CUSTOM BUILDER FIELDS
-    // END CUSTOM
 }
 
 impl std::ops::Deref for BucketModuleBuilder {
@@ -272,8 +264,6 @@ impl BucketModuleBuilder {
         Self {
             db_pool: None,
             ext: Default::default(),
-            // <<< CUSTOM BUILDER DEFAULTS
-            // END CUSTOM
         }
     }
 
@@ -283,8 +273,6 @@ impl BucketModuleBuilder {
         self
     }
 
-    // <<< CUSTOM - custom builder methods
-    // END CUSTOM
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<BucketModule> {
@@ -343,8 +331,6 @@ impl BucketModuleBuilder {
         let user_quota_repository = Arc::new(UserQuotaRepository::new(db_pool.clone()));
         let user_quota_service = Arc::new(UserQuotaService::with_repository(user_quota_repository.clone()));
 
-        // <<< CUSTOM
-        // END CUSTOM
 
         // The extension builds its own state from what the generated build made.
         let ext = self.ext.build(&ModuleParts {
@@ -392,8 +378,6 @@ impl BucketModuleBuilder {
             upload_session_service,
             user_quota_service,
             ext,
-            // <<< CUSTOM
-            // END CUSTOM
         })
     }
 }

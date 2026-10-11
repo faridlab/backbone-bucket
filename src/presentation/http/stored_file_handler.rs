@@ -593,3 +593,4 @@ pub fn create_stored_file_transition_routes(service: Arc<StoredFileService>) -> 
         .route("/stored_files/:id/transitions/purge", post(purge_transition))
         .with_state(service)
 }
+

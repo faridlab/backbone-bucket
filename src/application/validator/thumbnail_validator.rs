@@ -20,9 +20,5 @@ pub fn thumbnail_validator() -> ThumbnailValidator {
         .rule(RequiredString::new("mime_type", |e: &Thumbnail| &e.mime_type))
         .rule(RequiredString::new("format", |e: &Thumbnail| &e.format))
         .rule(OptionalNotBlank::new("cdn_url", |e: &Thumbnail| e.cdn_url.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

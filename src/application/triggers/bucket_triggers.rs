@@ -97,9 +97,7 @@ impl TriggerHandler<BucketTriggerContext, BucketTriggerEvent> for BucketAfterCre
     async fn handle(&self, ctx: &BucketTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Call storageprovisioningservice.create_bucket_directory
-        // <<< CUSTOM SERVICE CALL START >>>
         // self.storageprovisioningservice_service.create_bucket_directory(&ctx.entity).await?;
-        // <<< CUSTOM SERVICE CALL END >>>
         // Emit bucketcreatedevent event
         if let Some(publisher) = &self.event_publisher {
             publisher.publish_created(ctx.entity.clone(), ctx.user_id.clone()).await?;
@@ -315,7 +313,6 @@ impl TriggerHandler<BucketTriggerContext, BucketTriggerEvent> for BucketOnEnterD
     async fn handle(&self, ctx: &BucketTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
         // Set metadata.deleted_at to current timestamp
-        // <<< CUSTOM SET: metadata.deleted_at = now >>>
         // ctx.entity.metadata.deleted_at = Some(chrono::Utc::now();
         // Note: Add closing parenthesis if using Some()
         // Unknown action type 'queue': schedulebucketpurge
@@ -341,3 +338,4 @@ pub fn bucket_trigger_registry() -> BucketTriggerRegistry {
         r.register(Arc::new(BucketOnEnterDeletedHandler::new()));
     })
 }
+

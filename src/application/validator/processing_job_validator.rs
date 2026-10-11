@@ -17,7 +17,6 @@ pub fn processing_job_validator() -> ProcessingJobValidator {
     EntityValidator::new()
         .rule(OptionalNotBlank::new("error_message", |e: &ProcessingJob| e.error_message.as_deref()))
         .rule(NonNegative::new("retry_count", |e: &ProcessingJob| e.retry_count as i64))
-    // <<< CUSTOM RULES
     // hook rule: file_must_exist (implement in CUSTOM zone)
     // hook rule: file_must_be_accessible (implement in CUSTOM zone)
     // hook rule: valid_job_type (implement in CUSTOM zone)
@@ -25,8 +24,5 @@ pub fn processing_job_validator() -> ProcessingJobValidator {
     // hook rule: no_duplicate_pending_job (implement in CUSTOM zone)
     // hook rule: priority_valid (implement in CUSTOM zone)
     // hook rule: cannot_modify_completed (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

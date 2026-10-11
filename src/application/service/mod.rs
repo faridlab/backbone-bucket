@@ -21,8 +21,6 @@ pub mod thumbnail_service;
 pub mod upload_session_service;
 pub mod user_quota_service;
 
-// <<< CUSTOM
-// END CUSTOM
 
 pub use access_log_service::AccessLogService;
 pub use bucket_service::BucketService;
@@ -37,8 +35,6 @@ pub use stored_file_service::StoredFileService;
 pub use thumbnail_service::ThumbnailService;
 pub use upload_session_service::UploadSessionService;
 pub use user_quota_service::UserQuotaService;
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

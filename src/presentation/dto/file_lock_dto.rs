@@ -289,7 +289,7 @@ impl backbone_core::ApplyUpdateDto<UpdateFileLockDto> for FileLock {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to FileLock here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

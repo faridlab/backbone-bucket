@@ -21,7 +21,6 @@ pub fn bucket_validator() -> BucketValidator {
         .rule(RequiredString::new("root_path", |e: &Bucket| &e.root_path))
         .rule(NonNegative::new("file_count", |e: &Bucket| e.file_count as i64))
         .rule(NonNegative::new("total_size_bytes", |e: &Bucket| e.total_size_bytes))
-    // <<< CUSTOM RULES
     // hook rule: name_format (implement in CUSTOM zone)
     // hook rule: name_characters (implement in CUSTOM zone)
     // hook rule: slug_format (implement in CUSTOM zone)
@@ -30,8 +29,5 @@ pub fn bucket_validator() -> BucketValidator {
     // hook rule: no_path_traversal (implement in CUSTOM zone)
     // hook rule: cannot_modify_deleted (implement in CUSTOM zone)
     // hook rule: unique_slug (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

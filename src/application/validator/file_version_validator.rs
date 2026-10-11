@@ -23,9 +23,5 @@ pub fn file_version_validator() -> FileVersionValidator {
         .rule(OptionalNotBlank::new("checksum_sha256", |e: &FileVersion| e.checksum_sha256.as_deref()))
         .rule(OptionalNotBlank::new("change_summary", |e: &FileVersion| e.change_summary.as_deref()))
         .rule(NonNegative::new("size_bytes", |e: &FileVersion| e.size_bytes))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

@@ -14,7 +14,6 @@ pub struct FileCommentDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<FileComment> for FileCommentDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &FileComment) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<FileComment> for FileCommentDomainPolicy {
     //         Err("locked file_comment cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

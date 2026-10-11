@@ -55,18 +55,12 @@ impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuot
 
     async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
-        // <<< CUSTOM SET: used_storage_bytes = 0 >>>
         // ctx.entity.used_storage_bytes = 0; // or Some(0) if optional
-        // <<< CUSTOM SET: file_count = 0 >>>
         // ctx.entity.file_count = 0; // or Some(0) if optional
-        // <<< CUSTOM SET: bucket_count = 0 >>>
         // ctx.entity.bucket_count = 0; // or Some(0) if optional
-        // <<< CUSTOM SET: used_bandwidth_today = 0 >>>
         // ctx.entity.used_bandwidth_today = 0; // or Some(0) if optional
-        // <<< CUSTOM SET: used_bandwidth_month = 0 >>>
         // ctx.entity.used_bandwidth_month = 0; // or Some(0) if optional
         // Set is_exceeded = false
-        // <<< CUSTOM SET: is_exceeded = false >>>
         // ctx.entity.is_exceeded = Some(false);
         // Unknown action type 'trigger': apply_tier_defaults
         Ok(())
@@ -204,7 +198,6 @@ impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuot
         // Emit userquotatierchangedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: userquotatierchangedevent
-            // <<< CUSTOM EMIT: userquotatierchangedevent >>>
         }
         Ok(())
     }
@@ -428,7 +421,6 @@ impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuot
 
     async fn handle(&self, ctx: &UserQuotaTriggerContext) -> anyhow::Result<()> {
         let _ = &ctx; // Mark as used to avoid unused warning
-        // <<< CUSTOM SET: last_warning_sent_at = null >>>
         // ctx.entity.last_warning_sent_at = null; // adjust type as needed
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -470,7 +462,6 @@ impl TriggerHandler<UserQuotaTriggerContext, UserQuotaTriggerEvent> for UserQuot
         // Emit quotaexceededevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: quotaexceededevent
-            // <<< CUSTOM EMIT: quotaexceededevent >>>
         }
         Ok(())
     }
@@ -492,3 +483,4 @@ pub fn user_quota_trigger_registry() -> UserQuotaTriggerRegistry {
         r.register(Arc::new(UserQuotaOnEnterExceededHandler::new()));
     })
 }
+

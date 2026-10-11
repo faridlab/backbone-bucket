@@ -102,7 +102,6 @@ impl TriggerHandler<UploadSessionTriggerContext, UploadSessionTriggerEvent> for 
         // Emit uploadpartreceivedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: uploadpartreceivedevent
-            // <<< CUSTOM EMIT: uploadpartreceivedevent >>>
         }
         Ok(())
     }
@@ -277,7 +276,6 @@ impl TriggerHandler<UploadSessionTriggerContext, UploadSessionTriggerEvent> for 
         // Emit uploadstartedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: uploadstartedevent
-            // <<< CUSTOM EMIT: uploadstartedevent >>>
         }
         Ok(())
     }
@@ -307,7 +305,6 @@ impl TriggerHandler<UploadSessionTriggerContext, UploadSessionTriggerEvent> for 
         // Emit uploadfinalizingevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: uploadfinalizingevent
-            // <<< CUSTOM EMIT: uploadfinalizingevent >>>
         }
         Ok(())
     }
@@ -337,7 +334,6 @@ impl TriggerHandler<UploadSessionTriggerContext, UploadSessionTriggerEvent> for 
         // Emit uploadcompletedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: uploadcompletedevent
-            // <<< CUSTOM EMIT: uploadcompletedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         Ok(())
@@ -368,7 +364,6 @@ impl TriggerHandler<UploadSessionTriggerContext, UploadSessionTriggerEvent> for 
         // Emit uploadfailedevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: uploadfailedevent
-            // <<< CUSTOM EMIT: uploadfailedevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         // Unknown action type 'queue': cleanupuploadparts
@@ -400,7 +395,6 @@ impl TriggerHandler<UploadSessionTriggerContext, UploadSessionTriggerEvent> for 
         // Emit uploadexpiredevent event
         if let Some(_publisher) = &self.event_publisher {
             // Custom event: uploadexpiredevent
-            // <<< CUSTOM EMIT: uploadexpiredevent >>>
         }
         tracing::info!("Trigger executed for entity: {:?}", ctx.entity.id);
         // Unknown action type 'queue': cleanupuploadparts
@@ -424,3 +418,4 @@ pub fn upload_session_trigger_registry() -> UploadSessionTriggerRegistry {
         r.register(Arc::new(UploadSessionOnEnterExpiredHandler::new()));
     })
 }
+

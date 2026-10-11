@@ -496,3 +496,4 @@ pub fn create_bucket_transition_routes(service: Arc<BucketService>) -> Router {
         .route("/buckets/:id/transitions/delete", post(delete_transition))
         .with_state(service)
 }
+

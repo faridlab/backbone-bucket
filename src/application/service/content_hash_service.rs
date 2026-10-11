@@ -32,5 +32,3 @@ pub type ContentHashService = GenericCrudService<
     ContentHashRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -28,15 +28,11 @@ pub fn stored_file_validator() -> StoredFileValidator {
         .rule(OptionalNotBlank::new("field_name", |e: &StoredFile| e.field_name.as_deref()))
         .rule(RequiredString::new("storage_key", |e: &StoredFile| &e.storage_key))
         .rule(NonNegative::new("download_count", |e: &StoredFile| e.download_count as i64))
-    // <<< CUSTOM RULES
     // hook rule: path_length (implement in CUSTOM zone)
     // hook rule: no_path_traversal (implement in CUSTOM zone)
     // hook rule: filename_length (implement in CUSTOM zone)
     // hook rule: valid_mime_type (implement in CUSTOM zone)
     // hook rule: file_not_purged (implement in CUSTOM zone)
     // hook rule: quarantine_admin_only (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

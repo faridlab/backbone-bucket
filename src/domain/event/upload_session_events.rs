@@ -11,8 +11,6 @@ use crate::domain::entity::UploadSession;
 /// enum containing a `Crud(CrudEvent<UploadSession>)` variant.
 pub type UploadSessionEvent = CrudEvent<UploadSession>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

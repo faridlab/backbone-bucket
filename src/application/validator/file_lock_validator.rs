@@ -14,7 +14,6 @@ pub type FileLockValidator = EntityValidator<FileLock>;
 /// Build a validator for FileLock with all schema-defined field rules.
 pub fn file_lock_validator() -> FileLockValidator {
     EntityValidator::new()
-    // <<< CUSTOM RULES
     // hook rule: file_must_exist (implement in CUSTOM zone)
     // hook rule: file_must_be_active (implement in CUSTOM zone)
     // hook rule: no_existing_lock (implement in CUSTOM zone)
@@ -22,9 +21,6 @@ pub fn file_lock_validator() -> FileLockValidator {
     // hook rule: only_owner_can_modify (implement in CUSTOM zone)
     // hook rule: cannot_modify_expired (implement in CUSTOM zone)
     // hook rule: within_refresh_window (implement in CUSTOM zone)
-    // END CUSTOM RULES
         // No schema-derived rules — add custom rules above.
 }
 
-// <<< CUSTOM
-// END CUSTOM

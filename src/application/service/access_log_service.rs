@@ -32,5 +32,3 @@ pub type AccessLogService = GenericCrudService<
     AccessLogRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -19,9 +19,5 @@ pub fn content_hash_validator() -> ContentHashValidator {
         .rule(RequiredString::new("storage_key", |e: &ContentHash| &e.storage_key))
         .rule(NonNegative::new("reference_count", |e: &ContentHash| e.reference_count as i64))
         .rule(OptionalNotBlank::new("fingerprint", |e: &ContentHash| e.fingerprint.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

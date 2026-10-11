@@ -11,8 +11,6 @@ use crate::domain::entity::FileShare;
 /// enum containing a `Crud(CrudEvent<FileShare>)` variant.
 pub type FileShareEvent = CrudEvent<FileShare>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

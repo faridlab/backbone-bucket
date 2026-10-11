@@ -341,3 +341,4 @@ pub fn create_user_quota_transition_routes(service: Arc<UserQuotaService>) -> Ro
         .route("/user_quotas/:id/transitions/restore", post(restore_transition))
         .with_state(service)
 }
+

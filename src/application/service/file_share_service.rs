@@ -32,5 +32,3 @@ pub type FileShareService = GenericCrudService<
     FileShareRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

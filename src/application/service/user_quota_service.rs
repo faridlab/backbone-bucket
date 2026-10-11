@@ -32,5 +32,3 @@ pub type UserQuotaService = GenericCrudService<
     UserQuotaRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

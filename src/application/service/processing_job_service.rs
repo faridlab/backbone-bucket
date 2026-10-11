@@ -32,5 +32,3 @@ pub type ProcessingJobService = GenericCrudService<
     ProcessingJobRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

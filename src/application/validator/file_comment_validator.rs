@@ -16,7 +16,6 @@ pub type FileCommentValidator = EntityValidator<FileComment>;
 pub fn file_comment_validator() -> FileCommentValidator {
     EntityValidator::new()
         .rule(RequiredString::new("content", |e: &FileComment| &e.content))
-    // <<< CUSTOM RULES
     // hook rule: file_must_exist (implement in CUSTOM zone)
     // hook rule: file_must_be_accessible (implement in CUSTOM zone)
     // hook rule: content_required (implement in CUSTOM zone)
@@ -29,8 +28,5 @@ pub fn file_comment_validator() -> FileCommentValidator {
     // hook rule: cannot_edit_deleted (implement in CUSTOM zone)
     // hook rule: cannot_edit_resolved_after_timeout (implement in CUSTOM zone)
     // hook rule: max_thread_depth (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

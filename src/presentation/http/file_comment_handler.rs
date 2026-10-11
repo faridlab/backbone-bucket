@@ -509,3 +509,4 @@ pub fn create_file_comment_transition_routes(service: Arc<FileCommentService>) -
         .route("/file_comments/:id/transitions/delete_resolved", post(delete_resolved_transition))
         .with_state(service)
 }
+

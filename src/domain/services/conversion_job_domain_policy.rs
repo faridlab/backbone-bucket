@@ -14,7 +14,6 @@ pub struct ConversionJobDomainPolicy;
 
 #[async_trait]
 impl DomainPolicy<ConversionJob> for ConversionJobDomainPolicy {
-    // <<< CUSTOM
     // Add entity-specific invariant checks here.
     // Example:
     // async fn can_delete(&self, entity: &ConversionJob) -> PolicyDecision {
@@ -22,5 +21,4 @@ impl DomainPolicy<ConversionJob> for ConversionJobDomainPolicy {
     //         Err("locked conversion_job cannot be deleted".into())
     //     } else { Ok(true) }
     // }
-    // END CUSTOM
 }

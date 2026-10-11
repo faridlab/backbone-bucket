@@ -32,5 +32,3 @@ pub type ConversionJobService = GenericCrudService<
     ConversionJobRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

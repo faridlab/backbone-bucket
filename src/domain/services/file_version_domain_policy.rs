@@ -18,5 +18,3 @@ use crate::domain::entity::FileVersion;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type FileVersionDomainPolicy = PermitAllPolicy<FileVersion>;
 
-// <<< CUSTOM
-// END CUSTOM

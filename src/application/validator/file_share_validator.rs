@@ -19,7 +19,6 @@ pub fn file_share_validator() -> FileShareValidator {
         .rule(OptionalNotBlank::new("password_hash", |e: &FileShare| e.password_hash.as_deref()))
         .rule(NonNegative::new("download_count", |e: &FileShare| e.download_count as i64))
         .rule(OptionalNotBlank::new("message", |e: &FileShare| e.message.as_deref()))
-    // <<< CUSTOM RULES
     // hook rule: token_length (implement in CUSTOM zone)
     // hook rule: token_alphanumeric (implement in CUSTOM zone)
     // hook rule: file_active (implement in CUSTOM zone)
@@ -28,8 +27,5 @@ pub fn file_share_validator() -> FileShareValidator {
     // hook rule: positive_downloads (implement in CUSTOM zone)
     // hook rule: user_share_requires_recipients (implement in CUSTOM zone)
     // hook rule: cannot_modify_inactive (implement in CUSTOM zone)
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

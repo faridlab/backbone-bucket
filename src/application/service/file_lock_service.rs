@@ -32,5 +32,3 @@ pub type FileLockService = GenericCrudService<
     FileLockRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM
