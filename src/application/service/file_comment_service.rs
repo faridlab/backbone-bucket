@@ -63,6 +63,10 @@ impl backbone_core::write_guard::WriteGuard<FileComment> for FileCommentRowRules
         if (create || update) && !r::holds(&r::le(r::length(r::field(row, "content")), r::Val::Num(10000.0_f64))) {
             shadow.push(Violation::new("content", "comment_too_long", "Comment content max 10000 characters"));
         }
+        // `only_owner_can_edit` (file_comment.hook.yaml:123)
+        if (update) && !r::holds(&r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "user_id"))) {
+            shadow.push(Violation::new("user_id", "not_comment_owner", "Only comment owner can edit"));
+        }
         // `cannot_edit_deleted` (file_comment.hook.yaml:129)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
             shadow.push(Violation::new("status", "comment_deleted", "Cannot edit deleted comment"));

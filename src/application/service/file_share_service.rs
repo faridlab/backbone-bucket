@@ -54,6 +54,7 @@ impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
             return GuardOutcome::allow();
         };
         let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
         // `token_length` (file_share.hook.yaml:65)
         if (create) && !r::holds(&r::and(r::ge(r::length(r::field(row, "token")), r::Val::Num(32.0_f64)), r::le(r::length(r::field(row, "token")), r::Val::Num(64.0_f64)))) {
@@ -62,6 +63,10 @@ impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
         // `token_alphanumeric` (file_share.hook.yaml:71)
         if (create) && !r::holds(&r::matches(r::field(row, "token"), "^[a-zA-Z0-9]+$")) {
             shadow.push(Violation::new("token", "invalid_token_chars", "Share token must be alphanumeric"));
+        }
+        // `future_expiry` (file_share.hook.yaml:89)
+        if (create || (update && r::changed(old.as_ref(), row, &["expires_at"]))) && !r::holds(&r::or(r::is_null(r::field(row, "expires_at")), r::gt(r::field(row, "expires_at"), r::at(ctx.at)))) {
+            shadow.push(Violation::new("expires_at", "expired_date", "Expiration date must be in the future"));
         }
         // `positive_downloads` (file_share.hook.yaml:95)
         if (create || update) && !r::holds(&r::or(r::is_null(r::field(row, "max_downloads")), r::gt(r::field(row, "max_downloads"), r::Val::Num(0.0_f64)))) {

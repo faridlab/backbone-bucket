@@ -55,6 +55,10 @@ impl backbone_core::write_guard::WriteGuard<FileLock> for FileLockRowRules {
         };
         let row = &row;
         let mut shadow = Vec::new();
+        // `only_owner_can_modify` (file_lock.hook.yaml:87)
+        if (update) && !r::holds(&r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "user_id"))) {
+            shadow.push(Violation::new("user_id", "not_lock_owner", "Only lock owner can modify"));
+        }
         // `cannot_modify_expired` (file_lock.hook.yaml:93)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("expired"))) {
             shadow.push(Violation::new("status", "lock_expired", "Cannot modify expired lock"));

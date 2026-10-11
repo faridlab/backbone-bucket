@@ -36,6 +36,7 @@ pub use thumbnail_service::ThumbnailService;
 pub use upload_session_service::UploadSessionService;
 pub use user_quota_service::UserQuotaService;
 pub use bucket_service::BucketRowRules;
+pub use conversion_job_service::ConversionJobRowRules;
 pub use file_comment_service::FileCommentRowRules;
 pub use file_lock_service::FileLockRowRules;
 pub use file_share_service::FileShareRowRules;

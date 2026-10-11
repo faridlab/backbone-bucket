@@ -32,3 +32,36 @@ pub type ConversionJobService = GenericCrudService<
     ConversionJobRepository,
 >;
 
+/// The row rules the schema declares for ConversionJob, checked against the row a create or
+/// update would store. The generated build attaches it to [`ConversionJobService`]. Every rule
+/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+pub struct ConversionJobRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<ConversionJob> for ConversionJobRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, ConversionJob>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let old_row = old.as_ref().unwrap_or(&serde_json::Value::Null);
+        let mut shadow = Vec::new();
+        // `progress_monotonic` (conversion_job.hook.yaml:149)
+        if (update) && !r::holds(&r::ge(r::field(row, "progress"), r::field(old_row, "progress"))) {
+            shadow.push(Violation::new("progress", "invalid_progress", "Progress cannot decrease"));
+        }
+        GuardOutcome { refuse: Vec::new(), shadow }
+    }
+}
+

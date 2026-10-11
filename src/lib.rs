@@ -293,7 +293,7 @@ impl BucketModuleBuilder {
 
         // ConversionJob service
         let conversion_job_repository = Arc::new(ConversionJobRepository::new(db_pool.clone()));
-        let conversion_job_service = Arc::new(ConversionJobService::with_repository(conversion_job_repository.clone()));
+        let conversion_job_service = Arc::new(ConversionJobService::with_repository(conversion_job_repository.clone()).with_guard(Arc::new(crate::application::service::ConversionJobRowRules)));
 
         // FileComment service
         let file_comment_repository = Arc::new(FileCommentRepository::new(db_pool.clone()));

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [0.4.2] - 2026-10-11
+
+### Added
+
+- 5 more declared rules check every create and update in shadow (two owner checks, a monotonic
+  progress rule and two expiry rules): rules that read the record before the write, the writer or
+  the time of the write. A rule about time checks an update only when the update changes a field
+  it reads. Requires backbone-core 3.5.
+
 ## [0.4.1] - 2026-10-11
 
 ### Added

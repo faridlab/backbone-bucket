@@ -75,6 +75,10 @@ impl backbone_core::write_guard::WriteGuard<UploadSession> for UploadSessionRowR
         if (create) && !r::holds(&r::and(r::and(r::is_not_null(r::field(row, "path")), r::not(r::contains(r::field(row, "path"), r::text("..")))), r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64)))) {
             shadow.push(Violation::new("path", "invalid_path", "Path must be valid and not contain traversal"));
         }
+        // `valid_expiration` (upload_session.hook.yaml:162)
+        if (create) && !r::holds(&r::gt(r::field(row, "expires_at"), r::at(ctx.at))) {
+            shadow.push(Violation::new("expires_at", "invalid_expiration", "Expiration must be in future"));
+        }
         GuardOutcome { refuse: Vec::new(), shadow }
     }
 }
