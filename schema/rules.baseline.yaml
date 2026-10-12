@@ -1,7 +1,7 @@
 # The rule ratchet (schema doctor): these counts may only go down. Regenerate with
 # `metaphor schema rules . --update-baseline` after enforcing a rule.
-unenforced: 37
-warnings: 1
+unenforced: 36
+warnings: 0
 machines_without_verbs: 0
 untested_rule_ids: 0
 unenforced_rules:
@@ -22,7 +22,6 @@ unenforced_rules:
 - 'file_comment.hook.yaml: parent_must_exist'
 - 'file_lock.hook.yaml: file_must_be_active'
 - 'file_lock.hook.yaml: file_must_exist'
-- 'file_lock.hook.yaml: no_existing_lock'
 - 'file_lock.hook.yaml: reasonable_duration'
 - 'file_lock.hook.yaml: within_refresh_window'
 - 'file_share.hook.yaml: file_active'

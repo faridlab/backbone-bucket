@@ -60,27 +60,27 @@ impl backbone_core::write_guard::WriteGuard<StoredFile> for StoredFileRowRules {
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
         }
-        // `path_length` (stored_file.hook.yaml:170)
+        // `path_length` (stored_file.hook.yaml:171)
         if (create || update) && !r::holds(&r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64))) {
             shadow.push(Violation::new("path", "path_too_long", "File path too long (max 1024 characters)"));
         }
-        // `no_path_traversal` (stored_file.hook.yaml:176)
+        // `no_path_traversal` (stored_file.hook.yaml:177)
         if (create || update) && !r::holds(&r::not(r::contains(r::field(row, "path"), r::text("..")))) {
             shadow.push(Violation::new("path", "path_traversal", "Path traversal not allowed"));
         }
-        // `filename_length` (stored_file.hook.yaml:182)
+        // `filename_length` (stored_file.hook.yaml:183)
         if (create) && !r::holds(&r::le(r::length(r::field(row, "original_name")), r::Val::Num(255.0_f64))) {
             shadow.push(Violation::new("original_name", "filename_too_long", "File name too long (max 255 characters)"));
         }
-        // `valid_mime_type` (stored_file.hook.yaml:188)
+        // `valid_mime_type` (stored_file.hook.yaml:189)
         if (create) && !r::holds(&r::matches(r::field(row, "mime_type"), "^[a-z]+/[a-z0-9.+-]+$")) {
             shadow.push(Violation::new("mime_type", "invalid_mime_type", "Invalid MIME type format"));
         }
-        // `file_not_purged` (stored_file.hook.yaml:194)
+        // `file_not_purged` (stored_file.hook.yaml:195)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("purged"))) {
             shadow.push(Violation::new("status", "file_purged", "Cannot update purged files"));
         }
-        // `quarantine_admin_only` (stored_file.hook.yaml:200)
+        // `quarantine_admin_only` (stored_file.hook.yaml:201)
         if (update) && !r::holds(&r::or(r::ne(r::field(row, "status"), r::text("quarantined")), r::has_role(ctx.actor.as_deref(), "admin").await)) {
             shadow.push(Violation::new("status", "quarantine_restricted", "Only admins can modify quarantined files"));
         }

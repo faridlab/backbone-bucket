@@ -123,12 +123,14 @@ rules:
     condition: "bucket_exists(bucket_id)"
     message: "Target bucket must exist"
     code: BUCKET_NOT_FOUND
+    justification: "PARTLY: the resumable initiate and the single-shot upload refuse a missing bucket, but the generic upload_sessions create, mounted for permission holders, does not, and no foreign key backs it."
 
   bucket_must_accept_uploads:
     when: [create]
     condition: "get_bucket(bucket_id).status == 'active'"
     message: "Bucket must accept uploads"
     code: BUCKET_NOT_ACTIVE
+    justification: "PARTLY: enforce_bucket_policy refuses a readonly, archived or deleted bucket at upload time, but complete_session does not re-check it, so a bucket archived after initiate still receives the file; the generic create bypasses it."
 
   valid_file_size:
     when: [create]
@@ -171,12 +173,14 @@ rules:
     condition: "expires_at <= now() + INTERVAL '7 days'"
     message: "Expiration must be within 7 days"
     code: EXPIRATION_TOO_FAR
+    justification: "PARTLY: initiate sets a 24-hour expiry by construction; the generic upload_sessions create and update set any value."
 
   session_not_expired:
     when: [update]
     condition: "expires_at > now() || status IN ('completed', 'failed', 'expired')"
     message: "Session has expired"
     code: SESSION_EXPIRED
+    justification: "PARTLY: get_active_session refuses an expired session, but upload_part writes the part's bytes before it runs, and the generic update bypasses it."
 
 # =============================================================================
 # Access Control (RBAC)

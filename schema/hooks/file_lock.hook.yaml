@@ -78,6 +78,8 @@ rules:
     condition: "!has_active_lock(file_id)"
     message: "File is already locked by another user"
     code: FILE_ALREADY_LOCKED
+    enforced_by: "migrations/20260426220003_create_file_lock_table.up.sql::idx_file_locks_file_id"
+    justification: "Over-enforces: the unique on file_id counts released and expired locks too (they are soft-deleted, so the row stays), so a file once locked can never be locked again; a duplicate answers 400 with the database text, never FILE_ALREADY_LOCKED."
 
   reasonable_duration:
     when: [create]

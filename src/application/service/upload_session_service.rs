@@ -60,27 +60,27 @@ impl backbone_core::write_guard::WriteGuard<UploadSession> for UploadSessionRowR
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
         }
-        // `valid_file_size` (upload_session.hook.yaml:133)
+        // `valid_file_size` (upload_session.hook.yaml:135)
         if (create) && !r::holds(&r::gt(r::field(row, "file_size"), r::Val::Num(0.0_f64))) {
             shadow.push(Violation::new("file_size", "invalid_file_size", "File size must be positive"));
         }
-        // `minimum_chunk_size` (upload_session.hook.yaml:139)
+        // `minimum_chunk_size` (upload_session.hook.yaml:141)
         if (create) && !r::holds(&r::ge(r::field(row, "chunk_size"), r::Val::Num(5242880.0_f64))) {
             shadow.push(Violation::new("chunk_size", "chunk_too_small", "Chunk size must be at least 5MB"));
         }
-        // `reasonable_chunk_size` (upload_session.hook.yaml:145)
+        // `reasonable_chunk_size` (upload_session.hook.yaml:147)
         if (create) && !r::holds(&r::le(r::field(row, "chunk_size"), r::Val::Num(5368709120.0_f64))) {
             shadow.push(Violation::new("chunk_size", "chunk_too_large", "Chunk size must not exceed 5GB"));
         }
-        // `valid_chunk_count` (upload_session.hook.yaml:151)
+        // `valid_chunk_count` (upload_session.hook.yaml:153)
         if (create) && !r::holds(&r::eq(r::field(row, "total_chunks"), r::ceil(r::div(r::field(row, "file_size"), r::field(row, "chunk_size"))))) {
             shadow.push(Violation::new("total_chunks", "invalid_chunk_count", "Total chunks must match file size and chunk size"));
         }
-        // `valid_path` (upload_session.hook.yaml:157)
+        // `valid_path` (upload_session.hook.yaml:159)
         if (create) && !r::holds(&r::and(r::and(r::is_not_null(r::field(row, "path")), r::not(r::contains(r::field(row, "path"), r::text("..")))), r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64)))) {
             shadow.push(Violation::new("path", "invalid_path", "Path must be valid and not contain traversal"));
         }
-        // `valid_expiration` (upload_session.hook.yaml:163)
+        // `valid_expiration` (upload_session.hook.yaml:165)
         if (create) && !r::holds(&r::gt(r::field(row, "expires_at"), r::at(ctx.at))) {
             shadow.push(Violation::new("expires_at", "invalid_expiration", "Expiration must be in future"));
         }

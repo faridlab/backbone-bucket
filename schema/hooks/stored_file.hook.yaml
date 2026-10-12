@@ -99,69 +99,70 @@ states:
 # =============================================================================
 # V2.0: Processing Status State Machine
 # =============================================================================
-processing_states:
-  field: processing_status
-
-  values:
-    pending:
-      initial: true
-      description: "Processing queued"
-
-    processing:
-      description: "Processing in progress"
-      on_enter:
-        - "emit: FileProcessingStartedEvent(file_id: id)"
-
-    thumbnails_ready:
-      description: "Thumbnails generated"
-      on_enter:
-        - "set: has_thumbnail = true"
-
-    scan_complete:
-      description: "Virus scan complete"
-      on_enter:
-        - "set: is_scanned = true"
-
-    complete:
-      description: "All processing complete"
-      final: true
-      on_enter:
-        - "emit: FileProcessingCompletedEvent(file_id: id)"
-
-    failed:
-      description: "Processing failed"
-      final: true
-      on_enter:
-        - "emit: FileProcessingFailedEvent(file_id: id, error: $context.error)"
-
-  transitions:
-    start_processing:
-      from: [pending]
-      to: [processing]
-      roles: [system]
-
-    thumbnails_generated:
-      from: [processing]
-      to: [thumbnails_ready]
-      roles: [system]
-      condition: "has_thumbnail == true || has_video_thumbnail == true"
-
-    scan_finished:
-      from: [processing, thumbnails_ready]
-      to: [scan_complete]
-      roles: [system]
-      condition: "is_scanned == true"
-
-    mark_complete:
-      from: [scan_complete, thumbnails_ready]
-      to: [complete]
-      roles: [system]
-      condition: "is_scanned == true && (has_thumbnail == true || mime_type.starts_with('video/') == false)"
-
-    mark_failed:
-      from: [processing, thumbnails_ready, scan_complete]
-      to: [failed]
-      roles: [system]
+# Not read by the generator: the processing-status lifecycle, kept as documentation.
+# processing_states:
+#   field: processing_status
+#
+#   values:
+#     pending:
+#       initial: true
+#       description: "Processing queued"
+#
+#     processing:
+#       description: "Processing in progress"
+#       on_enter:
+#         - "emit: FileProcessingStartedEvent(file_id: id)"
+#
+#     thumbnails_ready:
+#       description: "Thumbnails generated"
+#       on_enter:
+#         - "set: has_thumbnail = true"
+#
+#     scan_complete:
+#       description: "Virus scan complete"
+#       on_enter:
+#         - "set: is_scanned = true"
+#
+#     complete:
+#       description: "All processing complete"
+#       final: true
+#       on_enter:
+#         - "emit: FileProcessingCompletedEvent(file_id: id)"
+#
+#     failed:
+#       description: "Processing failed"
+#       final: true
+#       on_enter:
+#         - "emit: FileProcessingFailedEvent(file_id: id, error: $context.error)"
+#
+#   transitions:
+#     start_processing:
+#       from: [pending]
+#       to: [processing]
+#       roles: [system]
+#
+#     thumbnails_generated:
+#       from: [processing]
+#       to: [thumbnails_ready]
+#       roles: [system]
+#       condition: "has_thumbnail == true || has_video_thumbnail == true"
+#
+#     scan_finished:
+#       from: [processing, thumbnails_ready]
+#       to: [scan_complete]
+#       roles: [system]
+#       condition: "is_scanned == true"
+#
+#     mark_complete:
+#       from: [scan_complete, thumbnails_ready]
+#       to: [complete]
+#       roles: [system]
+#       condition: "is_scanned == true && (has_thumbnail == true || mime_type.starts_with('video/') == false)"
+#
+#     mark_failed:
+#       from: [processing, thumbnails_ready, scan_complete]
+#       to: [failed]
+#       roles: [system]
 
 # =============================================================================
 # Validation Rules
