@@ -265,6 +265,21 @@ impl MultipartUploadService {
         Ok(())
     }
 
+    /// Fail a session whose completion was refused after it began (its parts did not assemble to
+    /// the declared size), so it does not stay `completing` forever.
+    pub async fn mark_failed(&self, session_id: Uuid) -> ServiceResult<()> {
+        let mut session = self.session_repo
+            .find_by_id(&session_id.to_string())
+            .await
+            .map_err(|e| ServiceError::Repository(backbone_core::RepositoryError::DatabaseError(e.to_string())))?
+            .ok_or(ServiceError::NotFound)?;
+        session.status = UploadStatus::Failed;
+        session.metadata.touch();
+        let id_str = session.id.to_string();
+        self.session_repo.update(&id_str, &session).await.map_err(|e| ServiceError::Repository(backbone_core::RepositoryError::DatabaseError(e.to_string())))?;
+        Ok(())
+    }
+
     pub async fn mark_completed(&self, session_id: Uuid) -> ServiceResult<()> {
         let mut session = self.session_repo
             .find_by_id(&session_id.to_string())

@@ -428,6 +428,10 @@ where
 {
     let req = body.map(|Json(r)| r).unwrap_or_default();
     let owner_id = identity.owner_id();
+    // Refused before the session is touched, so a refused request leaves it completable.
+    if req.storage_key.is_some() {
+        return Err(BucketError::InvalidInput("storage_key is assigned by the server".into()));
+    }
 
     let session = ctx
         .multipart_service
@@ -438,9 +442,6 @@ where
     // TODO: when the storage backend supports native multipart (S3
     // CompleteMultipartUpload), short-circuit this assembly. The
     // ObjectStorage trait would need a `compose(parts) -> key` method.
-    if req.storage_key.is_some() {
-        return Err(BucketError::InvalidInput("storage_key is assigned by the server".into()));
-    }
     // The declared size is the caller's word; never allocate on it unbounded.
     let mut assembled = BytesMut::with_capacity((session.file_size.max(0) as usize).min(64 * 1024 * 1024));
     for part_number in 1..=session.total_chunks {
@@ -448,10 +449,12 @@ where
         let part = ctx.storage.get(&key).await?;
         assembled.extend_from_slice(&part);
         if assembled.len() as i64 > session.file_size {
+            let _ = ctx.multipart_service.mark_failed(session_id).await;
             return Err(BucketError::InvalidInput("the uploaded parts exceed the declared file size".into()));
         }
     }
     if assembled.len() as i64 != session.file_size {
+        let _ = ctx.multipart_service.mark_failed(session_id).await;
         return Err(BucketError::InvalidInput(format!(
             "the uploaded parts hold {} bytes, the session declared {}",
             assembled.len(),
