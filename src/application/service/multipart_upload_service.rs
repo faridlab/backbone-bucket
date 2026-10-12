@@ -66,6 +66,8 @@ impl MultipartUploadService {
             .chunk_size(chunk)
             .total_chunks(total_chunks)
             .uploaded_chunks(0)
+            // A new session holds no parts yet; without this the builder refuses every initiate.
+            .completed_parts(Vec::new())
             .status(UploadStatus::Initiated)
             .storage_backend(StorageBackend::Local)
             .expires_at(Utc::now() + Duration::hours(DEFAULT_SESSION_EXPIRY_HOURS));
