@@ -95,6 +95,11 @@ where
     A::Rejection: IntoResponse,
 {
     let file = lookup_by_key(&ctx.file_repo, &key).await?;
+    // Only a file that finished uploading and passed its checks is served: one still uploading
+    // or processing, or quarantined, reads as absent.
+    if file.status != crate::domain::entity::FileStatus::Active {
+        return Err(BucketError::NotFound);
+    }
     ctx.authz.ensure_can_read(&identity, &file).await?;
     build_mode_response(&*ctx.storage, &ctx.config, &file).await
 }
@@ -121,7 +126,11 @@ pub(crate) async fn build_mode_response(
             let bytes = storage.get(&file.storage_key).await?;
             Ok((
                 StatusCode::OK,
-                [(header::CONTENT_TYPE, file.mime_type.clone())],
+                [
+                    (header::CONTENT_TYPE, file.mime_type.clone()),
+                    // The type is what the uploader declared; never let a browser guess another.
+                    (header::X_CONTENT_TYPE_OPTIONS, "nosniff".to_string()),
+                ],
                 bytes,
             )
                 .into_response())

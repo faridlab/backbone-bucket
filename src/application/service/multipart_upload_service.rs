@@ -85,6 +85,34 @@ impl MultipartUploadService {
         Ok(created)
     }
 
+    /// Check that a part may be written before its bytes are stored: the session is the
+    /// caller's, live, expecting this part number, the part not already recorded, and its size
+    /// within the session's chunk size.
+    pub async fn authorize_part(
+        &self,
+        session_id: Uuid,
+        user_id: Uuid,
+        part_number: i32,
+        part_bytes: i64,
+    ) -> ServiceResult<()> {
+        let session = self.get_active_session(session_id, user_id).await?;
+        if part_number < 1 || part_number > session.total_chunks {
+            return Err(ServiceError::Validation(
+                format!("part_number must be between 1 and {}", session.total_chunks)
+            ));
+        }
+        if session.completed_parts.contains(&part_number) {
+            return Err(ServiceError::AlreadyExists(format!("Part {} already uploaded", part_number)));
+        }
+        if part_bytes <= 0 || part_bytes > i64::from(session.chunk_size) {
+            return Err(ServiceError::Validation(format!(
+                "a part holds 1..={} bytes; this one holds {}",
+                session.chunk_size, part_bytes
+            )));
+        }
+        Ok(())
+    }
+
     pub async fn record_part(
         &self,
         session_id: Uuid,
@@ -105,10 +133,11 @@ impl MultipartUploadService {
             ));
         }
 
-        // TODO: session_repo.record_part — implement custom repository method
-        // For now just update uploaded_chunks
+        // Record the part itself, so a resent part is refused above instead of counting twice.
         let mut updated_session = session;
-        updated_session.uploaded_chunks += 1;
+        updated_session.completed_parts.push(part_number);
+        updated_session.completed_parts.sort_unstable();
+        updated_session.uploaded_chunks = updated_session.completed_parts.len() as i32;
         if updated_session.status == UploadStatus::Initiated {
             updated_session.status = UploadStatus::Uploading;
         }
@@ -272,6 +301,12 @@ impl MultipartUploadService {
 
         if session.expires_at < Utc::now() {
             return Err(ServiceError::Validation("Upload session has expired".into()));
+        }
+
+        // A completed, completing, failed or expired session takes no more parts and no second
+        // completion.
+        if !matches!(session.status, UploadStatus::Initiated | UploadStatus::Uploading) {
+            return Err(ServiceError::Validation(format!("Upload session is {}", session.status)));
         }
 
         Ok(session)

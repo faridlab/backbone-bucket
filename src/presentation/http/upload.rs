@@ -215,10 +215,12 @@ where
         owner_entity_id,
     };
 
-    let file = match storage_key {
-        Some(key) => ctx.file_service.upload_with_key(&key, body, meta).await?,
-        None => ctx.file_service.upload(body, meta).await?,
-    };
+    // The server names every object. A caller-chosen key could overwrite another user's,
+    // unit's or tenant's object in the shared bucket, or publish to the public one.
+    if storage_key.is_some() {
+        return Err(BucketError::InvalidInput("storage_key is assigned by the server".into()));
+    }
+    let file = ctx.file_service.upload(body, meta).await?;
 
     // Post-commit quota bookkeeping. Best-effort; the row is already
     // durable so a failure here is logged, not surfaced.
@@ -370,6 +372,12 @@ where
     }
     let chunk = chunk.ok_or_else(|| BucketError::Other("missing chunk field".into()))?;
 
+    // Authorize before a byte is written: the session must be the caller's, live, and expecting
+    // this part, and the part no larger than the session's chunk size.
+    ctx.multipart_service
+        .authorize_part(session_id, owner_id, part_number, chunk.len() as i64)
+        .await
+        .map_err(service_to_bucket_error)?;
     let part_key = part_storage_key(session_id, part_number);
     ctx.storage
         .put(
@@ -395,8 +403,8 @@ where
 
 #[derive(Debug, Deserialize, Default)]
 pub struct CompleteRequest {
-    /// Optional explicit storage key. When omitted, an auto-generated
-    /// UUID-prefixed key is used (same convention as [`FileService::upload`]).
+    /// Refused when present: the server names every object (same convention as
+    /// [`FileService::upload`]). Kept on the wire type so an old client gets a clear answer.
     pub storage_key: Option<String>,
     pub owner_module: Option<String>,
     pub owner_entity: Option<String>,
@@ -430,11 +438,25 @@ where
     // TODO: when the storage backend supports native multipart (S3
     // CompleteMultipartUpload), short-circuit this assembly. The
     // ObjectStorage trait would need a `compose(parts) -> key` method.
-    let mut assembled = BytesMut::with_capacity(session.file_size.max(0) as usize);
+    if req.storage_key.is_some() {
+        return Err(BucketError::InvalidInput("storage_key is assigned by the server".into()));
+    }
+    // The declared size is the caller's word; never allocate on it unbounded.
+    let mut assembled = BytesMut::with_capacity((session.file_size.max(0) as usize).min(64 * 1024 * 1024));
     for part_number in 1..=session.total_chunks {
         let key = part_storage_key(session_id, part_number);
         let part = ctx.storage.get(&key).await?;
         assembled.extend_from_slice(&part);
+        if assembled.len() as i64 > session.file_size {
+            return Err(BucketError::InvalidInput("the uploaded parts exceed the declared file size".into()));
+        }
+    }
+    if assembled.len() as i64 != session.file_size {
+        return Err(BucketError::InvalidInput(format!(
+            "the uploaded parts hold {} bytes, the session declared {}",
+            assembled.len(),
+            session.file_size
+        )));
     }
     let body = assembled.freeze();
 
@@ -453,10 +475,7 @@ where
         owner_entity_id: req.owner_entity_id,
     };
     let assembled_size = body.len() as i64;
-    let file = match req.storage_key {
-        Some(key) => ctx.file_service.upload_with_key(&key, body, meta).await?,
-        None => ctx.file_service.upload(body, meta).await?,
-    };
+    let file = ctx.file_service.upload(body, meta).await?;
 
     // Post-commit bookkeeping. All three are best-effort: the file row is
     // already durable, so any failure here is logged for operator follow-up
