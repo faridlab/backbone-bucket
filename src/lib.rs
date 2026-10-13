@@ -65,12 +65,6 @@ pub use application::service::ThumbnailService;
 pub use application::service::UploadSessionService;
 pub use application::service::UserQuotaService;
 
-// Re-exports - Triggers
-pub use application::triggers::*;
-
-// Re-exports - Workflows
-pub use application::workflows::*;
-
 use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
