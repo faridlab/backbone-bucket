@@ -319,6 +319,9 @@ impl backbone_orm::EntityRepoMeta for ConversionJob {
     fn search_fields() -> &'static [&'static str] {
         &["target_format"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("sourceFile", "stored_files", "sourceFileId"), ("resultFile", "stored_files", "resultFileId")]
+    }
 }
 
 /// Builder for ConversionJob entity

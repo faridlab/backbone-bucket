@@ -318,6 +318,9 @@ impl backbone_orm::EntityRepoMeta for FileComment {
     fn search_fields() -> &'static [&'static str] {
         &["content"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("file", "stored_files", "fileId"), ("parent", "file_comments", "parentId")]
+    }
 }
 
 /// Builder for FileComment entity

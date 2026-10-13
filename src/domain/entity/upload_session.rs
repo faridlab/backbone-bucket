@@ -327,6 +327,9 @@ impl backbone_orm::EntityRepoMeta for UploadSession {
     fn search_fields() -> &'static [&'static str] {
         &["path", "filename"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("bucket", "buckets", "bucketId")]
+    }
 }
 
 /// Builder for UploadSession entity

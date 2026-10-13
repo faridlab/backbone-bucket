@@ -1,0 +1,13 @@
+-- Down: drop the declared foreign keys for bucket module
+ALTER TABLE IF EXISTS bucket.upload_sessions DROP CONSTRAINT IF EXISTS fk_upload_sessions_bucket_id;
+ALTER TABLE IF EXISTS bucket.thumbnails DROP CONSTRAINT IF EXISTS fk_thumbnails_file_id;
+ALTER TABLE IF EXISTS bucket.stored_files DROP CONSTRAINT IF EXISTS fk_stored_files_bucket_id;
+ALTER TABLE IF EXISTS bucket.processing_jobs DROP CONSTRAINT IF EXISTS fk_processing_jobs_file_id;
+ALTER TABLE IF EXISTS bucket.file_versions DROP CONSTRAINT IF EXISTS fk_file_versions_file_id;
+ALTER TABLE IF EXISTS bucket.file_shares DROP CONSTRAINT IF EXISTS fk_file_shares_file_id;
+ALTER TABLE IF EXISTS bucket.file_locks DROP CONSTRAINT IF EXISTS fk_file_locks_file_id;
+ALTER TABLE IF EXISTS bucket.file_comments DROP CONSTRAINT IF EXISTS fk_file_comments_parent_id;
+ALTER TABLE IF EXISTS bucket.file_comments DROP CONSTRAINT IF EXISTS fk_file_comments_file_id;
+ALTER TABLE IF EXISTS bucket.conversion_jobs DROP CONSTRAINT IF EXISTS fk_conversion_jobs_result_file_id;
+ALTER TABLE IF EXISTS bucket.conversion_jobs DROP CONSTRAINT IF EXISTS fk_conversion_jobs_source_file_id;
+ALTER TABLE IF EXISTS bucket.access_logs DROP CONSTRAINT IF EXISTS fk_access_logs_file_id;
