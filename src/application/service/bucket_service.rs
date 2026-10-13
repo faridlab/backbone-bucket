@@ -68,7 +68,7 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
         }
         // `name_max_length` (@max(255) on Bucket.name)
         if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64))) {
-            shadow.push(Violation::new("name", "max_length", "name must be at most 255 characters").with_param("max", 255_i64));
+            refuse.push(Violation::new("name", "max_length", "name must be at most 255 characters").with_param("max", 255_i64));
         }
         // `slug_required` (@required on Bucket.slug)
         if (create || (update && r::changed(old.as_ref(), row, &["slug"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "slug")), r::not(r::is_empty(r::trim(r::field(row, "slug")))))) {
@@ -76,7 +76,7 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
         }
         // `slug_max_length` (@max(255) on Bucket.slug)
         if (create || (update && r::changed(old.as_ref(), row, &["slug"]))) && !r::holds(&r::le(r::length(r::field(row, "slug")), r::Val::Num(255.0_f64))) {
-            shadow.push(Violation::new("slug", "max_length", "slug must be at most 255 characters").with_param("max", 255_i64));
+            refuse.push(Violation::new("slug", "max_length", "slug must be at most 255 characters").with_param("max", 255_i64));
         }
         // `owner_id_required` (@required on Bucket.owner_id)
         if (create || (update && r::changed(old.as_ref(), row, &["owner_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "owner_id")), r::not(r::is_empty(r::trim(r::field(row, "owner_id")))))) {
@@ -88,43 +88,39 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
         }
         // `root_path_max_length` (@max(1024) on Bucket.root_path)
         if (create || (update && r::changed(old.as_ref(), row, &["root_path"]))) && !r::holds(&r::le(r::length(r::field(row, "root_path")), r::Val::Num(1024.0_f64))) {
-            shadow.push(Violation::new("root_path", "max_length", "root_path must be at most 1024 characters").with_param("max", 1024_i64));
+            refuse.push(Violation::new("root_path", "max_length", "root_path must be at most 1024 characters").with_param("max", 1024_i64));
         }
         // `file_count_non_negative` (@non_negative on Bucket.file_count)
         if (create || (update && r::changed(old.as_ref(), row, &["file_count"]))) && !r::holds(&r::ge(r::field(row, "file_count"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("file_count", "non_negative", "file_count must not be negative"));
+            refuse.push(Violation::new("file_count", "non_negative", "file_count must not be negative"));
         }
         // `total_size_bytes_non_negative` (@non_negative on Bucket.total_size_bytes)
         if (create || (update && r::changed(old.as_ref(), row, &["total_size_bytes"]))) && !r::holds(&r::ge(r::field(row, "total_size_bytes"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("total_size_bytes", "non_negative", "total_size_bytes must not be negative"));
+            refuse.push(Violation::new("total_size_bytes", "non_negative", "total_size_bytes must not be negative"));
         }
         // `name_format` (bucket.hook.yaml:72)
         if (create || update) && !r::holds(&r::and(r::ge(r::length(r::field(row, "name")), r::Val::Num(1.0_f64)), r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64)))) {
-            shadow.push(Violation::new("name", "invalid_name_length", "Bucket name must be 1-255 characters"));
+            refuse.push(Violation::new("name", "invalid_name_length", "Bucket name must be 1-255 characters"));
         }
-        // `name_characters` (bucket.hook.yaml:78)
-        if (create || update) && !r::holds(&r::matches(r::field(row, "name"), "^[a-zA-Z0-9_-]+$")) {
-            shadow.push(Violation::new("name", "invalid_name_chars", "Bucket name must contain only alphanumeric characters, underscores, and hyphens"));
-        }
-        // `slug_format` (bucket.hook.yaml:84)
+        // `slug_format` (bucket.hook.yaml:81)
         if (create || update) && !r::holds(&r::and(r::ge(r::length(r::field(row, "slug")), r::Val::Num(1.0_f64)), r::le(r::length(r::field(row, "slug")), r::Val::Num(255.0_f64)))) {
-            shadow.push(Violation::new("slug", "invalid_slug_length", "Bucket slug must be 1-255 characters"));
+            refuse.push(Violation::new("slug", "invalid_slug_length", "Bucket slug must be 1-255 characters"));
         }
-        // `slug_characters` (bucket.hook.yaml:90)
-        if (create) && !r::holds(&r::matches(r::field(row, "slug"), "^[a-z0-9-]+$")) {
-            shadow.push(Violation::new("slug", "invalid_slug_chars", "Bucket slug must be lowercase with hyphens only"));
+        // `slug_characters` (bucket.hook.yaml:87)
+        if (create || update) && !r::holds(&r::matches(r::field(row, "slug"), "^[a-z0-9-]+$")) {
+            refuse.push(Violation::new("slug", "invalid_slug_chars", "Bucket slug must be lowercase with hyphens only"));
         }
-        // `root_path_length` (bucket.hook.yaml:96)
+        // `root_path_length` (bucket.hook.yaml:93)
         if (create) && !r::holds(&r::le(r::length(r::field(row, "root_path")), r::Val::Num(1024.0_f64))) {
-            shadow.push(Violation::new("root_path", "path_too_long", "Root path too long"));
+            refuse.push(Violation::new("root_path", "path_too_long", "Root path too long"));
         }
-        // `no_path_traversal` (bucket.hook.yaml:102)
+        // `no_path_traversal` (bucket.hook.yaml:99)
         if (create) && !r::holds(&r::not(r::contains(r::field(row, "root_path"), r::text("..")))) {
-            shadow.push(Violation::new("root_path", "path_traversal", "Path traversal not allowed in root path"));
+            refuse.push(Violation::new("root_path", "path_traversal", "Path traversal not allowed in root path"));
         }
-        // `cannot_modify_deleted` (bucket.hook.yaml:108)
+        // `cannot_modify_deleted` (bucket.hook.yaml:105)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
-            shadow.push(Violation::new("status", "bucket_deleted", "Cannot modify deleted buckets"));
+            refuse.push(Violation::new("status", "bucket_deleted", "Cannot modify deleted buckets"));
         }
         GuardOutcome { refuse, shadow }
     }

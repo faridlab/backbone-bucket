@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<FileVersion> for FileVersionRowRules
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `file_id_required` (@required on FileVersion.file_id)
         if (create || (update && r::changed(old.as_ref(), row, &["file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "file_id")), r::not(r::is_empty(r::trim(r::field(row, "file_id")))))) {
@@ -72,7 +72,7 @@ impl backbone_core::write_guard::WriteGuard<FileVersion> for FileVersionRowRules
         }
         // `name_max_length` (@max(255) on FileVersion.name)
         if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64))) {
-            shadow.push(Violation::new("name", "max_length", "name must be at most 255 characters").with_param("max", 255_i64));
+            refuse.push(Violation::new("name", "max_length", "name must be at most 255 characters").with_param("max", 255_i64));
         }
         // `mime_type_required` (@required on FileVersion.mime_type)
         if (create || (update && r::changed(old.as_ref(), row, &["mime_type"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "mime_type")), r::not(r::is_empty(r::trim(r::field(row, "mime_type")))))) {
@@ -80,11 +80,11 @@ impl backbone_core::write_guard::WriteGuard<FileVersion> for FileVersionRowRules
         }
         // `checksum_md5_max_length` (@max(32) on FileVersion.checksum_md5)
         if (create || (update && r::changed(old.as_ref(), row, &["checksum_md5"]))) && !r::holds(&r::le(r::length(r::field(row, "checksum_md5")), r::Val::Num(32.0_f64))) {
-            shadow.push(Violation::new("checksum_md5", "max_length", "checksum_md5 must be at most 32 characters").with_param("max", 32_i64));
+            refuse.push(Violation::new("checksum_md5", "max_length", "checksum_md5 must be at most 32 characters").with_param("max", 32_i64));
         }
         // `checksum_sha256_max_length` (@max(64) on FileVersion.checksum_sha256)
         if (create || (update && r::changed(old.as_ref(), row, &["checksum_sha256"]))) && !r::holds(&r::le(r::length(r::field(row, "checksum_sha256")), r::Val::Num(64.0_f64))) {
-            shadow.push(Violation::new("checksum_sha256", "max_length", "checksum_sha256 must be at most 64 characters").with_param("max", 64_i64));
+            refuse.push(Violation::new("checksum_sha256", "max_length", "checksum_sha256 must be at most 64 characters").with_param("max", 64_i64));
         }
         // `created_by_id_required` (@required on FileVersion.created_by_id)
         if (create || (update && r::changed(old.as_ref(), row, &["created_by_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "created_by_id")), r::not(r::is_empty(r::trim(r::field(row, "created_by_id")))))) {
@@ -92,11 +92,11 @@ impl backbone_core::write_guard::WriteGuard<FileVersion> for FileVersionRowRules
         }
         // `change_summary_max_length` (@max(500) on FileVersion.change_summary)
         if (create || (update && r::changed(old.as_ref(), row, &["change_summary"]))) && !r::holds(&r::le(r::length(r::field(row, "change_summary")), r::Val::Num(500.0_f64))) {
-            shadow.push(Violation::new("change_summary", "max_length", "change_summary must be at most 500 characters").with_param("max", 500_i64));
+            refuse.push(Violation::new("change_summary", "max_length", "change_summary must be at most 500 characters").with_param("max", 500_i64));
         }
         // `size_bytes_non_negative` (@non_negative on FileVersion.size_bytes)
         if (create || (update && r::changed(old.as_ref(), row, &["size_bytes"]))) && !r::holds(&r::ge(r::field(row, "size_bytes"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("size_bytes", "non_negative", "size_bytes must not be negative"));
+            refuse.push(Violation::new("size_bytes", "non_negative", "size_bytes must not be negative"));
         }
         GuardOutcome { refuse, shadow }
     }

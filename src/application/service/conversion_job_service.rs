@@ -73,15 +73,15 @@ impl backbone_core::write_guard::WriteGuard<ConversionJob> for ConversionJobRowR
         }
         // `target_format_max_length` (@max(50) on ConversionJob.target_format)
         if (create || (update && r::changed(old.as_ref(), row, &["target_format"]))) && !r::holds(&r::le(r::length(r::field(row, "target_format")), r::Val::Num(50.0_f64))) {
-            shadow.push(Violation::new("target_format", "max_length", "target_format must be at most 50 characters").with_param("max", 50_i64));
+            refuse.push(Violation::new("target_format", "max_length", "target_format must be at most 50 characters").with_param("max", 50_i64));
         }
         // `progress_range` (@range(0, 100) on ConversionJob.progress)
         if (create || (update && r::changed(old.as_ref(), row, &["progress"]))) && !r::holds(&r::and(r::ge(r::field(row, "progress"), r::Val::Num(0.0_f64)), r::le(r::field(row, "progress"), r::Val::Num(100.0_f64)))) {
-            shadow.push(Violation::new("progress", "range", "progress must be between 0 and 100").with_param("min", 0_i64).with_param("max", 100_i64));
+            refuse.push(Violation::new("progress", "range", "progress must be between 0 and 100").with_param("min", 0_i64).with_param("max", 100_i64));
         }
         // `progress_monotonic` (conversion_job.hook.yaml:150)
         if (update) && !r::holds(&r::ge(r::field(row, "progress"), r::field(old_row, "progress"))) {
-            shadow.push(Violation::new("progress", "invalid_progress", "Progress cannot decrease"));
+            refuse.push(Violation::new("progress", "invalid_progress", "Progress cannot decrease"));
         }
         GuardOutcome { refuse, shadow }
     }

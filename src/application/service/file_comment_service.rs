@@ -76,23 +76,23 @@ impl backbone_core::write_guard::WriteGuard<FileComment> for FileCommentRowRules
         }
         // `content_max_length` (@max(10000) on FileComment.content)
         if (create || (update && r::changed(old.as_ref(), row, &["content"]))) && !r::holds(&r::le(r::length(r::field(row, "content")), r::Val::Num(10000.0_f64))) {
-            shadow.push(Violation::new("content", "max_length", "content must be at most 10000 characters").with_param("max", 10000_i64));
+            refuse.push(Violation::new("content", "max_length", "content must be at most 10000 characters").with_param("max", 10000_i64));
         }
         // `content_required` (file_comment.hook.yaml:88)
         if (create) && !r::holds(&r::and(r::is_not_null(r::field(row, "content")), r::gt(r::length(r::trim(r::field(row, "content"))), r::Val::Num(0.0_f64)))) {
-            shadow.push(Violation::new("content", "empty_comment", "Comment content is required"));
+            refuse.push(Violation::new("content", "empty_comment", "Comment content is required"));
         }
         // `content_max_length` (file_comment.hook.yaml:94)
         if (create || update) && !r::holds(&r::le(r::length(r::field(row, "content")), r::Val::Num(10000.0_f64))) {
-            shadow.push(Violation::new("content", "comment_too_long", "Comment content max 10000 characters"));
+            refuse.push(Violation::new("content", "comment_too_long", "Comment content max 10000 characters"));
         }
         // `only_owner_can_edit` (file_comment.hook.yaml:124)
         if (update) && !r::holds(&r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "user_id"))) {
-            shadow.push(Violation::new("user_id", "not_comment_owner", "Only comment owner can edit"));
+            refuse.push(Violation::new("user_id", "not_comment_owner", "Only comment owner can edit"));
         }
         // `cannot_edit_deleted` (file_comment.hook.yaml:130)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
-            shadow.push(Violation::new("status", "comment_deleted", "Cannot edit deleted comment"));
+            refuse.push(Violation::new("status", "comment_deleted", "Cannot edit deleted comment"));
         }
         GuardOutcome { refuse, shadow }
     }

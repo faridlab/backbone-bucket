@@ -68,19 +68,19 @@ impl backbone_core::write_guard::WriteGuard<ProcessingJob> for ProcessingJobRowR
         }
         // `retry_count_non_negative` (@non_negative on ProcessingJob.retry_count)
         if (create || (update && r::changed(old.as_ref(), row, &["retry_count"]))) && !r::holds(&r::ge(r::field(row, "retry_count"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("retry_count", "non_negative", "retry_count must not be negative"));
+            refuse.push(Violation::new("retry_count", "non_negative", "retry_count must not be negative"));
         }
         // `max_retries_positive` (@positive on ProcessingJob.max_retries)
         if (create || (update && r::changed(old.as_ref(), row, &["max_retries"]))) && !r::holds(&r::gt(r::field(row, "max_retries"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("max_retries", "positive", "max_retries must be positive"));
+            refuse.push(Violation::new("max_retries", "positive", "max_retries must be positive"));
         }
         // `priority_valid` (processing_job.hook.yaml:140)
         if (create || update) && !r::holds(&r::and(r::ge(r::field(row, "priority"), r::Val::Num(0.0_f64)), r::le(r::field(row, "priority"), r::Val::Num(10.0_f64)))) {
-            shadow.push(Violation::new("priority", "invalid_priority", "Priority must be 0-10"));
+            refuse.push(Violation::new("priority", "invalid_priority", "Priority must be 0-10"));
         }
         // `cannot_modify_completed` (processing_job.hook.yaml:146)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("completed"))) {
-            shadow.push(Violation::new("status", "job_completed", "Cannot modify completed jobs"));
+            refuse.push(Violation::new("status", "job_completed", "Cannot modify completed jobs"));
         }
         GuardOutcome { refuse, shadow }
     }

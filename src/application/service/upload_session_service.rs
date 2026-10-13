@@ -76,7 +76,7 @@ impl backbone_core::write_guard::WriteGuard<UploadSession> for UploadSessionRowR
         }
         // `path_max_length` (@max(1024) on UploadSession.path)
         if (create || (update && r::changed(old.as_ref(), row, &["path"]))) && !r::holds(&r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64))) {
-            shadow.push(Violation::new("path", "max_length", "path must be at most 1024 characters").with_param("max", 1024_i64));
+            refuse.push(Violation::new("path", "max_length", "path must be at most 1024 characters").with_param("max", 1024_i64));
         }
         // `filename_required` (@required on UploadSession.filename)
         if (create || (update && r::changed(old.as_ref(), row, &["filename"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "filename")), r::not(r::is_empty(r::trim(r::field(row, "filename")))))) {
@@ -84,51 +84,51 @@ impl backbone_core::write_guard::WriteGuard<UploadSession> for UploadSessionRowR
         }
         // `filename_max_length` (@max(255) on UploadSession.filename)
         if (create || (update && r::changed(old.as_ref(), row, &["filename"]))) && !r::holds(&r::le(r::length(r::field(row, "filename")), r::Val::Num(255.0_f64))) {
-            shadow.push(Violation::new("filename", "max_length", "filename must be at most 255 characters").with_param("max", 255_i64));
+            refuse.push(Violation::new("filename", "max_length", "filename must be at most 255 characters").with_param("max", 255_i64));
         }
         // `mime_type_max_length` (@max(127) on UploadSession.mime_type)
         if (create || (update && r::changed(old.as_ref(), row, &["mime_type"]))) && !r::holds(&r::le(r::length(r::field(row, "mime_type")), r::Val::Num(127.0_f64))) {
-            shadow.push(Violation::new("mime_type", "max_length", "mime_type must be at most 127 characters").with_param("max", 127_i64));
+            refuse.push(Violation::new("mime_type", "max_length", "mime_type must be at most 127 characters").with_param("max", 127_i64));
         }
         // `file_size_positive` (@positive on UploadSession.file_size)
         if (create || (update && r::changed(old.as_ref(), row, &["file_size"]))) && !r::holds(&r::gt(r::field(row, "file_size"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("file_size", "positive", "file_size must be positive"));
+            refuse.push(Violation::new("file_size", "positive", "file_size must be positive"));
         }
         // `chunk_size_positive` (@positive on UploadSession.chunk_size)
         if (create || (update && r::changed(old.as_ref(), row, &["chunk_size"]))) && !r::holds(&r::gt(r::field(row, "chunk_size"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("chunk_size", "positive", "chunk_size must be positive"));
+            refuse.push(Violation::new("chunk_size", "positive", "chunk_size must be positive"));
         }
         // `total_chunks_positive` (@positive on UploadSession.total_chunks)
         if (create || (update && r::changed(old.as_ref(), row, &["total_chunks"]))) && !r::holds(&r::gt(r::field(row, "total_chunks"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("total_chunks", "positive", "total_chunks must be positive"));
+            refuse.push(Violation::new("total_chunks", "positive", "total_chunks must be positive"));
         }
         // `uploaded_chunks_non_negative` (@non_negative on UploadSession.uploaded_chunks)
         if (create || (update && r::changed(old.as_ref(), row, &["uploaded_chunks"]))) && !r::holds(&r::ge(r::field(row, "uploaded_chunks"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("uploaded_chunks", "non_negative", "uploaded_chunks must not be negative"));
+            refuse.push(Violation::new("uploaded_chunks", "non_negative", "uploaded_chunks must not be negative"));
         }
         // `valid_file_size` (upload_session.hook.yaml:135)
         if (create) && !r::holds(&r::gt(r::field(row, "file_size"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("file_size", "invalid_file_size", "File size must be positive"));
+            refuse.push(Violation::new("file_size", "invalid_file_size", "File size must be positive"));
         }
         // `minimum_chunk_size` (upload_session.hook.yaml:141)
         if (create) && !r::holds(&r::ge(r::field(row, "chunk_size"), r::Val::Num(5242880.0_f64))) {
-            shadow.push(Violation::new("chunk_size", "chunk_too_small", "Chunk size must be at least 5MB"));
+            refuse.push(Violation::new("chunk_size", "chunk_too_small", "Chunk size must be at least 5MB"));
         }
         // `reasonable_chunk_size` (upload_session.hook.yaml:147)
         if (create) && !r::holds(&r::le(r::field(row, "chunk_size"), r::Val::Num(5368709120.0_f64))) {
-            shadow.push(Violation::new("chunk_size", "chunk_too_large", "Chunk size must not exceed 5GB"));
+            refuse.push(Violation::new("chunk_size", "chunk_too_large", "Chunk size must not exceed 5GB"));
         }
         // `valid_chunk_count` (upload_session.hook.yaml:153)
         if (create) && !r::holds(&r::eq(r::field(row, "total_chunks"), r::ceil(r::div(r::field(row, "file_size"), r::field(row, "chunk_size"))))) {
-            shadow.push(Violation::new("total_chunks", "invalid_chunk_count", "Total chunks must match file size and chunk size"));
+            refuse.push(Violation::new("total_chunks", "invalid_chunk_count", "Total chunks must match file size and chunk size"));
         }
         // `valid_path` (upload_session.hook.yaml:159)
         if (create) && !r::holds(&r::and(r::and(r::is_not_null(r::field(row, "path")), r::not(r::contains(r::field(row, "path"), r::text("..")))), r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64)))) {
-            shadow.push(Violation::new("path", "invalid_path", "Path must be valid and not contain traversal"));
+            refuse.push(Violation::new("path", "invalid_path", "Path must be valid and not contain traversal"));
         }
         // `valid_expiration` (upload_session.hook.yaml:165)
         if (create) && !r::holds(&r::gt(r::field(row, "expires_at"), r::at(ctx.at))) {
-            shadow.push(Violation::new("expires_at", "invalid_expiration", "Expiration must be in future"));
+            refuse.push(Violation::new("expires_at", "invalid_expiration", "Expiration must be in future"));
         }
         GuardOutcome { refuse, shadow }
     }

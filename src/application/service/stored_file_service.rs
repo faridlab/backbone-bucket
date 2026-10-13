@@ -76,7 +76,7 @@ impl backbone_core::write_guard::WriteGuard<StoredFile> for StoredFileRowRules {
         }
         // `path_max_length` (@max(1024) on StoredFile.path)
         if (create || (update && r::changed(old.as_ref(), row, &["path"]))) && !r::holds(&r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64))) {
-            shadow.push(Violation::new("path", "max_length", "path must be at most 1024 characters").with_param("max", 1024_i64));
+            refuse.push(Violation::new("path", "max_length", "path must be at most 1024 characters").with_param("max", 1024_i64));
         }
         // `original_name_required` (@required on StoredFile.original_name)
         if (create || (update && r::changed(old.as_ref(), row, &["original_name"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "original_name")), r::not(r::is_empty(r::trim(r::field(row, "original_name")))))) {
@@ -84,11 +84,11 @@ impl backbone_core::write_guard::WriteGuard<StoredFile> for StoredFileRowRules {
         }
         // `original_name_max_length` (@max(255) on StoredFile.original_name)
         if (create || (update && r::changed(old.as_ref(), row, &["original_name"]))) && !r::holds(&r::le(r::length(r::field(row, "original_name")), r::Val::Num(255.0_f64))) {
-            shadow.push(Violation::new("original_name", "max_length", "original_name must be at most 255 characters").with_param("max", 255_i64));
+            refuse.push(Violation::new("original_name", "max_length", "original_name must be at most 255 characters").with_param("max", 255_i64));
         }
         // `size_bytes_non_negative` (@non_negative on StoredFile.size_bytes)
         if (create || (update && r::changed(old.as_ref(), row, &["size_bytes"]))) && !r::holds(&r::ge(r::field(row, "size_bytes"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("size_bytes", "non_negative", "size_bytes must not be negative"));
+            refuse.push(Violation::new("size_bytes", "non_negative", "size_bytes must not be negative"));
         }
         // `mime_type_required` (@required on StoredFile.mime_type)
         if (create || (update && r::changed(old.as_ref(), row, &["mime_type"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "mime_type")), r::not(r::is_empty(r::trim(r::field(row, "mime_type")))))) {
@@ -96,23 +96,23 @@ impl backbone_core::write_guard::WriteGuard<StoredFile> for StoredFileRowRules {
         }
         // `mime_type_max_length` (@max(127) on StoredFile.mime_type)
         if (create || (update && r::changed(old.as_ref(), row, &["mime_type"]))) && !r::holds(&r::le(r::length(r::field(row, "mime_type")), r::Val::Num(127.0_f64))) {
-            shadow.push(Violation::new("mime_type", "max_length", "mime_type must be at most 127 characters").with_param("max", 127_i64));
+            refuse.push(Violation::new("mime_type", "max_length", "mime_type must be at most 127 characters").with_param("max", 127_i64));
         }
         // `checksum_max_length` (@max(128) on StoredFile.checksum)
         if (create || (update && r::changed(old.as_ref(), row, &["checksum"]))) && !r::holds(&r::le(r::length(r::field(row, "checksum")), r::Val::Num(128.0_f64))) {
-            shadow.push(Violation::new("checksum", "max_length", "checksum must be at most 128 characters").with_param("max", 128_i64));
+            refuse.push(Violation::new("checksum", "max_length", "checksum must be at most 128 characters").with_param("max", 128_i64));
         }
         // `owner_module_max_length` (@max(100) on StoredFile.owner_module)
         if (create || (update && r::changed(old.as_ref(), row, &["owner_module"]))) && !r::holds(&r::le(r::length(r::field(row, "owner_module")), r::Val::Num(100.0_f64))) {
-            shadow.push(Violation::new("owner_module", "max_length", "owner_module must be at most 100 characters").with_param("max", 100_i64));
+            refuse.push(Violation::new("owner_module", "max_length", "owner_module must be at most 100 characters").with_param("max", 100_i64));
         }
         // `owner_entity_max_length` (@max(100) on StoredFile.owner_entity)
         if (create || (update && r::changed(old.as_ref(), row, &["owner_entity"]))) && !r::holds(&r::le(r::length(r::field(row, "owner_entity")), r::Val::Num(100.0_f64))) {
-            shadow.push(Violation::new("owner_entity", "max_length", "owner_entity must be at most 100 characters").with_param("max", 100_i64));
+            refuse.push(Violation::new("owner_entity", "max_length", "owner_entity must be at most 100 characters").with_param("max", 100_i64));
         }
         // `field_name_max_length` (@max(100) on StoredFile.field_name)
         if (create || (update && r::changed(old.as_ref(), row, &["field_name"]))) && !r::holds(&r::le(r::length(r::field(row, "field_name")), r::Val::Num(100.0_f64))) {
-            shadow.push(Violation::new("field_name", "max_length", "field_name must be at most 100 characters").with_param("max", 100_i64));
+            refuse.push(Violation::new("field_name", "max_length", "field_name must be at most 100 characters").with_param("max", 100_i64));
         }
         // `storage_key_required` (@required on StoredFile.storage_key)
         if (create || (update && r::changed(old.as_ref(), row, &["storage_key"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "storage_key")), r::not(r::is_empty(r::trim(r::field(row, "storage_key")))))) {
@@ -120,35 +120,35 @@ impl backbone_core::write_guard::WriteGuard<StoredFile> for StoredFileRowRules {
         }
         // `storage_key_max_length` (@max(1024) on StoredFile.storage_key)
         if (create || (update && r::changed(old.as_ref(), row, &["storage_key"]))) && !r::holds(&r::le(r::length(r::field(row, "storage_key")), r::Val::Num(1024.0_f64))) {
-            shadow.push(Violation::new("storage_key", "max_length", "storage_key must be at most 1024 characters").with_param("max", 1024_i64));
+            refuse.push(Violation::new("storage_key", "max_length", "storage_key must be at most 1024 characters").with_param("max", 1024_i64));
         }
         // `download_count_non_negative` (@non_negative on StoredFile.download_count)
         if (create || (update && r::changed(old.as_ref(), row, &["download_count"]))) && !r::holds(&r::ge(r::field(row, "download_count"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("download_count", "non_negative", "download_count must not be negative"));
+            refuse.push(Violation::new("download_count", "non_negative", "download_count must not be negative"));
         }
         // `path_length` (stored_file.hook.yaml:171)
         if (create || update) && !r::holds(&r::le(r::length(r::field(row, "path")), r::Val::Num(1024.0_f64))) {
-            shadow.push(Violation::new("path", "path_too_long", "File path too long (max 1024 characters)"));
+            refuse.push(Violation::new("path", "path_too_long", "File path too long (max 1024 characters)"));
         }
         // `no_path_traversal` (stored_file.hook.yaml:177)
         if (create || update) && !r::holds(&r::not(r::contains(r::field(row, "path"), r::text("..")))) {
-            shadow.push(Violation::new("path", "path_traversal", "Path traversal not allowed"));
+            refuse.push(Violation::new("path", "path_traversal", "Path traversal not allowed"));
         }
         // `filename_length` (stored_file.hook.yaml:183)
         if (create) && !r::holds(&r::le(r::length(r::field(row, "original_name")), r::Val::Num(255.0_f64))) {
-            shadow.push(Violation::new("original_name", "filename_too_long", "File name too long (max 255 characters)"));
+            refuse.push(Violation::new("original_name", "filename_too_long", "File name too long (max 255 characters)"));
         }
         // `valid_mime_type` (stored_file.hook.yaml:189)
         if (create) && !r::holds(&r::matches(r::field(row, "mime_type"), "^[a-z]+/[a-z0-9.+-]+$")) {
-            shadow.push(Violation::new("mime_type", "invalid_mime_type", "Invalid MIME type format"));
+            refuse.push(Violation::new("mime_type", "invalid_mime_type", "Invalid MIME type format"));
         }
         // `file_not_purged` (stored_file.hook.yaml:195)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("purged"))) {
-            shadow.push(Violation::new("status", "file_purged", "Cannot update purged files"));
+            refuse.push(Violation::new("status", "file_purged", "Cannot update purged files"));
         }
         // `quarantine_admin_only` (stored_file.hook.yaml:201)
         if (update) && !r::holds(&r::or(r::ne(r::field(row, "status"), r::text("quarantined")), r::has_role(ctx.actor.as_deref(), "admin").await)) {
-            shadow.push(Violation::new("status", "quarantine_restricted", "Only admins can modify quarantined files"));
+            refuse.push(Violation::new("status", "quarantine_restricted", "Only admins can modify quarantined files"));
         }
         GuardOutcome { refuse, shadow }
     }

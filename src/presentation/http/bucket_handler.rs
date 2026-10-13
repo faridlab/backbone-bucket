@@ -42,8 +42,6 @@ pub enum BucketError {
     // Domain-specific errors from hook rules
     #[error("Bucket name must be 1-255 characters: {0}")]
     InvalidNameLength(String),
-    #[error("Bucket name must contain only alphanumeric characters, underscores, and hyphens: {0}")]
-    InvalidNameChars(String),
     #[error("Bucket slug must be 1-255 characters: {0}")]
     InvalidSlugLength(String),
     #[error("Bucket slug must be lowercase with hyphens only: {0}")]
@@ -82,7 +80,6 @@ impl axum::response::IntoResponse for BucketError {
             Self::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "BUCKET_DATABASE_ERROR"),
             Self::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "BUCKET_INTERNAL_ERROR"),
             Self::InvalidNameLength(_) => (StatusCode::UNPROCESSABLE_ENTITY, "BUCKET_INVALID_NAME_LENGTH"),
-            Self::InvalidNameChars(_) => (StatusCode::UNPROCESSABLE_ENTITY, "BUCKET_INVALID_NAME_CHARS"),
             Self::InvalidSlugLength(_) => (StatusCode::UNPROCESSABLE_ENTITY, "BUCKET_INVALID_SLUG_LENGTH"),
             Self::InvalidSlugChars(_) => (StatusCode::UNPROCESSABLE_ENTITY, "BUCKET_INVALID_SLUG_CHARS"),
             Self::PathTooLong(_) => (StatusCode::UNPROCESSABLE_ENTITY, "BUCKET_PATH_TOO_LONG"),
@@ -104,7 +101,6 @@ impl axum::response::IntoResponse for BucketError {
 /// Domain-specific error codes for Bucket
 pub mod bucket_errors {
     pub const INVALID_NAME_LENGTH: &str = "BUCKET_INVALID_NAME_LENGTH";
-    pub const INVALID_NAME_CHARS: &str = "BUCKET_INVALID_NAME_CHARS";
     pub const INVALID_SLUG_LENGTH: &str = "BUCKET_INVALID_SLUG_LENGTH";
     pub const INVALID_SLUG_CHARS: &str = "BUCKET_INVALID_SLUG_CHARS";
     pub const PATH_TOO_LONG: &str = "BUCKET_PATH_TOO_LONG";

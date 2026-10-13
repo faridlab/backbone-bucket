@@ -76,39 +76,39 @@ impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
         }
         // `token_min_length` (@min(32) on FileShare.token)
         if (create || (update && r::changed(old.as_ref(), row, &["token"]))) && !r::holds(&r::ge(r::length(r::field(row, "token")), r::Val::Num(32.0_f64))) {
-            shadow.push(Violation::new("token", "min_length", "token must be at least 32 characters").with_param("min", 32_i64));
+            refuse.push(Violation::new("token", "min_length", "token must be at least 32 characters").with_param("min", 32_i64));
         }
         // `token_max_length` (@max(64) on FileShare.token)
         if (create || (update && r::changed(old.as_ref(), row, &["token"]))) && !r::holds(&r::le(r::length(r::field(row, "token")), r::Val::Num(64.0_f64))) {
-            shadow.push(Violation::new("token", "max_length", "token must be at most 64 characters").with_param("max", 64_i64));
+            refuse.push(Violation::new("token", "max_length", "token must be at most 64 characters").with_param("max", 64_i64));
         }
         // `download_count_non_negative` (@non_negative on FileShare.download_count)
         if (create || (update && r::changed(old.as_ref(), row, &["download_count"]))) && !r::holds(&r::ge(r::field(row, "download_count"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("download_count", "non_negative", "download_count must not be negative"));
+            refuse.push(Violation::new("download_count", "non_negative", "download_count must not be negative"));
         }
         // `token_length` (file_share.hook.yaml:66)
         if (create) && !r::holds(&r::and(r::ge(r::length(r::field(row, "token")), r::Val::Num(32.0_f64)), r::le(r::length(r::field(row, "token")), r::Val::Num(64.0_f64)))) {
-            shadow.push(Violation::new("token", "invalid_token_length", "Share token must be 32-64 characters"));
+            refuse.push(Violation::new("token", "invalid_token_length", "Share token must be 32-64 characters"));
         }
         // `token_alphanumeric` (file_share.hook.yaml:72)
         if (create) && !r::holds(&r::matches(r::field(row, "token"), "^[a-zA-Z0-9]+$")) {
-            shadow.push(Violation::new("token", "invalid_token_chars", "Share token must be alphanumeric"));
+            refuse.push(Violation::new("token", "invalid_token_chars", "Share token must be alphanumeric"));
         }
         // `future_expiry` (file_share.hook.yaml:90)
         if (create || (update && r::changed(old.as_ref(), row, &["expires_at"]))) && !r::holds(&r::or(r::is_null(r::field(row, "expires_at")), r::gt(r::field(row, "expires_at"), r::at(ctx.at)))) {
-            shadow.push(Violation::new("expires_at", "expired_date", "Expiration date must be in the future"));
+            refuse.push(Violation::new("expires_at", "expired_date", "Expiration date must be in the future"));
         }
         // `positive_downloads` (file_share.hook.yaml:96)
         if (create || update) && !r::holds(&r::or(r::is_null(r::field(row, "max_downloads")), r::gt(r::field(row, "max_downloads"), r::Val::Num(0.0_f64)))) {
-            shadow.push(Violation::new("max_downloads", "invalid_max_downloads", "Maximum downloads must be positive"));
+            refuse.push(Violation::new("max_downloads", "invalid_max_downloads", "Maximum downloads must be positive"));
         }
         // `user_share_requires_recipients` (file_share.hook.yaml:102)
         if (create) && !r::holds(&r::or(r::ne(r::field(row, "share_type"), r::text("user")), r::and(r::is_not_null(r::field(row, "shared_with")), r::gt(r::length(r::field(row, "shared_with")), r::Val::Num(0.0_f64))))) {
-            shadow.push(Violation::new("share_type", "missing_recipients", "User shares must specify recipients"));
+            refuse.push(Violation::new("share_type", "missing_recipients", "User shares must specify recipients"));
         }
         // `cannot_modify_inactive` (file_share.hook.yaml:108)
         if (update) && !r::holds(&r::or(r::or(r::eq(r::field(row, "status"), r::text("active")), r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "owner_id"))), r::has_role(ctx.actor.as_deref(), "admin").await)) {
-            shadow.push(Violation::new("status", "share_inactive", "Cannot modify inactive shares"));
+            refuse.push(Violation::new("status", "share_inactive", "Cannot modify inactive shares"));
         }
         GuardOutcome { refuse, shadow }
     }
