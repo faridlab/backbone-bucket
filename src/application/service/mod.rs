@@ -35,13 +35,17 @@ pub use stored_file_service::StoredFileService;
 pub use thumbnail_service::ThumbnailService;
 pub use upload_session_service::UploadSessionService;
 pub use user_quota_service::UserQuotaService;
+pub use access_log_service::AccessLogRowRules;
 pub use bucket_service::BucketRowRules;
+pub use content_hash_service::ContentHashRowRules;
 pub use conversion_job_service::ConversionJobRowRules;
 pub use file_comment_service::FileCommentRowRules;
 pub use file_lock_service::FileLockRowRules;
 pub use file_share_service::FileShareRowRules;
+pub use file_version_service::FileVersionRowRules;
 pub use processing_job_service::ProcessingJobRowRules;
 pub use stored_file_service::StoredFileRowRules;
+pub use thumbnail_service::ThumbnailRowRules;
 pub use upload_session_service::UploadSessionRowRules;
 pub use user_quota_service::UserQuotaRowRules;
 

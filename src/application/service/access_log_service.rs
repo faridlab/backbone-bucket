@@ -32,3 +32,61 @@ pub type AccessLogService = GenericCrudService<
     AccessLogRepository,
 >;
 
+/// The rules the schema declares for AccessLog, checked against the row a create or update
+/// would store. The generated build attaches it to [`AccessLogService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
+pub struct AccessLogRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<AccessLog> for AccessLogRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, AccessLog>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
+        // `file_id_required` (@required on AccessLog.file_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "file_id")), r::not(r::is_empty(r::trim(r::field(row, "file_id")))))) {
+            refuse.push(Violation::new("file_id", "required", "file_id is required"));
+        }
+        // `ip_address_max_length` (@max(45) on AccessLog.ip_address)
+        if (create || (update && r::changed(old.as_ref(), row, &["ip_address"]))) && !r::holds(&r::le(r::length(r::field(row, "ip_address")), r::Val::Num(45.0_f64))) {
+            shadow.push(Violation::new("ip_address", "max_length", "ip_address must be at most 45 characters").with_param("max", 45_i64));
+        }
+        // `user_agent_max_length` (@max(500) on AccessLog.user_agent)
+        if (create || (update && r::changed(old.as_ref(), row, &["user_agent"]))) && !r::holds(&r::le(r::length(r::field(row, "user_agent")), r::Val::Num(500.0_f64))) {
+            shadow.push(Violation::new("user_agent", "max_length", "user_agent must be at most 500 characters").with_param("max", 500_i64));
+        }
+        // `referer_max_length` (@max(500) on AccessLog.referer)
+        if (create || (update && r::changed(old.as_ref(), row, &["referer"]))) && !r::holds(&r::le(r::length(r::field(row, "referer")), r::Val::Num(500.0_f64))) {
+            shadow.push(Violation::new("referer", "max_length", "referer must be at most 500 characters").with_param("max", 500_i64));
+        }
+        // `country_code_max_length` (@max(2) on AccessLog.country_code)
+        if (create || (update && r::changed(old.as_ref(), row, &["country_code"]))) && !r::holds(&r::le(r::length(r::field(row, "country_code")), r::Val::Num(2.0_f64))) {
+            shadow.push(Violation::new("country_code", "max_length", "country_code must be at most 2 characters").with_param("max", 2_i64));
+        }
+        // `city_max_length` (@max(100) on AccessLog.city)
+        if (create || (update && r::changed(old.as_ref(), row, &["city"]))) && !r::holds(&r::le(r::length(r::field(row, "city")), r::Val::Num(100.0_f64))) {
+            shadow.push(Violation::new("city", "max_length", "city must be at most 100 characters").with_param("max", 100_i64));
+        }
+        // `error_message_max_length` (@max(500) on AccessLog.error_message)
+        if (create || (update && r::changed(old.as_ref(), row, &["error_message"]))) && !r::holds(&r::le(r::length(r::field(row, "error_message")), r::Val::Num(500.0_f64))) {
+            shadow.push(Violation::new("error_message", "max_length", "error_message must be at most 500 characters").with_param("max", 500_i64));
+        }
+        GuardOutcome { refuse, shadow }
+    }
+}
+

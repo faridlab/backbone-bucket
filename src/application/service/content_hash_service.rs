@@ -32,3 +32,61 @@ pub type ContentHashService = GenericCrudService<
     ContentHashRepository,
 >;
 
+/// The rules the schema declares for ContentHash, checked against the row a create or update
+/// would store. The generated build attaches it to [`ContentHashService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
+pub struct ContentHashRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<ContentHash> for ContentHashRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, ContentHash>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
+        // `hash_required` (@required on ContentHash.hash)
+        if (create || (update && r::changed(old.as_ref(), row, &["hash"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "hash")), r::not(r::is_empty(r::trim(r::field(row, "hash")))))) {
+            refuse.push(Violation::new("hash", "required", "hash is required"));
+        }
+        // `hash_length` (@length(64) on ContentHash.hash)
+        if (create || (update && r::changed(old.as_ref(), row, &["hash"]))) && !r::holds(&r::eq(r::length(r::field(row, "hash")), r::Val::Num(64.0_f64))) {
+            shadow.push(Violation::new("hash", "length", "hash must be exactly 64 characters").with_param("length", 64_i64));
+        }
+        // `size_bytes_positive` (@positive on ContentHash.size_bytes)
+        if (create || (update && r::changed(old.as_ref(), row, &["size_bytes"]))) && !r::holds(&r::gt(r::field(row, "size_bytes"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("size_bytes", "positive", "size_bytes must be positive"));
+        }
+        // `storage_key_required` (@required on ContentHash.storage_key)
+        if (create || (update && r::changed(old.as_ref(), row, &["storage_key"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "storage_key")), r::not(r::is_empty(r::trim(r::field(row, "storage_key")))))) {
+            refuse.push(Violation::new("storage_key", "required", "storage_key is required"));
+        }
+        // `storage_key_max_length` (@max(1024) on ContentHash.storage_key)
+        if (create || (update && r::changed(old.as_ref(), row, &["storage_key"]))) && !r::holds(&r::le(r::length(r::field(row, "storage_key")), r::Val::Num(1024.0_f64))) {
+            shadow.push(Violation::new("storage_key", "max_length", "storage_key must be at most 1024 characters").with_param("max", 1024_i64));
+        }
+        // `reference_count_min` (@min(1) on ContentHash.reference_count)
+        if (create || (update && r::changed(old.as_ref(), row, &["reference_count"]))) && !r::holds(&r::ge(r::field(row, "reference_count"), r::Val::Num(1.0_f64))) {
+            shadow.push(Violation::new("reference_count", "min", "reference_count must be at least 1").with_param("min", 1_i64));
+        }
+        // `fingerprint_max_length` (@max(128) on ContentHash.fingerprint)
+        if (create || (update && r::changed(old.as_ref(), row, &["fingerprint"]))) && !r::holds(&r::le(r::length(r::field(row, "fingerprint")), r::Val::Num(128.0_f64))) {
+            shadow.push(Violation::new("fingerprint", "max_length", "fingerprint must be at most 128 characters").with_param("max", 128_i64));
+        }
+        GuardOutcome { refuse, shadow }
+    }
+}
+

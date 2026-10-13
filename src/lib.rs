@@ -65,9 +65,6 @@ pub use application::service::ThumbnailService;
 pub use application::service::UploadSessionService;
 pub use application::service::UserQuotaService;
 
-// Re-exports - Validation
-pub use application::validator::{ValidationError, ValidationResult};
-
 // Re-exports - Triggers
 pub use application::triggers::*;
 
@@ -281,7 +278,7 @@ impl BucketModuleBuilder {
 
         // AccessLog service
         let access_log_repository = Arc::new(AccessLogRepository::new(db_pool.clone()));
-        let access_log_service = Arc::new(AccessLogService::with_repository(access_log_repository.clone()));
+        let access_log_service = Arc::new(AccessLogService::with_repository(access_log_repository.clone()).with_guard(Arc::new(crate::application::service::AccessLogRowRules)));
 
         // Bucket service
         let bucket_repository = Arc::new(BucketRepository::new(db_pool.clone()));
@@ -289,7 +286,7 @@ impl BucketModuleBuilder {
 
         // ContentHash service
         let content_hash_repository = Arc::new(ContentHashRepository::new(db_pool.clone()));
-        let content_hash_service = Arc::new(ContentHashService::with_repository(content_hash_repository.clone()));
+        let content_hash_service = Arc::new(ContentHashService::with_repository(content_hash_repository.clone()).with_guard(Arc::new(crate::application::service::ContentHashRowRules)));
 
         // ConversionJob service
         let conversion_job_repository = Arc::new(ConversionJobRepository::new(db_pool.clone()));
@@ -309,7 +306,7 @@ impl BucketModuleBuilder {
 
         // FileVersion service
         let file_version_repository = Arc::new(FileVersionRepository::new(db_pool.clone()));
-        let file_version_service = Arc::new(FileVersionService::with_repository(file_version_repository.clone()));
+        let file_version_service = Arc::new(FileVersionService::with_repository(file_version_repository.clone()).with_guard(Arc::new(crate::application::service::FileVersionRowRules)));
 
         // ProcessingJob service
         let processing_job_repository = Arc::new(ProcessingJobRepository::new(db_pool.clone()));
@@ -321,7 +318,7 @@ impl BucketModuleBuilder {
 
         // Thumbnail service
         let thumbnail_repository = Arc::new(ThumbnailRepository::new(db_pool.clone()));
-        let thumbnail_service = Arc::new(ThumbnailService::with_repository(thumbnail_repository.clone()));
+        let thumbnail_service = Arc::new(ThumbnailService::with_repository(thumbnail_repository.clone()).with_guard(Arc::new(crate::application::service::ThumbnailRowRules)));
 
         // UploadSession service
         let upload_session_repository = Arc::new(UploadSessionRepository::new(db_pool.clone()));

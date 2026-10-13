@@ -32,9 +32,10 @@ pub type FileLockService = GenericCrudService<
     FileLockRepository,
 >;
 
-/// The row rules the schema declares for FileLock, checked against the row a create or
-/// update would store. The generated build attaches it to [`FileLockService`]. Every rule
-/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+/// The rules the schema declares for FileLock, checked against the row a create or update
+/// would store. The generated build attaches it to [`FileLockService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
 pub struct FileLockRowRules;
 
 #[async_trait::async_trait]
@@ -56,9 +57,18 @@ impl backbone_core::write_guard::WriteGuard<FileLock> for FileLockRowRules {
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `file_id_required` (@required on FileLock.file_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "file_id")), r::not(r::is_empty(r::trim(r::field(row, "file_id")))))) {
+            refuse.push(Violation::new("file_id", "required", "file_id is required"));
+        }
+        // `user_id_required` (@required on FileLock.user_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["user_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "user_id")), r::not(r::is_empty(r::trim(r::field(row, "user_id")))))) {
+            refuse.push(Violation::new("user_id", "required", "user_id is required"));
         }
         // `only_owner_can_modify` (file_lock.hook.yaml:90)
         if (update) && !r::holds(&r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "user_id"))) {
@@ -68,7 +78,7 @@ impl backbone_core::write_guard::WriteGuard<FileLock> for FileLockRowRules {
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("expired"))) {
             shadow.push(Violation::new("status", "lock_expired", "Cannot modify expired lock"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 

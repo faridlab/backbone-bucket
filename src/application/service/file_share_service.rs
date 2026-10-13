@@ -32,9 +32,10 @@ pub type FileShareService = GenericCrudService<
     FileShareRepository,
 >;
 
-/// The row rules the schema declares for FileShare, checked against the row a create or
-/// update would store. The generated build attaches it to [`FileShareService`]. Every rule
-/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+/// The rules the schema declares for FileShare, checked against the row a create or update
+/// would store. The generated build attaches it to [`FileShareService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
 pub struct FileShareRowRules;
 
 #[async_trait::async_trait]
@@ -56,9 +57,34 @@ impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `file_id_required` (@required on FileShare.file_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "file_id")), r::not(r::is_empty(r::trim(r::field(row, "file_id")))))) {
+            refuse.push(Violation::new("file_id", "required", "file_id is required"));
+        }
+        // `owner_id_required` (@required on FileShare.owner_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["owner_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "owner_id")), r::not(r::is_empty(r::trim(r::field(row, "owner_id")))))) {
+            refuse.push(Violation::new("owner_id", "required", "owner_id is required"));
+        }
+        // `token_required` (@required on FileShare.token)
+        if (create || (update && r::changed(old.as_ref(), row, &["token"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "token")), r::not(r::is_empty(r::trim(r::field(row, "token")))))) {
+            refuse.push(Violation::new("token", "required", "token is required"));
+        }
+        // `token_min_length` (@min(32) on FileShare.token)
+        if (create || (update && r::changed(old.as_ref(), row, &["token"]))) && !r::holds(&r::ge(r::length(r::field(row, "token")), r::Val::Num(32.0_f64))) {
+            shadow.push(Violation::new("token", "min_length", "token must be at least 32 characters").with_param("min", 32_i64));
+        }
+        // `token_max_length` (@max(64) on FileShare.token)
+        if (create || (update && r::changed(old.as_ref(), row, &["token"]))) && !r::holds(&r::le(r::length(r::field(row, "token")), r::Val::Num(64.0_f64))) {
+            shadow.push(Violation::new("token", "max_length", "token must be at most 64 characters").with_param("max", 64_i64));
+        }
+        // `download_count_non_negative` (@non_negative on FileShare.download_count)
+        if (create || (update && r::changed(old.as_ref(), row, &["download_count"]))) && !r::holds(&r::ge(r::field(row, "download_count"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("download_count", "non_negative", "download_count must not be negative"));
         }
         // `token_length` (file_share.hook.yaml:66)
         if (create) && !r::holds(&r::and(r::ge(r::length(r::field(row, "token")), r::Val::Num(32.0_f64)), r::le(r::length(r::field(row, "token")), r::Val::Num(64.0_f64)))) {
@@ -84,7 +110,7 @@ impl backbone_core::write_guard::WriteGuard<FileShare> for FileShareRowRules {
         if (update) && !r::holds(&r::or(r::or(r::eq(r::field(row, "status"), r::text("active")), r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "owner_id"))), r::has_role(ctx.actor.as_deref(), "admin").await)) {
             shadow.push(Violation::new("status", "share_inactive", "Cannot modify inactive shares"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 

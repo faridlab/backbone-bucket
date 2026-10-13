@@ -32,9 +32,10 @@ pub type UserQuotaService = GenericCrudService<
     UserQuotaRepository,
 >;
 
-/// The row rules the schema declares for UserQuota, checked against the row a create or
-/// update would store. The generated build attaches it to [`UserQuotaService`]. Every rule
-/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+/// The rules the schema declares for UserQuota, checked against the row a create or update
+/// would store. The generated build attaches it to [`UserQuotaService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
 pub struct UserQuotaRowRules;
 
 #[async_trait::async_trait]
@@ -56,9 +57,34 @@ impl backbone_core::write_guard::WriteGuard<UserQuota> for UserQuotaRowRules {
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `quota_status` belongs to a state machine: only its verbs move it
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["quota_status"]) {
             shadow.push(Violation::new("quota_status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `user_id_required` (@required on UserQuota.user_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["user_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "user_id")), r::not(r::is_empty(r::trim(r::field(row, "user_id")))))) {
+            refuse.push(Violation::new("user_id", "required", "user_id is required"));
+        }
+        // `limit_bytes_non_negative` (@non_negative on UserQuota.limit_bytes)
+        if (create || (update && r::changed(old.as_ref(), row, &["limit_bytes"]))) && !r::holds(&r::ge(r::field(row, "limit_bytes"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("limit_bytes", "non_negative", "limit_bytes must not be negative"));
+        }
+        // `used_bytes_non_negative` (@non_negative on UserQuota.used_bytes)
+        if (create || (update && r::changed(old.as_ref(), row, &["used_bytes"]))) && !r::holds(&r::ge(r::field(row, "used_bytes"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("used_bytes", "non_negative", "used_bytes must not be negative"));
+        }
+        // `file_count_non_negative` (@non_negative on UserQuota.file_count)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_count"]))) && !r::holds(&r::ge(r::field(row, "file_count"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("file_count", "non_negative", "file_count must not be negative"));
+        }
+        // `tier_max_length` (@max(50) on UserQuota.tier)
+        if (create || (update && r::changed(old.as_ref(), row, &["tier"]))) && !r::holds(&r::le(r::length(r::field(row, "tier")), r::Val::Num(50.0_f64))) {
+            shadow.push(Violation::new("tier", "max_length", "tier must be at most 50 characters").with_param("max", 50_i64));
+        }
+        // `peak_usage_bytes_non_negative` (@non_negative on UserQuota.peak_usage_bytes)
+        if (create || (update && r::changed(old.as_ref(), row, &["peak_usage_bytes"]))) && !r::holds(&r::ge(r::field(row, "peak_usage_bytes"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("peak_usage_bytes", "non_negative", "peak_usage_bytes must not be negative"));
         }
         // `valid_tier` (user_quota.hook.yaml:59)
         if (create || update) && !r::holds(&r::in_list(r::field(row, "tier"), r::Val::List(vec![r::text("free"), r::text("pro"), r::text("enterprise")]))) {
@@ -68,7 +94,7 @@ impl backbone_core::write_guard::WriteGuard<UserQuota> for UserQuotaRowRules {
         if (create || update) && !r::holds(&r::and(r::ge(r::field(row, "warning_threshold_percent"), r::Val::Num(50.0_f64)), r::le(r::field(row, "warning_threshold_percent"), r::Val::Num(99.0_f64)))) {
             shadow.push(Violation::new("warning_threshold_percent", "invalid_warning_threshold", "Warning threshold must be between 50 and 99 percent"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 

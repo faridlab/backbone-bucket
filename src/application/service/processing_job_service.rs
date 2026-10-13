@@ -32,9 +32,10 @@ pub type ProcessingJobService = GenericCrudService<
     ProcessingJobRepository,
 >;
 
-/// The row rules the schema declares for ProcessingJob, checked against the row a create or
-/// update would store. The generated build attaches it to [`ProcessingJobService`]. Every rule
-/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+/// The rules the schema declares for ProcessingJob, checked against the row a create or update
+/// would store. The generated build attaches it to [`ProcessingJobService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
 pub struct ProcessingJobRowRules;
 
 #[async_trait::async_trait]
@@ -56,9 +57,22 @@ impl backbone_core::write_guard::WriteGuard<ProcessingJob> for ProcessingJobRowR
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `file_id_required` (@required on ProcessingJob.file_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "file_id")), r::not(r::is_empty(r::trim(r::field(row, "file_id")))))) {
+            refuse.push(Violation::new("file_id", "required", "file_id is required"));
+        }
+        // `retry_count_non_negative` (@non_negative on ProcessingJob.retry_count)
+        if (create || (update && r::changed(old.as_ref(), row, &["retry_count"]))) && !r::holds(&r::ge(r::field(row, "retry_count"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("retry_count", "non_negative", "retry_count must not be negative"));
+        }
+        // `max_retries_positive` (@positive on ProcessingJob.max_retries)
+        if (create || (update && r::changed(old.as_ref(), row, &["max_retries"]))) && !r::holds(&r::gt(r::field(row, "max_retries"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("max_retries", "positive", "max_retries must be positive"));
         }
         // `priority_valid` (processing_job.hook.yaml:140)
         if (create || update) && !r::holds(&r::and(r::ge(r::field(row, "priority"), r::Val::Num(0.0_f64)), r::le(r::field(row, "priority"), r::Val::Num(10.0_f64)))) {
@@ -68,7 +82,7 @@ impl backbone_core::write_guard::WriteGuard<ProcessingJob> for ProcessingJobRowR
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("completed"))) {
             shadow.push(Violation::new("status", "job_completed", "Cannot modify completed jobs"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 

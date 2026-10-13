@@ -32,9 +32,10 @@ pub type BucketService = GenericCrudService<
     BucketRepository,
 >;
 
-/// The row rules the schema declares for Bucket, checked against the row a create or
-/// update would store. The generated build attaches it to [`BucketService`]. Every rule
-/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+/// The rules the schema declares for Bucket, checked against the row a create or update
+/// would store. The generated build attaches it to [`BucketService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
 pub struct BucketRowRules;
 
 #[async_trait::async_trait]
@@ -56,9 +57,46 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `name_required` (@required on Bucket.name)
+        if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "name")), r::not(r::is_empty(r::trim(r::field(row, "name")))))) {
+            refuse.push(Violation::new("name", "required", "name is required"));
+        }
+        // `name_max_length` (@max(255) on Bucket.name)
+        if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64))) {
+            shadow.push(Violation::new("name", "max_length", "name must be at most 255 characters").with_param("max", 255_i64));
+        }
+        // `slug_required` (@required on Bucket.slug)
+        if (create || (update && r::changed(old.as_ref(), row, &["slug"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "slug")), r::not(r::is_empty(r::trim(r::field(row, "slug")))))) {
+            refuse.push(Violation::new("slug", "required", "slug is required"));
+        }
+        // `slug_max_length` (@max(255) on Bucket.slug)
+        if (create || (update && r::changed(old.as_ref(), row, &["slug"]))) && !r::holds(&r::le(r::length(r::field(row, "slug")), r::Val::Num(255.0_f64))) {
+            shadow.push(Violation::new("slug", "max_length", "slug must be at most 255 characters").with_param("max", 255_i64));
+        }
+        // `owner_id_required` (@required on Bucket.owner_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["owner_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "owner_id")), r::not(r::is_empty(r::trim(r::field(row, "owner_id")))))) {
+            refuse.push(Violation::new("owner_id", "required", "owner_id is required"));
+        }
+        // `root_path_required` (@required on Bucket.root_path)
+        if (create || (update && r::changed(old.as_ref(), row, &["root_path"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "root_path")), r::not(r::is_empty(r::trim(r::field(row, "root_path")))))) {
+            refuse.push(Violation::new("root_path", "required", "root_path is required"));
+        }
+        // `root_path_max_length` (@max(1024) on Bucket.root_path)
+        if (create || (update && r::changed(old.as_ref(), row, &["root_path"]))) && !r::holds(&r::le(r::length(r::field(row, "root_path")), r::Val::Num(1024.0_f64))) {
+            shadow.push(Violation::new("root_path", "max_length", "root_path must be at most 1024 characters").with_param("max", 1024_i64));
+        }
+        // `file_count_non_negative` (@non_negative on Bucket.file_count)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_count"]))) && !r::holds(&r::ge(r::field(row, "file_count"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("file_count", "non_negative", "file_count must not be negative"));
+        }
+        // `total_size_bytes_non_negative` (@non_negative on Bucket.total_size_bytes)
+        if (create || (update && r::changed(old.as_ref(), row, &["total_size_bytes"]))) && !r::holds(&r::ge(r::field(row, "total_size_bytes"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("total_size_bytes", "non_negative", "total_size_bytes must not be negative"));
         }
         // `name_format` (bucket.hook.yaml:72)
         if (create || update) && !r::holds(&r::and(r::ge(r::length(r::field(row, "name")), r::Val::Num(1.0_f64)), r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64)))) {
@@ -88,7 +126,7 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
             shadow.push(Violation::new("status", "bucket_deleted", "Cannot modify deleted buckets"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 

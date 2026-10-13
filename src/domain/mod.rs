@@ -5,7 +5,6 @@
 pub mod entity;
 pub mod repositories;
 pub mod services;
-pub mod specifications;
 pub mod value_objects;
 pub mod state_machine;
 pub mod event;
@@ -15,7 +14,6 @@ pub mod computed;
 // Re-export commonly used types
 pub use repositories::*;
 pub use services::*;
-pub use specifications::*;
 pub use value_objects::*;
 pub use state_machine::*;
 pub use computed::*;

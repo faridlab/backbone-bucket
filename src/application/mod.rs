@@ -14,7 +14,6 @@
 pub mod service;
 pub mod middleware;
 pub mod triggers;
-pub mod validator;
 pub mod workflows;
 
 // Re-exports

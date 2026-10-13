@@ -32,3 +32,73 @@ pub type FileVersionService = GenericCrudService<
     FileVersionRepository,
 >;
 
+/// The rules the schema declares for FileVersion, checked against the row a create or update
+/// would store. The generated build attaches it to [`FileVersionService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
+pub struct FileVersionRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<FileVersion> for FileVersionRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, FileVersion>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
+        // `file_id_required` (@required on FileVersion.file_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "file_id")), r::not(r::is_empty(r::trim(r::field(row, "file_id")))))) {
+            refuse.push(Violation::new("file_id", "required", "file_id is required"));
+        }
+        // `storage_key_required` (@required on FileVersion.storage_key)
+        if (create || (update && r::changed(old.as_ref(), row, &["storage_key"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "storage_key")), r::not(r::is_empty(r::trim(r::field(row, "storage_key")))))) {
+            refuse.push(Violation::new("storage_key", "required", "storage_key is required"));
+        }
+        // `name_required` (@required on FileVersion.name)
+        if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "name")), r::not(r::is_empty(r::trim(r::field(row, "name")))))) {
+            refuse.push(Violation::new("name", "required", "name is required"));
+        }
+        // `name_max_length` (@max(255) on FileVersion.name)
+        if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::le(r::length(r::field(row, "name")), r::Val::Num(255.0_f64))) {
+            shadow.push(Violation::new("name", "max_length", "name must be at most 255 characters").with_param("max", 255_i64));
+        }
+        // `mime_type_required` (@required on FileVersion.mime_type)
+        if (create || (update && r::changed(old.as_ref(), row, &["mime_type"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "mime_type")), r::not(r::is_empty(r::trim(r::field(row, "mime_type")))))) {
+            refuse.push(Violation::new("mime_type", "required", "mime_type is required"));
+        }
+        // `checksum_md5_max_length` (@max(32) on FileVersion.checksum_md5)
+        if (create || (update && r::changed(old.as_ref(), row, &["checksum_md5"]))) && !r::holds(&r::le(r::length(r::field(row, "checksum_md5")), r::Val::Num(32.0_f64))) {
+            shadow.push(Violation::new("checksum_md5", "max_length", "checksum_md5 must be at most 32 characters").with_param("max", 32_i64));
+        }
+        // `checksum_sha256_max_length` (@max(64) on FileVersion.checksum_sha256)
+        if (create || (update && r::changed(old.as_ref(), row, &["checksum_sha256"]))) && !r::holds(&r::le(r::length(r::field(row, "checksum_sha256")), r::Val::Num(64.0_f64))) {
+            shadow.push(Violation::new("checksum_sha256", "max_length", "checksum_sha256 must be at most 64 characters").with_param("max", 64_i64));
+        }
+        // `created_by_id_required` (@required on FileVersion.created_by_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["created_by_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "created_by_id")), r::not(r::is_empty(r::trim(r::field(row, "created_by_id")))))) {
+            refuse.push(Violation::new("created_by_id", "required", "created_by_id is required"));
+        }
+        // `change_summary_max_length` (@max(500) on FileVersion.change_summary)
+        if (create || (update && r::changed(old.as_ref(), row, &["change_summary"]))) && !r::holds(&r::le(r::length(r::field(row, "change_summary")), r::Val::Num(500.0_f64))) {
+            shadow.push(Violation::new("change_summary", "max_length", "change_summary must be at most 500 characters").with_param("max", 500_i64));
+        }
+        // `size_bytes_non_negative` (@non_negative on FileVersion.size_bytes)
+        if (create || (update && r::changed(old.as_ref(), row, &["size_bytes"]))) && !r::holds(&r::ge(r::field(row, "size_bytes"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("size_bytes", "non_negative", "size_bytes must not be negative"));
+        }
+        GuardOutcome { refuse, shadow }
+    }
+}
+

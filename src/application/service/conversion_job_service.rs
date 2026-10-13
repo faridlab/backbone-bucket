@@ -32,9 +32,10 @@ pub type ConversionJobService = GenericCrudService<
     ConversionJobRepository,
 >;
 
-/// The row rules the schema declares for ConversionJob, checked against the row a create or
-/// update would store. The generated build attaches it to [`ConversionJobService`]. Every rule
-/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+/// The rules the schema declares for ConversionJob, checked against the row a create or update
+/// would store. The generated build attaches it to [`ConversionJobService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
 pub struct ConversionJobRowRules;
 
 #[async_trait::async_trait]
@@ -57,15 +58,32 @@ impl backbone_core::write_guard::WriteGuard<ConversionJob> for ConversionJobRowR
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let old_row = old.as_ref().unwrap_or(&serde_json::Value::Null);
         let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `source_file_id_required` (@required on ConversionJob.source_file_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["source_file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "source_file_id")), r::not(r::is_empty(r::trim(r::field(row, "source_file_id")))))) {
+            refuse.push(Violation::new("source_file_id", "required", "source_file_id is required"));
+        }
+        // `target_format_required` (@required on ConversionJob.target_format)
+        if (create || (update && r::changed(old.as_ref(), row, &["target_format"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "target_format")), r::not(r::is_empty(r::trim(r::field(row, "target_format")))))) {
+            refuse.push(Violation::new("target_format", "required", "target_format is required"));
+        }
+        // `target_format_max_length` (@max(50) on ConversionJob.target_format)
+        if (create || (update && r::changed(old.as_ref(), row, &["target_format"]))) && !r::holds(&r::le(r::length(r::field(row, "target_format")), r::Val::Num(50.0_f64))) {
+            shadow.push(Violation::new("target_format", "max_length", "target_format must be at most 50 characters").with_param("max", 50_i64));
+        }
+        // `progress_range` (@range(0, 100) on ConversionJob.progress)
+        if (create || (update && r::changed(old.as_ref(), row, &["progress"]))) && !r::holds(&r::and(r::ge(r::field(row, "progress"), r::Val::Num(0.0_f64)), r::le(r::field(row, "progress"), r::Val::Num(100.0_f64)))) {
+            shadow.push(Violation::new("progress", "range", "progress must be between 0 and 100").with_param("min", 0_i64).with_param("max", 100_i64));
         }
         // `progress_monotonic` (conversion_job.hook.yaml:150)
         if (update) && !r::holds(&r::ge(r::field(row, "progress"), r::field(old_row, "progress"))) {
             shadow.push(Violation::new("progress", "invalid_progress", "Progress cannot decrease"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 

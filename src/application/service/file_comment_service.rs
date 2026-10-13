@@ -32,9 +32,10 @@ pub type FileCommentService = GenericCrudService<
     FileCommentRepository,
 >;
 
-/// The row rules the schema declares for FileComment, checked against the row a create or
-/// update would store. The generated build attaches it to [`FileCommentService`]. Every rule
-/// runs in shadow: a break is logged under `backbone::write_guard` and the write goes ahead.
+/// The rules the schema declares for FileComment, checked against the row a create or update
+/// would store. The generated build attaches it to [`FileCommentService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
 pub struct FileCommentRowRules;
 
 #[async_trait::async_trait]
@@ -56,9 +57,26 @@ impl backbone_core::write_guard::WriteGuard<FileComment> for FileCommentRowRules
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
         let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
         if update && ctx.transition.is_none() && r::changed(old.as_ref(), row, &["status"]) {
             shadow.push(Violation::new("status", "state_field_verbs_only", "the state field moves only through its verbs"));
+        }
+        // `file_id_required` (@required on FileComment.file_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["file_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "file_id")), r::not(r::is_empty(r::trim(r::field(row, "file_id")))))) {
+            refuse.push(Violation::new("file_id", "required", "file_id is required"));
+        }
+        // `user_id_required` (@required on FileComment.user_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["user_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "user_id")), r::not(r::is_empty(r::trim(r::field(row, "user_id")))))) {
+            refuse.push(Violation::new("user_id", "required", "user_id is required"));
+        }
+        // `content_required` (@required on FileComment.content)
+        if (create || (update && r::changed(old.as_ref(), row, &["content"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "content")), r::not(r::is_empty(r::trim(r::field(row, "content")))))) {
+            refuse.push(Violation::new("content", "required", "content is required"));
+        }
+        // `content_max_length` (@max(10000) on FileComment.content)
+        if (create || (update && r::changed(old.as_ref(), row, &["content"]))) && !r::holds(&r::le(r::length(r::field(row, "content")), r::Val::Num(10000.0_f64))) {
+            shadow.push(Violation::new("content", "max_length", "content must be at most 10000 characters").with_param("max", 10000_i64));
         }
         // `content_required` (file_comment.hook.yaml:88)
         if (create) && !r::holds(&r::and(r::is_not_null(r::field(row, "content")), r::gt(r::length(r::trim(r::field(row, "content"))), r::Val::Num(0.0_f64)))) {
@@ -76,7 +94,7 @@ impl backbone_core::write_guard::WriteGuard<FileComment> for FileCommentRowRules
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
             shadow.push(Violation::new("status", "comment_deleted", "Cannot edit deleted comment"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 
