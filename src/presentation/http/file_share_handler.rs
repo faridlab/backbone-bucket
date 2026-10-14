@@ -258,13 +258,9 @@ pub async fn expire_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_share:transition:expire");
-        let has_update_perm = granted("file_share:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for expire transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:expire or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("expire needs file_share:transition:expire or one of the roles system")));
         }
     }
 
@@ -322,13 +318,9 @@ pub async fn exhaust_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_share:transition:exhaust");
-        let has_update_perm = granted("file_share:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for exhaust transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "exhaust", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:exhaust or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("exhaust needs file_share:transition:exhaust or one of the roles system")));
         }
     }
 
@@ -395,13 +387,9 @@ pub async fn revoke_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_share:transition:revoke");
-        let has_update_perm = granted("file_share:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("Insufficient permissions for revoke transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileShare", verb = "revoke", code = "transition_by_update_permission", "a transition granted only by file_share:update, running in shadow; it needs file_share:transition:revoke or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("revoke needs file_share:transition:revoke or one of the roles admin, owner")));
         }
     }
 

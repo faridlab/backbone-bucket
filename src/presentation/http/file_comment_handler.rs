@@ -270,13 +270,9 @@ pub async fn resolve_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_comment:transition:resolve");
-        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for resolve transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "resolve", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:resolve or one of the roles owner, file_owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("resolve needs file_comment:transition:resolve or one of the roles owner, file_owner")));
         }
     }
 
@@ -334,13 +330,9 @@ pub async fn edit_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_comment:transition:edit");
-        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for edit transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "edit", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:edit or one of the roles owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("edit needs file_comment:transition:edit or one of the roles owner")));
         }
     }
 
@@ -398,13 +390,9 @@ pub async fn delete_active_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_comment:transition:delete_active");
-        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_active transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_active", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_active or one of the roles owner, file_owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("delete_active needs file_comment:transition:delete_active or one of the roles owner, file_owner")));
         }
     }
 
@@ -462,13 +450,9 @@ pub async fn reopen_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_comment:transition:reopen");
-        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for reopen transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "reopen", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:reopen or one of the roles user");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("reopen needs file_comment:transition:reopen or one of the roles user")));
         }
     }
 
@@ -526,13 +510,9 @@ pub async fn delete_resolved_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_comment:transition:delete_resolved");
-        let has_update_perm = granted("file_comment:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("Insufficient permissions for delete_resolved transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileComment", verb = "delete_resolved", code = "transition_by_update_permission", "a transition granted only by file_comment:update, running in shadow; it needs file_comment:transition:delete_resolved or one of the roles owner, file_owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("delete_resolved needs file_comment:transition:delete_resolved or one of the roles owner, file_owner")));
         }
     }
 

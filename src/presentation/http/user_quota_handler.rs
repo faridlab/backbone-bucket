@@ -258,13 +258,9 @@ pub async fn exceed_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("user_quota:transition:exceed");
-        let has_update_perm = granted("user_quota:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for exceed transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "exceed", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:exceed or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("exceed needs user_quota:transition:exceed or one of the roles system")));
         }
     }
 
@@ -322,13 +318,9 @@ pub async fn restore_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("user_quota:transition:restore");
-        let has_update_perm = granted("user_quota:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("Insufficient permissions for restore transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UserQuota", verb = "restore", code = "transition_by_update_permission", "a transition granted only by user_quota:update, running in shadow; it needs user_quota:transition:restore or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UserQuotaResponseDto>::error("restore needs user_quota:transition:restore or one of the roles system")));
         }
     }
 

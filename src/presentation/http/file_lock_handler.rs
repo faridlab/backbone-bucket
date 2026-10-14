@@ -254,13 +254,9 @@ pub async fn expire_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_lock:transition:expire");
-        let has_update_perm = granted("file_lock:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for expire transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "expire", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:expire or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("expire needs file_lock:transition:expire or one of the roles system")));
         }
     }
 
@@ -318,13 +314,9 @@ pub async fn release_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_lock:transition:release");
-        let has_update_perm = granted("file_lock:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for release transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "release", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:release or one of the roles owner, admin");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("release needs file_lock:transition:release or one of the roles owner, admin")));
         }
     }
 
@@ -382,13 +374,9 @@ pub async fn refresh_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("file_lock:transition:refresh");
-        let has_update_perm = granted("file_lock:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("Insufficient permissions for refresh transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "FileLock", verb = "refresh", code = "transition_by_update_permission", "a transition granted only by file_lock:update, running in shadow; it needs file_lock:transition:refresh or one of the roles owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileLockResponseDto>::error("refresh needs file_lock:transition:refresh or one of the roles owner")));
         }
     }
 

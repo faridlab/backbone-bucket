@@ -82,9 +82,9 @@ impl ProcessingJobState {
 pub enum ProcessingJobTransition {
     /// pending -> running
     Start,
-    /// running -> completed
+    /// pending, running -> completed
     Complete,
-    /// running -> failed
+    /// pending, running -> failed
     Fail,
     /// pending -> cancelled
     CancelPending,
@@ -202,7 +202,9 @@ impl ProcessingJobStateMachine {
 
         match (self.current_state, transition) {
             (ProcessingJobState::Pending, ProcessingJobTransition::Start) => true,
+            (ProcessingJobState::Pending, ProcessingJobTransition::Complete) => true,
             (ProcessingJobState::Running, ProcessingJobTransition::Complete) => true,
+            (ProcessingJobState::Pending, ProcessingJobTransition::Fail) => true,
             (ProcessingJobState::Running, ProcessingJobTransition::Fail) => true,
             (ProcessingJobState::Pending, ProcessingJobTransition::CancelPending) => true,
             (ProcessingJobState::Running, ProcessingJobTransition::CancelRunning) => true,
@@ -324,8 +326,8 @@ mod tests {
     #[test]
     fn test_invalid_transition() {
         let mut sm = ProcessingJobStateMachine::from_state(ProcessingJobState::Pending);
-        // Complete is not valid from Pending state
-        let result = sm.transition(ProcessingJobTransition::Complete);
+        // CancelRunning is not valid from Pending state
+        let result = sm.transition(ProcessingJobTransition::CancelRunning);
         assert!(result.is_err());
     }
 

@@ -254,13 +254,9 @@ pub async fn start_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("processing_job:transition:start");
-        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for start transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "start", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:start or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("start needs processing_job:transition:start or one of the roles system")));
         }
     }
 
@@ -318,13 +314,9 @@ pub async fn complete_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("processing_job:transition:complete");
-        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for complete transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "complete", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:complete or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("complete needs processing_job:transition:complete or one of the roles system")));
         }
     }
 
@@ -381,13 +373,9 @@ pub async fn fail_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("processing_job:transition:fail");
-        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for fail transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "fail", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:fail or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("fail needs processing_job:transition:fail or one of the roles system")));
         }
     }
 
@@ -444,13 +432,9 @@ pub async fn cancel_pending_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("processing_job:transition:cancel_pending");
-        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_pending transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_pending", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_pending or one of the roles owner, admin");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("cancel_pending needs processing_job:transition:cancel_pending or one of the roles owner, admin")));
         }
     }
 
@@ -508,13 +492,9 @@ pub async fn cancel_running_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("processing_job:transition:cancel_running");
-        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for cancel_running transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "cancel_running", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:cancel_running or one of the roles owner, admin");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("cancel_running needs processing_job:transition:cancel_running or one of the roles owner, admin")));
         }
     }
 
@@ -572,13 +552,9 @@ pub async fn retry_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("processing_job:transition:retry");
-        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for retry transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "retry", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:retry or one of the roles system, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("retry needs processing_job:transition:retry or one of the roles system, owner")));
         }
     }
 
@@ -645,13 +621,9 @@ pub async fn reprocess_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("processing_job:transition:reprocess");
-        let has_update_perm = granted("processing_job:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("Insufficient permissions for reprocess transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "ProcessingJob", verb = "reprocess", code = "transition_by_update_permission", "a transition granted only by processing_job:update, running in shadow; it needs processing_job:transition:reprocess or one of the roles owner, admin");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ProcessingJobResponseDto>::error("reprocess needs processing_job:transition:reprocess or one of the roles owner, admin")));
         }
     }
 

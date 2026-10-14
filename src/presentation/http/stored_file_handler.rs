@@ -250,13 +250,9 @@ pub async fn complete_upload_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("stored_file:transition:complete_upload");
-        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for complete_upload transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "complete_upload", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:complete_upload or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("complete_upload needs stored_file:transition:complete_upload or one of the roles system")));
         }
     }
 
@@ -323,13 +319,9 @@ pub async fn mark_safe_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("stored_file:transition:mark_safe");
-        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("mark_safe needs stored_file:transition:mark_safe or one of the roles system")));
         }
     }
 
@@ -396,13 +388,9 @@ pub async fn quarantine_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("stored_file:transition:quarantine");
-        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for quarantine transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "quarantine", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:quarantine or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("quarantine needs stored_file:transition:quarantine or one of the roles system")));
         }
     }
 
@@ -469,13 +457,9 @@ pub async fn mark_safe_by_admin_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("stored_file:transition:mark_safe_by_admin");
-        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for mark_safe_by_admin transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "mark_safe_by_admin", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:mark_safe_by_admin or one of the roles admin");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("mark_safe_by_admin needs stored_file:transition:mark_safe_by_admin or one of the roles admin")));
         }
     }
 
@@ -532,13 +516,9 @@ pub async fn soft_delete_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("stored_file:transition:soft_delete");
-        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for soft_delete transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "soft_delete", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:soft_delete or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("soft_delete needs stored_file:transition:soft_delete or one of the roles admin, owner")));
         }
     }
 
@@ -596,13 +576,9 @@ pub async fn restore_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("stored_file:transition:restore");
-        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for restore transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "restore", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:restore or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("restore needs stored_file:transition:restore or one of the roles admin, owner")));
         }
     }
 
@@ -660,13 +636,9 @@ pub async fn purge_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("stored_file:transition:purge");
-        let has_update_perm = granted("stored_file:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("Insufficient permissions for purge transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "StoredFile", verb = "purge", code = "transition_by_update_permission", "a transition granted only by stored_file:update, running in shadow; it needs stored_file:transition:purge or one of the roles admin, system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("purge needs stored_file:transition:purge or one of the roles admin, system")));
         }
     }
 

@@ -253,13 +253,9 @@ pub async fn lock_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("bucket:transition:lock");
-        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for lock transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "lock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:lock or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("lock needs bucket:transition:lock or one of the roles admin, owner")));
         }
     }
 
@@ -317,13 +313,9 @@ pub async fn unlock_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("bucket:transition:unlock");
-        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for unlock transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "unlock", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:unlock or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("unlock needs bucket:transition:unlock or one of the roles admin, owner")));
         }
     }
 
@@ -381,13 +373,9 @@ pub async fn archive_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("bucket:transition:archive");
-        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for archive transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "archive", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:archive or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("archive needs bucket:transition:archive or one of the roles admin, owner")));
         }
     }
 
@@ -445,13 +433,9 @@ pub async fn restore_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("bucket:transition:restore");
-        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for restore transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "restore", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:restore or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("restore needs bucket:transition:restore or one of the roles admin, owner")));
         }
     }
 
@@ -509,13 +493,9 @@ pub async fn delete_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("bucket:transition:delete");
-        let has_update_perm = granted("bucket:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("Insufficient permissions for delete transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "Bucket", verb = "delete", code = "transition_by_update_permission", "a transition granted only by bucket:update, running in shadow; it needs bucket:transition:delete or one of the roles admin, owner");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<BucketResponseDto>::error("delete needs bucket:transition:delete or one of the roles admin, owner")));
         }
     }
 

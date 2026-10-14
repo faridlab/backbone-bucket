@@ -57,13 +57,15 @@ states:
       condition: "processing_service.has_capacity(job_type)"
 
     complete:
-      from: running
+      # the thumbnail and preview services finish a job without ever marking it running
+      from: [pending, running]
       to: completed
       roles: [system]
       description: "Job completed successfully"
 
     fail:
-      from: running
+      # the thumbnail and preview services fail a job without ever marking it running
+      from: [pending, running]
       to: failed
       roles: [system]
       description: "Job failed with error"

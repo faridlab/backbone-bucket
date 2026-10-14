@@ -266,13 +266,9 @@ pub async fn start_upload_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:start_upload");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for start_upload transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "start_upload", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:start_upload or one of the roles system, user");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("start_upload needs upload_session:transition:start_upload or one of the roles system, user")));
         }
     }
 
@@ -330,13 +326,9 @@ pub async fn add_part_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:add_part");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for add_part transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "add_part", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:add_part or one of the roles system, user");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("add_part needs upload_session:transition:add_part or one of the roles system, user")));
         }
     }
 
@@ -394,13 +386,9 @@ pub async fn complete_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:complete");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for complete transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "complete", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:complete or one of the roles system, user");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("complete needs upload_session:transition:complete or one of the roles system, user")));
         }
     }
 
@@ -467,13 +455,9 @@ pub async fn finish_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:finish");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for finish transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "finish", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:finish or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("finish needs upload_session:transition:finish or one of the roles system")));
         }
     }
 
@@ -530,13 +514,9 @@ pub async fn fail_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:fail");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for fail transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "fail", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:fail or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("fail needs upload_session:transition:fail or one of the roles system")));
         }
     }
 
@@ -593,13 +573,9 @@ pub async fn abort_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:abort");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for abort transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "abort", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:abort or one of the roles user, admin");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("abort needs upload_session:transition:abort or one of the roles user, admin")));
         }
     }
 
@@ -657,13 +633,9 @@ pub async fn expire_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:expire");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for expire transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "expire", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:expire or one of the roles system");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("expire needs upload_session:transition:expire or one of the roles system")));
         }
     }
 
@@ -721,13 +693,9 @@ pub async fn retry_transition(
                 && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
         });
         let has_specific_perm = granted("upload_session:transition:retry");
-        let has_update_perm = granted("upload_session:update");
         let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
         if !has_specific_perm && !has_role {
-            if !has_update_perm {
-                return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("Insufficient permissions for retry transition")));
-            }
-            tracing::warn!(target: "backbone::write_guard", entity = "UploadSession", verb = "retry", code = "transition_by_update_permission", "a transition granted only by upload_session:update, running in shadow; it needs upload_session:transition:retry or one of the roles user");
+            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("retry needs upload_session:transition:retry or one of the roles user")));
         }
     }
 
