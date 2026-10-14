@@ -70,11 +70,11 @@ impl backbone_core::write_guard::WriteGuard<FileLock> for FileLockRowRules {
         if (create || (update && r::changed(old.as_ref(), row, &["user_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "user_id")), r::not(r::is_empty(r::trim(r::field(row, "user_id")))))) {
             refuse.push(Violation::new("user_id", "required", "user_id is required"));
         }
-        // `only_owner_can_modify` (file_lock.hook.yaml:90)
+        // `only_owner_can_modify` (file_lock.hook.yaml:84)
         if (update) && !r::holds(&r::eq(r::actor(ctx.actor.as_deref()), r::field(row, "user_id"))) {
             refuse.push(Violation::new("user_id", "not_lock_owner", "Only lock owner can modify"));
         }
-        // `cannot_modify_expired` (file_lock.hook.yaml:96)
+        // `cannot_modify_expired` (file_lock.hook.yaml:90)
         if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("expired"))) {
             refuse.push(Violation::new("status", "lock_expired", "Cannot modify expired lock"));
         }

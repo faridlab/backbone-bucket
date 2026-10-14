@@ -47,8 +47,6 @@ pub enum FileLockError {
     FileNotActive(String),
     #[error("File is already locked by another user: {0}")]
     FileAlreadyLocked(String),
-    #[error("Lock duration must be between 5 minutes and 24 hours: {0}")]
-    InvalidDuration(String),
     #[error("Only lock owner can modify: {0}")]
     NotLockOwner(String),
     #[error("Cannot modify expired lock: {0}")]
@@ -83,7 +81,6 @@ impl axum::response::IntoResponse for FileLockError {
             Self::FileNotFound(_) => (StatusCode::UNPROCESSABLE_ENTITY, "FILELOCK_FILE_NOT_FOUND"),
             Self::FileNotActive(_) => (StatusCode::UNPROCESSABLE_ENTITY, "FILELOCK_FILE_NOT_ACTIVE"),
             Self::FileAlreadyLocked(_) => (StatusCode::UNPROCESSABLE_ENTITY, "FILELOCK_FILE_ALREADY_LOCKED"),
-            Self::InvalidDuration(_) => (StatusCode::UNPROCESSABLE_ENTITY, "FILELOCK_INVALID_DURATION"),
             Self::NotLockOwner(_) => (StatusCode::UNPROCESSABLE_ENTITY, "FILELOCK_NOT_LOCK_OWNER"),
             Self::LockExpired(_) => (StatusCode::UNPROCESSABLE_ENTITY, "FILELOCK_LOCK_EXPIRED"),
             Self::RefreshTooEarly(_) => (StatusCode::UNPROCESSABLE_ENTITY, "FILELOCK_REFRESH_TOO_EARLY"),
@@ -104,7 +101,6 @@ pub mod file_lock_errors {
     pub const FILE_NOT_FOUND: &str = "FILELOCK_FILE_NOT_FOUND";
     pub const FILE_NOT_ACTIVE: &str = "FILELOCK_FILE_NOT_ACTIVE";
     pub const FILE_ALREADY_LOCKED: &str = "FILELOCK_FILE_ALREADY_LOCKED";
-    pub const INVALID_DURATION: &str = "FILELOCK_INVALID_DURATION";
     pub const NOT_LOCK_OWNER: &str = "FILELOCK_NOT_LOCK_OWNER";
     pub const LOCK_EXPIRED: &str = "FILELOCK_LOCK_EXPIRED";
     pub const REFRESH_TOO_EARLY: &str = "FILELOCK_REFRESH_TOO_EARLY";

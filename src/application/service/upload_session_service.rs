@@ -130,6 +130,10 @@ impl backbone_core::write_guard::WriteGuard<UploadSession> for UploadSessionRowR
         if (create) && !r::holds(&r::gt(r::field(row, "expires_at"), r::at(ctx.at))) {
             refuse.push(Violation::new("expires_at", "invalid_expiration", "Expiration must be in future"));
         }
+        // `session_not_expired` (upload_session.hook.yaml:178)
+        if ((update && r::changed(old.as_ref(), row, &["expires_at", "status"]))) && !r::holds(&r::or(r::gt(r::field(row, "expires_at"), r::at(ctx.at)), r::in_list(r::field(row, "status"), r::Val::List(vec![r::text("completed"), r::text("failed"), r::text("expired")])))) {
+            refuse.push(Violation::new("expires_at", "session_expired", "Session has expired"));
+        }
         GuardOutcome { refuse, shadow }
     }
 }

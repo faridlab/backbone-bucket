@@ -125,7 +125,7 @@ rules:
 
   valid_target_format:
     when: [create]
-    condition: "target_format IN ('png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tiff', 'pdf', 'docx', 'txt', 'html', 'mp4', 'webm', 'avi', 'mov', 'mp3', 'wav', 'ogg', 'm4a', 'flac')"
+    condition: "target_format in ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tiff', 'pdf', 'docx', 'txt', 'html', 'mp4', 'webm', 'avi', 'mov', 'mp3', 'wav', 'ogg', 'm4a', 'flac']"
     message: "Target format must be supported"
     code: CONVERSION_NOT_SUPPORTED
 
@@ -143,7 +143,7 @@ rules:
 
   no_duplicate_pending:
     when: [create]
-    condition: "count(ConversionJob, source_file_id == $this.source_file_id && target_format == $this.target_format && status IN ('pending', 'processing')) == 0"
+    condition: "count(ConversionJob, source_file_id == $this.source_file_id && target_format == $this.target_format && status in ['pending', 'processing']) == 0"
     message: "A pending conversion with same params already exists"
     code: DUPLICATE_CONVERSION
 

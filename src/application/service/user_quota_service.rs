@@ -56,6 +56,7 @@ impl backbone_core::write_guard::WriteGuard<UserQuota> for UserQuotaRowRules {
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let old_row = old.as_ref().unwrap_or(&serde_json::Value::Null);
         let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `quota_status` belongs to a state machine: only its verbs move it
@@ -89,6 +90,22 @@ impl backbone_core::write_guard::WriteGuard<UserQuota> for UserQuotaRowRules {
         // `valid_tier` (user_quota.hook.yaml:59)
         if (create || update) && !r::holds(&r::in_list(r::field(row, "tier"), r::Val::List(vec![r::text("free"), r::text("pro"), r::text("enterprise")]))) {
             refuse.push(Violation::new("tier", "invalid_tier", "Invalid tier. Must be free, pro, or enterprise"));
+        }
+        // `max_storage_positive` (user_quota.hook.yaml:65)
+        if (create || update) && !r::holds(&r::gt(r::field(row, "limit_bytes"), r::Val::Num(0.0_f64))) {
+            refuse.push(Violation::new("limit_bytes", "invalid_max_storage", "Max storage must be positive"));
+        }
+        // `max_file_size_positive` (user_quota.hook.yaml:71)
+        if (create || update) && !r::holds(&r::or(r::is_null(r::field(row, "max_file_size")), r::gt(r::field(row, "max_file_size"), r::Val::Num(0.0_f64)))) {
+            refuse.push(Violation::new("max_file_size", "invalid_max_file_size", "Max file size must be positive"));
+        }
+        // `max_file_size_within_storage` (user_quota.hook.yaml:77)
+        if (create || update) && !r::holds(&r::or(r::is_null(r::field(row, "max_file_size")), r::le(r::field(row, "max_file_size"), r::field(row, "limit_bytes")))) {
+            refuse.push(Violation::new("max_file_size", "file_size_exceeds_storage", "Max file size cannot exceed max storage"));
+        }
+        // `downgrade_allowed` (user_quota.hook.yaml:83)
+        if (update) && !r::holds(&r::or(r::eq(r::field(old_row, "tier"), r::field(row, "tier")), r::le(r::field(row, "used_bytes"), r::field(row, "limit_bytes")))) {
+            refuse.push(Violation::new("tier", "downgrade_not_allowed", "Cannot downgrade tier: current usage exceeds new quota limits"));
         }
         // `warning_threshold_valid` (user_quota.hook.yaml:89)
         if (create || update) && !r::holds(&r::and(r::ge(r::field(row, "warning_threshold_percent"), r::Val::Num(50.0_f64)), r::le(r::field(row, "warning_threshold_percent"), r::Val::Num(99.0_f64)))) {

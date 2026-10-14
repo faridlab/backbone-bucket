@@ -177,10 +177,10 @@ rules:
 
   session_not_expired:
     when: [update]
-    condition: "expires_at > now() || status IN ('completed', 'failed', 'expired')"
+    condition: "expires_at > now() || status in ['completed', 'failed', 'expired']"
     message: "Session has expired"
     code: SESSION_EXPIRED
-    justification: "PARTLY: get_active_session refuses an expired session, but upload_part writes the part's bytes before it runs, and the generic update bypasses it."
+    justification: "PARTLY: compiled into the generated write guard, so the generic update refuses a write to an expired session that is not finished, and get_active_session refuses one too, but upload_part writes the part's bytes before that check runs."
 
 # =============================================================================
 # Access Control (RBAC)

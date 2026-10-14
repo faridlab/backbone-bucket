@@ -49,5 +49,109 @@ pub use thumbnail_service::ThumbnailRowRules;
 pub use upload_session_service::UploadSessionRowRules;
 pub use user_quota_service::UserQuotaRowRules;
 
+/// A `AccessLogService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_access_log_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::AccessLogRepository>,
+) -> AccessLogService {
+    AccessLogService::with_repository(repository).with_guard(std::sync::Arc::new(AccessLogRowRules))
+}
+
+/// A `BucketService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_bucket_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::BucketRepository>,
+) -> BucketService {
+    BucketService::with_repository(repository).with_guard(std::sync::Arc::new(BucketRowRules))
+}
+
+/// A `ContentHashService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_content_hash_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::ContentHashRepository>,
+) -> ContentHashService {
+    ContentHashService::with_repository(repository).with_guard(std::sync::Arc::new(ContentHashRowRules))
+}
+
+/// A `ConversionJobService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_conversion_job_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::ConversionJobRepository>,
+) -> ConversionJobService {
+    ConversionJobService::with_repository(repository).with_guard(std::sync::Arc::new(ConversionJobRowRules))
+}
+
+/// A `FileCommentService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_file_comment_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::FileCommentRepository>,
+) -> FileCommentService {
+    FileCommentService::with_repository(repository).with_guard(std::sync::Arc::new(FileCommentRowRules))
+}
+
+/// A `FileLockService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_file_lock_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::FileLockRepository>,
+) -> FileLockService {
+    FileLockService::with_repository(repository).with_guard(std::sync::Arc::new(FileLockRowRules))
+}
+
+/// A `FileShareService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_file_share_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::FileShareRepository>,
+) -> FileShareService {
+    FileShareService::with_repository(repository).with_guard(std::sync::Arc::new(FileShareRowRules))
+}
+
+/// A `FileVersionService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_file_version_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::FileVersionRepository>,
+) -> FileVersionService {
+    FileVersionService::with_repository(repository).with_guard(std::sync::Arc::new(FileVersionRowRules))
+}
+
+/// A `ProcessingJobService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_processing_job_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::ProcessingJobRepository>,
+) -> ProcessingJobService {
+    ProcessingJobService::with_repository(repository).with_guard(std::sync::Arc::new(ProcessingJobRowRules))
+}
+
+/// A `StoredFileService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_stored_file_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::StoredFileRepository>,
+) -> StoredFileService {
+    StoredFileService::with_repository(repository).with_guard(std::sync::Arc::new(StoredFileRowRules))
+}
+
+/// A `ThumbnailService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_thumbnail_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::ThumbnailRepository>,
+) -> ThumbnailService {
+    ThumbnailService::with_repository(repository).with_guard(std::sync::Arc::new(ThumbnailRowRules))
+}
+
+/// A `UploadSessionService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_upload_session_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::UploadSessionRepository>,
+) -> UploadSessionService {
+    UploadSessionService::with_repository(repository).with_guard(std::sync::Arc::new(UploadSessionRowRules))
+}
+
+/// A `UserQuotaService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_user_quota_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::UserQuotaRepository>,
+) -> UserQuotaService {
+    UserQuotaService::with_repository(repository).with_guard(std::sync::Arc::new(UserQuotaRowRules))
+}
+
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

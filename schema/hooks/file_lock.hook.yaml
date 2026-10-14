@@ -81,12 +81,6 @@ rules:
     enforced_by: "migrations/20260426220003_create_file_lock_table.up.sql::idx_file_locks_file_id"
     justification: "Over-enforces: the unique on file_id counts released and expired locks too (they are soft-deleted, so the row stays), so a file once locked can never be locked again; a duplicate answers 400 with the database text, never FILE_ALREADY_LOCKED."
 
-  reasonable_duration:
-    when: [create]
-    condition: "lock_duration_minutes >= 5 && lock_duration_minutes <= 1440"
-    message: "Lock duration must be between 5 minutes and 24 hours"
-    code: INVALID_DURATION
-
   only_owner_can_modify:
     when: [update]
     condition: "$actor.id == user_id"

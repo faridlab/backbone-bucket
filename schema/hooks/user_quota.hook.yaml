@@ -64,25 +64,25 @@ rules:
 
   max_storage_positive:
     when: [create, update]
-    condition: "$this.max_storage_bytes > 0"
+    condition: "limit_bytes > 0"
     message: "Max storage must be positive"
     code: INVALID_MAX_STORAGE
 
   max_file_size_positive:
     when: [create, update]
-    condition: "$this.max_file_size_bytes > 0"
+    condition: "max_file_size == null || max_file_size > 0"
     message: "Max file size must be positive"
     code: INVALID_MAX_FILE_SIZE
 
   max_file_size_within_storage:
     when: [create, update]
-    condition: "$this.max_file_size_bytes <= $this.max_storage_bytes"
+    condition: "max_file_size == null || max_file_size <= limit_bytes"
     message: "Max file size cannot exceed max storage"
     code: FILE_SIZE_EXCEEDS_STORAGE
 
   downgrade_allowed:
     when: [update]
-    condition: "$old.tier == $this.tier || $this.used_storage_bytes <= $this.max_storage_bytes"
+    condition: "$old.tier == tier || used_bytes <= limit_bytes"
     message: "Cannot downgrade tier: current usage exceeds new quota limits"
     code: DOWNGRADE_NOT_ALLOWED
 

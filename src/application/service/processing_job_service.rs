@@ -74,6 +74,10 @@ impl backbone_core::write_guard::WriteGuard<ProcessingJob> for ProcessingJobRowR
         if (create || (update && r::changed(old.as_ref(), row, &["max_retries"]))) && !r::holds(&r::gt(r::field(row, "max_retries"), r::Val::Num(0.0_f64))) {
             refuse.push(Violation::new("max_retries", "positive", "max_retries must be positive"));
         }
+        // `valid_job_type` (processing_job.hook.yaml:120)
+        if (create) && !r::holds(&r::in_list(r::field(row, "job_type"), r::Val::List(vec![r::text("thumbnail_generation"), r::text("video_thumbnail"), r::text("document_preview"), r::text("compression"), r::text("virus_scan"), r::text("deduplication_check")]))) {
+            refuse.push(Violation::new("job_type", "invalid_job_type", "Job type must be supported"));
+        }
         // `priority_valid` (processing_job.hook.yaml:142)
         if (create || update) && !r::holds(&r::and(r::ge(r::field(row, "priority"), r::Val::Num(0.0_f64)), r::le(r::field(row, "priority"), r::Val::Num(10.0_f64)))) {
             refuse.push(Violation::new("priority", "invalid_priority", "Priority must be 0-10"));

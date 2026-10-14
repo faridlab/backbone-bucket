@@ -79,6 +79,10 @@ impl backbone_core::write_guard::WriteGuard<ConversionJob> for ConversionJobRowR
         if (create || (update && r::changed(old.as_ref(), row, &["progress"]))) && !r::holds(&r::and(r::ge(r::field(row, "progress"), r::Val::Num(0.0_f64)), r::le(r::field(row, "progress"), r::Val::Num(100.0_f64)))) {
             refuse.push(Violation::new("progress", "range", "progress must be between 0 and 100").with_param("min", 0_i64).with_param("max", 100_i64));
         }
+        // `valid_target_format` (conversion_job.hook.yaml:126)
+        if (create) && !r::holds(&r::in_list(r::field(row, "target_format"), r::Val::List(vec![r::text("png"), r::text("jpg"), r::text("jpeg"), r::text("webp"), r::text("gif"), r::text("bmp"), r::text("tiff"), r::text("pdf"), r::text("docx"), r::text("txt"), r::text("html"), r::text("mp4"), r::text("webm"), r::text("avi"), r::text("mov"), r::text("mp3"), r::text("wav"), r::text("ogg"), r::text("m4a"), r::text("flac")]))) {
+            refuse.push(Violation::new("target_format", "conversion_not_supported", "Target format must be supported"));
+        }
         // `progress_monotonic` (conversion_job.hook.yaml:150)
         if (update) && !r::holds(&r::ge(r::field(row, "progress"), r::field(old_row, "progress"))) {
             refuse.push(Violation::new("progress", "invalid_progress", "Progress cannot decrease"));
