@@ -43,7 +43,6 @@ pub struct CreateFileLockDto {
     pub expires_at: DateTime<Utc>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "refreshed_at")]
     pub refreshed_at: Option<DateTime<Utc>>,
-    pub status: LockStatus,
 }
 
 // =============================================================================
@@ -240,7 +239,7 @@ impl From<CreateFileLockDto> for FileLock {
             locked_at: dto.locked_at,
             expires_at: dto.expires_at,
             refreshed_at: dto.refreshed_at,
-            status: dto.status,
+            status: LockStatus::Active,
             metadata: AuditMetadata::default(),
         }
     }

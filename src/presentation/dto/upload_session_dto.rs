@@ -54,7 +54,6 @@ pub struct CreateUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "uploaded_chunks")]
     pub uploaded_chunks: i32,
-    pub status: UploadStatus,
     #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[serde(alias = "completed_parts")]
@@ -325,7 +324,7 @@ impl From<CreateUploadSessionDto> for UploadSession {
             chunk_size: dto.chunk_size,
             total_chunks: dto.total_chunks,
             uploaded_chunks: dto.uploaded_chunks,
-            status: dto.status,
+            status: UploadStatus::Initiated,
             storage_backend: dto.storage_backend,
             completed_parts: dto.completed_parts,
             part_etags: dto.part_etags,

@@ -53,7 +53,6 @@ pub struct CreateFileShareDto {
     pub download_count: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    pub status: ShareStatus,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_at")]
     pub revoked_at: Option<DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "revoked_by")]
@@ -303,7 +302,7 @@ impl From<CreateFileShareDto> for FileShare {
             max_downloads: dto.max_downloads,
             download_count: dto.download_count,
             expires_at: dto.expires_at,
-            status: dto.status,
+            status: ShareStatus::Active,
             revoked_at: dto.revoked_at,
             revoked_by: dto.revoked_by,
             message: dto.message,

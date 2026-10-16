@@ -94,7 +94,6 @@ pub struct CreateStoredFileDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "sort_order")]
     pub sort_order: i32,
-    pub status: FileStatus,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "storage_key")]
     pub storage_key: String,
@@ -511,7 +510,7 @@ impl From<CreateStoredFileDto> for StoredFile {
             owner_entity_id: dto.owner_entity_id,
             field_name: dto.field_name,
             sort_order: dto.sort_order,
-            status: dto.status,
+            status: FileStatus::Uploading,
             storage_key: dto.storage_key,
             version: dto.version,
             previous_version_id: dto.previous_version_id,

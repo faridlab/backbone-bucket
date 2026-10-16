@@ -47,8 +47,6 @@ pub struct CreateUserQuotaDto {
     pub max_file_count: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub tier: String,
-    #[serde(alias = "quota_status")]
-    pub quota_status: QuotaStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "warning_threshold_percent")]
     pub warning_threshold_percent: i32,
@@ -302,7 +300,7 @@ impl From<CreateUserQuotaDto> for UserQuota {
             max_file_size: dto.max_file_size,
             max_file_count: dto.max_file_count,
             tier: dto.tier,
-            quota_status: dto.quota_status,
+            quota_status: QuotaStatus::Normal,
             warning_threshold_percent: dto.warning_threshold_percent,
             last_warning_sent_at: dto.last_warning_sent_at,
             peak_usage_bytes: dto.peak_usage_bytes,

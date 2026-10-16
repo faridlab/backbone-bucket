@@ -48,7 +48,6 @@ pub struct CreateFileCommentDto {
     pub resolved_by: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "resolved_at")]
     pub resolved_at: Option<DateTime<Utc>>,
-    pub status: CommentStatus,
 }
 
 // =============================================================================
@@ -270,7 +269,7 @@ impl From<CreateFileCommentDto> for FileComment {
             resolved: dto.resolved,
             resolved_by: dto.resolved_by,
             resolved_at: dto.resolved_at,
-            status: dto.status,
+            status: CommentStatus::Active,
             metadata: AuditMetadata::default(),
         }
     }

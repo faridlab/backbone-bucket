@@ -35,7 +35,6 @@ pub struct CreateProcessingJobDto {
     pub file_id: Uuid,
     #[serde(alias = "job_type")]
     pub job_type: ProcessingJobType,
-    pub status: JobStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     pub priority: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "input_data")]
@@ -276,7 +275,7 @@ impl From<CreateProcessingJobDto> for ProcessingJob {
             id: Uuid::new_v4(),
             file_id: dto.file_id,
             job_type: dto.job_type,
-            status: dto.status,
+            status: JobStatus::Pending,
             priority: dto.priority,
             input_data: dto.input_data,
             result_data: dto.result_data,

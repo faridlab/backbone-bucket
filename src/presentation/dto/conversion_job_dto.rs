@@ -35,7 +35,6 @@ pub struct CreateConversionJobDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "target_format")]
     pub target_format: String,
-    pub status: ConversionStatus,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "conversion_options")]
     pub conversion_options: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_file_id")]
@@ -255,7 +254,7 @@ impl From<CreateConversionJobDto> for ConversionJob {
             id: Uuid::new_v4(),
             source_file_id: dto.source_file_id,
             target_format: dto.target_format,
-            status: dto.status,
+            status: ConversionStatus::Pending,
             conversion_options: dto.conversion_options,
             result_file_id: dto.result_file_id,
             progress: dto.progress,

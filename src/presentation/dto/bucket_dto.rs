@@ -42,7 +42,6 @@ pub struct CreateBucketDto {
     pub owner_id: Uuid,
     #[serde(alias = "bucket_type")]
     pub bucket_type: BucketType,
-    pub status: BucketStatus,
     #[serde(alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
@@ -338,7 +337,7 @@ impl From<CreateBucketDto> for Bucket {
             description: dto.description,
             owner_id: dto.owner_id,
             bucket_type: dto.bucket_type,
-            status: dto.status,
+            status: BucketStatus::Active,
             storage_backend: dto.storage_backend,
             root_path: dto.root_path,
             file_count: dto.file_count,
