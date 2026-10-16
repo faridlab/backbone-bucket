@@ -5,6 +5,8 @@ pub mod error;
 pub mod storage;
 pub mod auth;
 pub mod config;
+#[cfg(feature = "s3")]
+pub mod provision;
 // ─── Essential (every consumer wires these) ─────────────────────────────
 pub use error::{BucketError, BucketResult};
 pub use config::{BucketConfig, ConfigEnvError, S3Config, ServingConfig, ServingMode, StorageConfig};

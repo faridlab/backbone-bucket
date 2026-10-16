@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+
+- **`provision`** (feature `s3`): the object-storage bootstrap a service runs once per deploy as
+  `<service> storage-init`, replacing the shell script around the MinIO client (`mc`), whose
+  images can no longer be pulled. It creates the private and public buckets, gives the public one
+  anonymous read and the private one none, and creates a least-privilege service user with a
+  policy limited to those two buckets, through the RustFS admin API (`/rustfs/admin/v3`, plain
+  JSON signed with SigV4). Every step is idempotent, and a changed secret rotates the user's key.
+  It waits for `/health/ready` and retries while the server reports 503. `run_from_env()` reads
+  the `MINIO_*` contract (`MINIO_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`,
+  `MINIO_PRIVATE_BUCKET`, `MINIO_PUBLIC_BUCKET`, and optionally `MINIO_ACCESS_KEY` /
+  `MINIO_SECRET_KEY` with `MINIO_SERVICE_POLICY`). `tests/provision_live.rs` proves it against a
+  running RustFS when `PROVISION_TEST_ENDPOINT` is set.
 
 ## [0.4.6] - 2026-10-12
 

@@ -166,6 +166,7 @@ user_owned:
   - "src/storage/memory.rs"
   - "src/storage/mod.rs"
   - "src/storage/s3.rs"
+  - "src/provision.rs"
   - "src/subscriptions/handlers.rs"
   - "src/subscriptions/mod.rs"
   - "src/subscriptions/registry.rs"
