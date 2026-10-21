@@ -4896,12 +4896,6 @@ components:
       required:
         - file_id
         - action
-        - is_owner
-        - is_shared
-        - is_public
-        - success
-        - accessed_at
-        - metadata
       properties:
         file_id:
           type: string
@@ -4963,8 +4957,6 @@ components:
         accessed_at:
           type: string
           format: date-time
-        metadata:
-          type: object
 
     UpdateAccessLogRequest:
       type: object
@@ -4976,7 +4968,6 @@ components:
         - is_public
         - success
         - accessed_at
-        - metadata
       properties:
         file_id:
           type: string
@@ -5038,8 +5029,6 @@ components:
         accessed_at:
           type: string
           format: date-time
-        metadata:
-          type: object
 
     PatchAccessLogRequest:
       type: object
@@ -5104,8 +5093,6 @@ components:
         accessed_at:
           type: string
           format: date-time
-        metadata:
-          type: object
 
     AccessLogList:
       type: object
@@ -5204,17 +5191,8 @@ components:
         - name
         - slug
         - owner_id
-        - bucket_type
-        - status
-        - storage_backend
         - root_path
-        - file_count
-        - total_size_bytes
         - allowed_mime_types
-        - enable_cdn
-        - enable_versioning
-        - enable_deduplication
-        - metadata
       properties:
         name:
           type: string
@@ -5229,8 +5207,6 @@ components:
           type: string
           format: uuid
         bucket_type:
-          type: string
-        status:
           type: string
         storage_backend:
           type: string
@@ -5259,8 +5235,6 @@ components:
           type: boolean
         enable_deduplication:
           type: boolean
-        metadata:
-          type: object
 
     UpdateBucketRequest:
       type: object
@@ -5278,7 +5252,6 @@ components:
         - enable_cdn
         - enable_versioning
         - enable_deduplication
-        - metadata
       properties:
         name:
           type: string
@@ -5323,8 +5296,6 @@ components:
           type: boolean
         enable_deduplication:
           type: boolean
-        metadata:
-          type: object
 
     PatchBucketRequest:
       type: object
@@ -5372,8 +5343,6 @@ components:
           type: boolean
         enable_deduplication:
           type: boolean
-        metadata:
-          type: object
 
     BucketList:
       type: object
@@ -5447,11 +5416,6 @@ components:
         - hash
         - size_bytes
         - storage_key
-        - storage_backend
-        - reference_count
-        - first_uploaded_at
-        - last_referenced_at
-        - metadata
       properties:
         hash:
           type: string
@@ -5477,8 +5441,6 @@ components:
           nullable: true
           type: string
           maxLength: 128
-        metadata:
-          type: object
 
     UpdateContentHashRequest:
       type: object
@@ -5490,7 +5452,6 @@ components:
         - reference_count
         - first_uploaded_at
         - last_referenced_at
-        - metadata
       properties:
         hash:
           type: string
@@ -5516,8 +5477,6 @@ components:
           nullable: true
           type: string
           maxLength: 128
-        metadata:
-          type: object
 
     PatchContentHashRequest:
       type: object
@@ -5546,8 +5505,6 @@ components:
           nullable: true
           type: string
           maxLength: 128
-        metadata:
-          type: object
 
     ContentHashList:
       type: object
@@ -5622,9 +5579,6 @@ components:
       required:
         - source_file_id
         - target_format
-        - status
-        - progress
-        - metadata
       properties:
         source_file_id:
           type: string
@@ -5632,8 +5586,6 @@ components:
         target_format:
           type: string
           maxLength: 50
-        status:
-          type: string
         conversion_options:
           nullable: true
           type: object
@@ -5655,8 +5607,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     UpdateConversionJobRequest:
       type: object
@@ -5665,7 +5615,6 @@ components:
         - target_format
         - status
         - progress
-        - metadata
       properties:
         source_file_id:
           type: string
@@ -5696,8 +5645,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     PatchConversionJobRequest:
       type: object
@@ -5731,8 +5678,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     ConversionJobList:
       type: object
@@ -5812,9 +5757,6 @@ components:
         - user_id
         - content
         - mentions
-        - resolved
-        - status
-        - metadata
       properties:
         file_id:
           type: string
@@ -5844,10 +5786,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        status:
-          type: string
-        metadata:
-          type: object
 
     UpdateFileCommentRequest:
       type: object
@@ -5858,7 +5796,6 @@ components:
         - mentions
         - resolved
         - status
-        - metadata
       properties:
         file_id:
           type: string
@@ -5890,8 +5827,6 @@ components:
           format: date-time
         status:
           type: string
-        metadata:
-          type: object
 
     PatchFileCommentRequest:
       type: object
@@ -5926,8 +5861,6 @@ components:
           format: date-time
         status:
           type: string
-        metadata:
-          type: object
 
     FileCommentList:
       type: object
@@ -5992,10 +5925,7 @@ components:
       required:
         - file_id
         - user_id
-        - locked_at
         - expires_at
-        - status
-        - metadata
       properties:
         file_id:
           type: string
@@ -6013,10 +5943,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        status:
-          type: string
-        metadata:
-          type: object
 
     UpdateFileLockRequest:
       type: object
@@ -6026,7 +5952,6 @@ components:
         - locked_at
         - expires_at
         - status
-        - metadata
       properties:
         file_id:
           type: string
@@ -6046,8 +5971,6 @@ components:
           format: date-time
         status:
           type: string
-        metadata:
-          type: object
 
     PatchFileLockRequest:
       type: object
@@ -6070,8 +5993,6 @@ components:
           format: date-time
         status:
           type: string
-        metadata:
-          type: object
 
     FileLockList:
       type: object
@@ -6165,12 +6086,7 @@ components:
         - file_id
         - owner_id
         - token
-        - share_type
-        - permission
         - shared_with
-        - download_count
-        - status
-        - metadata
       properties:
         file_id:
           type: string
@@ -6202,8 +6118,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        status:
-          type: string
         revoked_at:
           nullable: true
           type: string
@@ -6215,8 +6129,6 @@ components:
         message:
           nullable: true
           type: string
-        metadata:
-          type: object
 
     UpdateFileShareRequest:
       type: object
@@ -6229,7 +6141,6 @@ components:
         - shared_with
         - download_count
         - status
-        - metadata
       properties:
         file_id:
           type: string
@@ -6247,9 +6158,6 @@ components:
           type: string
         shared_with:
           type: array
-        password_hash:
-          nullable: true
-          type: string
         max_downloads:
           nullable: true
           type: integer
@@ -6274,8 +6182,6 @@ components:
         message:
           nullable: true
           type: string
-        metadata:
-          type: object
 
     PatchFileShareRequest:
       type: object
@@ -6296,9 +6202,6 @@ components:
           type: string
         shared_with:
           type: array
-        password_hash:
-          nullable: true
-          type: string
         max_downloads:
           nullable: true
           type: integer
@@ -6323,8 +6226,6 @@ components:
         message:
           nullable: true
           type: string
-        metadata:
-          type: object
 
     FileShareList:
       type: object
@@ -6430,14 +6331,10 @@ components:
         - version_number
         - version_type
         - storage_key
-        - storage_backend
         - name
         - mime_type
         - created_by_id
-        - is_current
-        - status
         - size_bytes
-        - metadata
       properties:
         file_id:
           type: string
@@ -6486,8 +6383,6 @@ components:
         size_bytes:
           type: integer
           format: int64
-        metadata:
-          type: object
 
     UpdateFileVersionRequest:
       type: object
@@ -6503,7 +6398,6 @@ components:
         - is_current
         - status
         - size_bytes
-        - metadata
       properties:
         file_id:
           type: string
@@ -6552,8 +6446,6 @@ components:
         size_bytes:
           type: integer
           format: int64
-        metadata:
-          type: object
 
     PatchFileVersionRequest:
       type: object
@@ -6605,8 +6497,6 @@ components:
         size_bytes:
           type: integer
           format: int64
-        metadata:
-          type: object
 
     FileVersionList:
       type: object
@@ -6687,18 +6577,11 @@ components:
       required:
         - file_id
         - job_type
-        - status
-        - priority
-        - retry_count
-        - max_retries
-        - metadata
       properties:
         file_id:
           type: string
           format: uuid
         job_type:
-          type: string
-        status:
           type: string
         priority:
           type: integer
@@ -6726,8 +6609,6 @@ components:
         max_retries:
           type: integer
           format: int32
-        metadata:
-          type: object
 
     UpdateProcessingJobRequest:
       type: object
@@ -6738,7 +6619,6 @@ components:
         - priority
         - retry_count
         - max_retries
-        - metadata
       properties:
         file_id:
           type: string
@@ -6773,8 +6653,6 @@ components:
         max_retries:
           type: integer
           format: int32
-        metadata:
-          type: object
 
     PatchProcessingJobRequest:
       type: object
@@ -6812,8 +6690,6 @@ components:
         max_retries:
           type: integer
           format: int32
-        metadata:
-          type: object
 
     ProcessingJobList:
       type: object
@@ -6975,17 +6851,7 @@ components:
         - original_name
         - size_bytes
         - mime_type
-        - is_compressed
-        - is_scanned
-        - has_thumbnail
-        - has_video_thumbnail
-        - has_document_preview
-        - sort_order
-        - status
         - storage_key
-        - version
-        - download_count
-        - metadata
       properties:
         bucket_id:
           type: string
@@ -7068,8 +6934,6 @@ components:
         sort_order:
           type: integer
           format: int32
-        status:
-          type: string
         storage_key:
           type: string
           maxLength: 1024
@@ -7087,8 +6951,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     UpdateStoredFileRequest:
       type: object
@@ -7109,7 +6971,6 @@ components:
         - storage_key
         - version
         - download_count
-        - metadata
       properties:
         bucket_id:
           type: string
@@ -7211,8 +7072,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     PatchStoredFileRequest:
       type: object
@@ -7317,8 +7176,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     StoredFileList:
       type: object
@@ -7420,15 +7277,7 @@ components:
         - width
         - height
         - storage_key
-        - storage_backend
-        - mime_type
-        - format
-        - quality
         - size_bytes
-        - generated_at
-        - source_version
-        - is_stale
-        - metadata
       properties:
         file_id:
           type: string
@@ -7474,8 +7323,6 @@ components:
           format: date-time
         is_stale:
           type: boolean
-        metadata:
-          type: object
 
     UpdateThumbnailRequest:
       type: object
@@ -7493,7 +7340,6 @@ components:
         - generated_at
         - source_version
         - is_stale
-        - metadata
       properties:
         file_id:
           type: string
@@ -7539,8 +7385,6 @@ components:
           format: date-time
         is_stale:
           type: boolean
-        metadata:
-          type: object
 
     PatchThumbnailRequest:
       type: object
@@ -7589,8 +7433,6 @@ components:
           format: date-time
         is_stale:
           type: boolean
-        metadata:
-          type: object
 
     ThumbnailList:
       type: object
@@ -7689,12 +7531,8 @@ components:
         - file_size
         - chunk_size
         - total_chunks
-        - uploaded_chunks
-        - status
-        - storage_backend
         - completed_parts
         - expires_at
-        - metadata
       properties:
         bucket_id:
           type: string
@@ -7724,8 +7562,6 @@ components:
         uploaded_chunks:
           type: integer
           format: int32
-        status:
-          type: string
         storage_backend:
           type: string
         completed_parts:
@@ -7736,8 +7572,6 @@ components:
         expires_at:
           type: string
           format: date-time
-        metadata:
-          type: object
 
     UpdateUploadSessionRequest:
       type: object
@@ -7754,7 +7588,6 @@ components:
         - storage_backend
         - completed_parts
         - expires_at
-        - metadata
       properties:
         bucket_id:
           type: string
@@ -7796,8 +7629,6 @@ components:
         expires_at:
           type: string
           format: date-time
-        metadata:
-          type: object
 
     PatchUploadSessionRequest:
       type: object
@@ -7842,8 +7673,6 @@ components:
         expires_at:
           type: string
           format: date-time
-        metadata:
-          type: object
 
     UploadSessionList:
       type: object
@@ -7932,13 +7761,6 @@ components:
       required:
         - user_id
         - limit_bytes
-        - used_bytes
-        - file_count
-        - tier
-        - quota_status
-        - warning_threshold_percent
-        - peak_usage_bytes
-        - metadata
       properties:
         user_id:
           type: string
@@ -7963,8 +7785,6 @@ components:
         tier:
           type: string
           maxLength: 50
-        quota_status:
-          type: string
         warning_threshold_percent:
           type: integer
           format: int32
@@ -7979,8 +7799,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     UpdateUserQuotaRequest:
       type: object
@@ -7993,7 +7811,6 @@ components:
         - quota_status
         - warning_threshold_percent
         - peak_usage_bytes
-        - metadata
       properties:
         user_id:
           type: string
@@ -8034,8 +7851,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     PatchUserQuotaRequest:
       type: object
@@ -8079,8 +7894,6 @@ components:
           nullable: true
           type: string
           format: date-time
-        metadata:
-          type: object
 
     UserQuotaList:
       type: object

@@ -189,6 +189,54 @@ permissions:
       - all
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  ProcessingJobCreatedEvent:
+    description: "A processing job was created"
+    aggregate: ProcessingJob
+    version: 1
+    fields:
+      job_id: uuid
+      file_id: uuid
+      job_type: string
+
+  JobStartedEvent:
+    description: "A processing job reached its running state"
+    aggregate: ProcessingJob
+    version: 1
+    fields:
+      job_id: uuid
+      file_id: uuid
+      job_type: string
+
+  JobCompletedEvent:
+    description: "A processing job reached its completed state"
+    aggregate: ProcessingJob
+    version: 1
+    fields:
+      job_id: uuid
+      file_id: uuid
+      job_type: string
+
+  JobFailedEvent:
+    description: "A processing job reached its failed state"
+    aggregate: ProcessingJob
+    version: 1
+    fields:
+      job_id: uuid
+      file_id: uuid
+      error: "string?"
+
+  JobCancelledEvent:
+    description: "A processing job reached its cancelled state"
+    aggregate: ProcessingJob
+    version: 1
+    fields:
+      job_id: uuid
+      file_id: uuid
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:
@@ -215,7 +263,7 @@ triggers:
 
   update_file_processing_status:
     timing: after_update
-    condition: "status IN ('completed', 'failed') AND $old.status NOT IN ('completed', 'failed')"
+    condition: "status in ['completed', 'failed'] && $old.status not in ['completed', 'failed']"
     actions:
       - "update: StoredFile(processing_status: check_all_jobs_status(file_id)) WHERE id == file_id"
 

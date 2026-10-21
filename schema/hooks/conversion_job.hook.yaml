@@ -186,6 +186,54 @@ permissions:
       - all
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  ConversionJobCreatedEvent:
+    description: "A conversion job was created"
+    aggregate: ConversionJob
+    version: 1
+    fields:
+      job_id: uuid
+      source_file_id: uuid
+      target_format: string
+
+  ConversionStartedEvent:
+    description: "A conversion job reached its processing state"
+    aggregate: ConversionJob
+    version: 1
+    fields:
+      job_id: uuid
+      source_file_id: uuid
+      target_format: string
+
+  ConversionCompletedEvent:
+    description: "A conversion job reached its completed state"
+    aggregate: ConversionJob
+    version: 1
+    fields:
+      job_id: uuid
+      source_file_id: uuid
+      result_file_id: "uuid?"
+
+  ConversionFailedEvent:
+    description: "A conversion job reached its failed state"
+    aggregate: ConversionJob
+    version: 1
+    fields:
+      job_id: uuid
+      source_file_id: uuid
+      error: "string?"
+
+  ConversionCancelledEvent:
+    description: "A conversion job reached its cancelled state"
+    aggregate: ConversionJob
+    version: 1
+    fields:
+      job_id: uuid
+      source_file_id: uuid
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:
@@ -211,7 +259,7 @@ triggers:
 
   update_bucket_stats:
     timing: after_update
-    condition: "status == 'completed' AND $old.status != 'completed' AND result_file_id != null"
+    condition: "status == 'completed' && $old.status != 'completed' && result_file_id != null"
     actions:
       - "update: Bucket(file_count: file_count + 1, total_size_bytes: total_size_bytes + get_file(result_file_id).size_bytes) WHERE id == source_file.bucket_id"
 

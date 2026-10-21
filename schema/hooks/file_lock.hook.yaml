@@ -134,6 +134,46 @@ permissions:
       - all
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  FileLockCreatedEvent:
+    description: "A file lock was created"
+    aggregate: FileLock
+    version: 1
+    fields:
+      lock_id: uuid
+      file_id: uuid
+      user_id: uuid
+      expires_at: datetime
+
+  FileLockAcquiredEvent:
+    description: "A lock reached its active state"
+    aggregate: FileLock
+    version: 1
+    fields:
+      lock_id: uuid
+      file_id: uuid
+      user_id: uuid
+
+  FileLockExpiredEvent:
+    description: "A lock expired"
+    aggregate: FileLock
+    version: 1
+    fields:
+      lock_id: uuid
+      file_id: uuid
+
+  FileLockReleasedEvent:
+    description: "A lock was released"
+    aggregate: FileLock
+    version: 1
+    fields:
+      lock_id: uuid
+      file_id: uuid
+      user_id: uuid
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:

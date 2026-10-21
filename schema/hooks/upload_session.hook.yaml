@@ -219,6 +219,68 @@ permissions:
       - all
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  UploadSessionCreatedEvent:
+    description: "An upload session was initiated"
+    aggregate: UploadSession
+    version: 1
+    fields:
+      session_id: uuid
+      bucket_id: uuid
+      file_size: int64
+      total_chunks: int
+
+  UploadPartReceivedEvent:
+    description: "An upload session received a part"
+    aggregate: UploadSession
+    version: 1
+    fields:
+      session_id: uuid
+      uploaded_chunks: int
+      total_chunks: int
+
+  UploadStartedEvent:
+    description: "An upload session reached its uploading state"
+    aggregate: UploadSession
+    version: 1
+    fields:
+      session_id: uuid
+      bucket_id: uuid
+      file_size: int64
+
+  UploadFinalizingEvent:
+    description: "An upload session reached its completing state"
+    aggregate: UploadSession
+    version: 1
+    fields:
+      session_id: uuid
+
+  UploadCompletedEvent:
+    description: "An upload session completed"
+    aggregate: UploadSession
+    version: 1
+    fields:
+      session_id: uuid
+      file_id: "uuid?"
+
+  UploadFailedEvent:
+    description: "An upload session failed"
+    aggregate: UploadSession
+    version: 1
+    fields:
+      session_id: uuid
+      error: "string?"
+
+  UploadExpiredEvent:
+    description: "An upload session expired"
+    aggregate: UploadSession
+    version: 1
+    fields:
+      session_id: uuid
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:

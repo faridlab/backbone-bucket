@@ -158,12 +158,36 @@ permissions:
       - all
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  BucketCreatedEvent:
+    description: "A bucket was created"
+    aggregate: Bucket
+    version: 1
+    fields:
+      bucket_id: uuid
+      owner_id: "uuid?"
+      name: string
+      bucket_type: string
+
+  BucketDeletedEvent:
+    description: "A bucket reached its deleted state"
+    aggregate: Bucket
+    version: 1
+    fields:
+      bucket_id: uuid
+      owner_id: "uuid?"
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:
   before_create:
     actions:
-      - "if: slug == null || slug == '' { set: slug = slugify(name) }"
+      # `slugify(name)` is not a row-rule expression, so the fallback is the
+      # hand method `before_create__derive_slug` (it keeps this guard).
+      - "trigger: derive_slug"
       - "if: root_path == null || root_path == '' { set: root_path = owner_id + '/' + slug }"
 
   after_create:

@@ -182,6 +182,28 @@ permissions:
       - all
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  CommentCreatedEvent:
+    description: "A file comment was created"
+    aggregate: FileComment
+    version: 1
+    fields:
+      comment_id: uuid
+      file_id: uuid
+      user_id: uuid
+      parent_id: "uuid?"
+
+  CommentDeletedEvent:
+    description: "A file comment was deleted"
+    aggregate: FileComment
+    version: 1
+    fields:
+      comment_id: uuid
+      file_id: uuid
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:

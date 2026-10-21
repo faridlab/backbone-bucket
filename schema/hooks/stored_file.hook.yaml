@@ -253,6 +253,58 @@ permissions:
       - action: list
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  FileCreatedEvent:
+    description: "A file record was created"
+    aggregate: StoredFile
+    version: 1
+    fields:
+      file_id: uuid
+      owner_id: "uuid?"
+      bucket_id: uuid
+      name: string
+      size_bytes: int64
+      mime_type: string
+
+  FileActivatedEvent:
+    description: "A file reached its active state"
+    aggregate: StoredFile
+    version: 1
+    fields:
+      file_id: uuid
+      owner_id: "uuid?"
+
+  FileQuarantinedEvent:
+    description: "A file was quarantined"
+    aggregate: StoredFile
+    version: 1
+    fields:
+      file_id: uuid
+      owner_id: "uuid?"
+      threat_name: "string?"
+
+  FileDeletedEvent:
+    description: "A file was deleted or purged"
+    aggregate: StoredFile
+    version: 1
+    fields:
+      file_id: uuid
+      owner_id: "uuid?"
+      permanent: bool
+
+  FileDownloadedEvent:
+    description: "A file was downloaded"
+    aggregate: StoredFile
+    version: 1
+    fields:
+      file_id: uuid
+      user_id: "uuid?"
+      share_id: "uuid?"
+      ip_address: "string?"
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:

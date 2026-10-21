@@ -155,12 +155,72 @@ permissions:
       - action: list
 
 # =============================================================================
+# Domain Events (staged in the write's transaction by the triggers below)
+# =============================================================================
+events:
+  ShareCreatedEvent:
+    description: "A share was created"
+    aggregate: FileShare
+    version: 1
+    fields:
+      share_id: uuid
+      file_id: uuid
+      shared_by_id: "uuid?"
+      shared_with_user_id: "uuid?"
+      permission: string
+
+  ShareAccessedEvent:
+    description: "A share was used to download a file"
+    aggregate: FileShare
+    version: 1
+    fields:
+      share_id: uuid
+      file_id: uuid
+      user_id: "uuid?"
+
+  ShareStatusChangedEvent:
+    description: "A share's status changed"
+    aggregate: FileShare
+    version: 1
+    fields:
+      share_id: uuid
+      status: string
+
+  ShareDeletedEvent:
+    description: "A share was deleted"
+    aggregate: FileShare
+    version: 1
+    fields:
+      share_id: uuid
+      file_id: uuid
+
+  ShareDownloadLimitReachedEvent:
+    description: "A share reached its download limit"
+    aggregate: FileShare
+    version: 1
+    fields:
+      share_id: uuid
+      file_id: uuid
+
+  ShareRevokedEvent:
+    description: "A share was revoked"
+    aggregate: FileShare
+    version: 1
+    fields:
+      share_id: uuid
+      file_id: uuid
+      revoked_by: "uuid?"
+
+# =============================================================================
 # Triggers (Side Effects)
 # =============================================================================
 triggers:
   before_create:
     actions:
-      - "if: token == null || token == '' { set: token = generate_secure_token(32) }"
+      # `generate_secure_token(32)` is not a row-rule expression, so the
+      # fallback is the hand method `before_create__ensure_token` (it keeps
+      # this guard).
+      - "trigger: ensure_token"
       - "if: share_type == 'password' && $input.password != null { set: password_hash = hash_password($input.password) }"
 
   after_create:

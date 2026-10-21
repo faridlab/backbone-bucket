@@ -128,17 +128,49 @@ permissions:
       - delete
 
 # =============================================================================
-# PRIORITY 4: Triggers
+# PRIORITY 4: Domain Events (staged in the write's transaction by the triggers
+# below)
+# =============================================================================
+events:
+  UserQuotaCreatedEvent:
+    description: "A user quota record was created"
+    aggregate: UserQuota
+    version: 1
+    fields:
+      user_id: uuid
+      tier: string
+      max_storage_bytes: int64
+
+  UserQuotaTierChangedEvent:
+    description: "A user quota's tier changed"
+    aggregate: UserQuota
+    version: 1
+    fields:
+      user_id: uuid
+      old_tier: string
+      new_tier: string
+      expires_at: "datetime?"
+
+  QuotaExceededEvent:
+    description: "A user quota reached its exceeded state"
+    aggregate: UserQuota
+    version: 1
+    fields:
+      user_id: uuid
+      used_storage_bytes: int64
+      max_storage_bytes: int64
+
+# =============================================================================
+# PRIORITY 5: Triggers
 # =============================================================================
 triggers:
   before_create:
     actions:
-      - "set: used_storage_bytes = 0"
+      # The model's columns `used_bytes` and `file_count` already default to 0
+      # (`@default(0)`); `bucket_count`, `used_bandwidth_today`,
+      # `used_bandwidth_month` and `is_exceeded` were documented here but the
+      # model has no such fields, so nothing could ever set them.
       - "set: file_count = 0"
-      - "set: bucket_count = 0"
-      - "set: used_bandwidth_today = 0"
-      - "set: used_bandwidth_month = 0"
-      - "set: is_exceeded = false"
       - "trigger: apply_tier_defaults"
 
   after_create:
@@ -158,11 +190,13 @@ triggers:
       - "emit: UserQuotaTierChangedEvent(user_id: user_id, old_tier: $old.tier, new_tier: tier, expires_at: expires_at)"
     if: "$old.tier != tier"
 
-  after_update_used_storage_bytes:
+  # The model's storage-usage field is `used_bytes` (the legacy key spelled it
+  # `used_storage_bytes`, a field the model has never had).
+  after_update_used_bytes:
     actions:
       - "trigger: check_warning_threshold"
       - "trigger: update_exceeded_status"
-    if: "$old.used_storage_bytes != used_storage_bytes"
+    if: "$old.used_bytes != used_bytes"
 
   # Scheduled jobs
   scheduled_reset_daily_bandwidth:
