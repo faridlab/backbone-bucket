@@ -52,9 +52,9 @@ pub struct CreateUploadSessionDto {
     #[serde(alias = "total_chunks")]
     pub total_chunks: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "uploaded_chunks")]
+    #[serde(default, alias = "uploaded_chunks")]
     pub uploaded_chunks: i32,
-    #[serde(alias = "storage_backend")]
+    #[serde(default = "default_create_upload_session_storage_backend", alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[serde(alias = "completed_parts")]
     pub completed_parts: Vec<i32>,
@@ -63,6 +63,10 @@ pub struct CreateUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     #[serde(alias = "expires_at")]
     pub expires_at: DateTime<Utc>,
+}
+
+fn default_create_upload_session_storage_backend() -> StorageBackend {
+    StorageBackend::Local
 }
 
 // =============================================================================
@@ -137,8 +141,8 @@ pub struct PatchUploadSessionDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub filename: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "mime_type")]
-    pub mime_type: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "mime_type")]
+    pub mime_type: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "file_size")]
     pub file_size: Option<i64>,
@@ -157,8 +161,8 @@ pub struct PatchUploadSessionDto {
     pub storage_backend: Option<StorageBackend>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "completed_parts")]
     pub completed_parts: Option<Vec<i32>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "part_etags")]
-    pub part_etags: Option<serde_json::Value>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "part_etags")]
+    pub part_etags: Option<Option<serde_json::Value>>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
@@ -382,12 +386,4 @@ impl backbone_core::ApplyUpdateDto<UpdateUploadSessionDto> for UploadSession {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to UploadSession here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

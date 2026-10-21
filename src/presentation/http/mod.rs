@@ -18,16 +18,16 @@ pub mod user_quota_handler;
 
 
 // Re-exports
-pub use bucket_handler::{create_bucket_routes, create_bucket_read_routes, create_bucket_write_routes};
-pub use content_hash_handler::{create_content_hash_routes, create_content_hash_read_routes, create_content_hash_write_routes};
-pub use conversion_job_handler::{create_conversion_job_routes, create_conversion_job_read_routes, create_conversion_job_write_routes};
-pub use file_comment_handler::{create_file_comment_routes, create_file_comment_read_routes, create_file_comment_write_routes};
-pub use file_lock_handler::{create_file_lock_routes, create_file_lock_read_routes, create_file_lock_write_routes};
-pub use file_share_handler::{create_file_share_routes, create_file_share_read_routes, create_file_share_write_routes};
-pub use processing_job_handler::{create_processing_job_routes, create_processing_job_read_routes, create_processing_job_write_routes};
-pub use stored_file_handler::{create_stored_file_routes, create_stored_file_read_routes, create_stored_file_write_routes};
-pub use upload_session_handler::{create_upload_session_routes, create_upload_session_read_routes, create_upload_session_write_routes};
-pub use user_quota_handler::{create_user_quota_routes, create_user_quota_read_routes, create_user_quota_write_routes};
+pub use bucket_handler::{create_bucket_routes, create_bucket_read_routes, create_bucket_write_routes, bucket_permissions};
+pub use content_hash_handler::{create_content_hash_routes, create_content_hash_read_routes, create_content_hash_write_routes, content_hash_permissions};
+pub use conversion_job_handler::{create_conversion_job_routes, create_conversion_job_read_routes, create_conversion_job_write_routes, conversion_job_permissions};
+pub use file_comment_handler::{create_file_comment_routes, create_file_comment_read_routes, create_file_comment_write_routes, file_comment_permissions};
+pub use file_lock_handler::{create_file_lock_routes, create_file_lock_read_routes, create_file_lock_write_routes, file_lock_permissions};
+pub use file_share_handler::{create_file_share_routes, create_file_share_read_routes, create_file_share_write_routes, file_share_permissions};
+pub use processing_job_handler::{create_processing_job_routes, create_processing_job_read_routes, create_processing_job_write_routes, processing_job_permissions};
+pub use stored_file_handler::{create_stored_file_routes, create_stored_file_read_routes, create_stored_file_write_routes, stored_file_permissions};
+pub use upload_session_handler::{create_upload_session_routes, create_upload_session_read_routes, create_upload_session_write_routes, upload_session_permissions};
+pub use user_quota_handler::{create_user_quota_routes, create_user_quota_read_routes, create_user_quota_write_routes, user_quota_permissions};
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

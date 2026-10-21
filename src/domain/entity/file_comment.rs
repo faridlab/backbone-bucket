@@ -276,6 +276,17 @@ impl super::Entity for FileComment {
 }
 
 impl backbone_core::PersistentEntity for FileComment {
+    fn state_fields() -> &'static [&'static str] {
+        &["status"]
+    }
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("file_id", "bucket.stored_files", "id"),
+            backbone_core::Reference::new("user_id", "users", "id"),
+            backbone_core::Reference::new("parent_id", "bucket.file_comments", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

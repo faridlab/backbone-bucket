@@ -36,27 +36,36 @@ pub struct CreateUserQuotaDto {
     #[serde(alias = "limit_bytes")]
     pub limit_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "used_bytes")]
+    #[serde(default, alias = "used_bytes")]
     pub used_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "file_count")]
+    #[serde(default, alias = "file_count")]
     pub file_count: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_count")]
     pub max_file_count: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(default = "default_create_user_quota_tier")]
     pub tier: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "warning_threshold_percent")]
+    #[serde(default = "default_create_user_quota_warning_threshold_percent", alias = "warning_threshold_percent")]
     pub warning_threshold_percent: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "last_warning_sent_at")]
     pub last_warning_sent_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "peak_usage_bytes")]
+    #[serde(default, alias = "peak_usage_bytes")]
     pub peak_usage_bytes: i64,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "peak_usage_at")]
     pub peak_usage_at: Option<DateTime<Utc>>,
+}
+
+fn default_create_user_quota_tier() -> String {
+    "free".to_string()
+}
+
+fn default_create_user_quota_warning_threshold_percent() -> i32 {
+    80
 }
 
 // =============================================================================
@@ -127,10 +136,10 @@ pub struct PatchUserQuotaDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "file_count")]
     pub file_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "max_file_size")]
-    pub max_file_size: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "max_file_count")]
-    pub max_file_count: Option<i32>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "max_file_size")]
+    pub max_file_size: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "max_file_count")]
+    pub max_file_count: Option<Option<i32>>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tier: Option<String>,
@@ -139,13 +148,13 @@ pub struct PatchUserQuotaDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "warning_threshold_percent")]
     pub warning_threshold_percent: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "last_warning_sent_at")]
-    pub last_warning_sent_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "last_warning_sent_at")]
+    pub last_warning_sent_at: Option<Option<DateTime<Utc>>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "peak_usage_bytes")]
     pub peak_usage_bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "peak_usage_at")]
-    pub peak_usage_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "peak_usage_at")]
+    pub peak_usage_at: Option<Option<DateTime<Utc>>>,
 }
 
 impl PatchUserQuotaDto {
@@ -354,12 +363,4 @@ impl backbone_core::ApplyUpdateDto<UpdateUserQuotaDto> for UserQuota {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to UserQuota here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

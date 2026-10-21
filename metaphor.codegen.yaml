@@ -75,6 +75,17 @@ user_owned:
   - "src/application/queries/thumbnail_queries.rs"
   - "src/application/queries/upload_session_queries.rs"
   - "src/application/queries/user_quota_queries.rs"
+  # Hand-written halves of the compiled hook triggers (ADR-0034): one
+  # `<Model>TriggersImpl` beside each generated trait.
+  - "src/application/triggers/bucket_triggers.ext.rs"
+  - "src/application/triggers/conversion_job_triggers.ext.rs"
+  - "src/application/triggers/file_comment_triggers.ext.rs"
+  - "src/application/triggers/file_lock_triggers.ext.rs"
+  - "src/application/triggers/file_share_triggers.ext.rs"
+  - "src/application/triggers/processing_job_triggers.ext.rs"
+  - "src/application/triggers/stored_file_triggers.ext.rs"
+  - "src/application/triggers/upload_session_triggers.ext.rs"
+  - "src/application/triggers/user_quota_triggers.ext.rs"
   - "src/application/service/cdn_service.rs"
   - "src/application/service/conversion_service.rs"
   - "src/application/service/document_preview_service.rs"

@@ -48,6 +48,13 @@ impl ModuleBuilderExt {
     pub(crate) fn build(self, parts: &ModuleParts<'_>) -> anyhow::Result<ModuleExt> {
         let db_pool = parts.db_pool.clone();
         let stored_file_repository = parts.stored_file_repository.clone();
+        // The quota read and write the stored-file triggers' bookkeeping uses
+        // (ADR-0034): bound here, weakly, because the stored-file service owns
+        // the hooks that own the triggers impl.
+        crate::application::triggers::bind_quota_bookkeeping(
+            parts.user_quota_service,
+            parts.user_quota_repository,
+        );
         let bucket_repository = parts.bucket_repository.clone();
         let conversion_job_repository = parts.conversion_job_repository.clone();
         let file_lock_repository = parts.file_lock_repository.clone();

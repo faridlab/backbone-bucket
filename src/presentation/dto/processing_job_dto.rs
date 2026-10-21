@@ -36,6 +36,7 @@ pub struct CreateProcessingJobDto {
     #[serde(alias = "job_type")]
     pub job_type: ProcessingJobType,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(default)]
     pub priority: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "input_data")]
     pub input_data: Option<serde_json::Value>,
@@ -48,11 +49,15 @@ pub struct CreateProcessingJobDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "completed_at")]
     pub completed_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "retry_count")]
+    #[serde(default, alias = "retry_count")]
     pub retry_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "max_retries")]
+    #[serde(default = "default_create_processing_job_max_retries", alias = "max_retries")]
     pub max_retries: i32,
+}
+
+fn default_create_processing_job_max_retries() -> i32 {
+    3
 }
 
 // =============================================================================
@@ -115,16 +120,16 @@ pub struct PatchProcessingJobDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "input_data")]
-    pub input_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "result_data")]
-    pub result_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "error_message")]
-    pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "started_at")]
-    pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "completed_at")]
-    pub completed_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "input_data")]
+    pub input_data: Option<Option<serde_json::Value>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "result_data")]
+    pub result_data: Option<Option<serde_json::Value>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "error_message")]
+    pub error_message: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "started_at")]
+    pub started_at: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "completed_at")]
+    pub completed_at: Option<Option<DateTime<Utc>>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "retry_count")]
     pub retry_count: Option<i32>,
@@ -331,12 +336,4 @@ impl backbone_core::ApplyUpdateDto<UpdateProcessingJobDto> for ProcessingJob {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to ProcessingJob here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

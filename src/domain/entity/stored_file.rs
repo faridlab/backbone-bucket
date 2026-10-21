@@ -433,6 +433,18 @@ impl super::Entity for StoredFile {
 }
 
 impl backbone_core::PersistentEntity for StoredFile {
+    fn state_fields() -> &'static [&'static str] {
+        &["status"]
+    }
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("bucket_id", "bucket.buckets", "id"),
+            backbone_core::Reference::new("previous_version_id", "bucket.stored_files", "id"),
+            backbone_core::Reference::new("content_hash_id", "bucket.content_hashes", "id"),
+            backbone_core::Reference::new("owner_id", "users", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

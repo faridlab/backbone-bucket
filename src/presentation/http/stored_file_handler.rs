@@ -110,6 +110,13 @@ pub mod stored_file_errors {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `stored_file:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn stored_file_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("stored_file")
+        .in_module("bucket")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for StoredFile.
 ///
 /// # Routes
@@ -139,21 +146,23 @@ pub mod stored_file_errors {
 /// let router = create_stored_file_routes(service);
 /// ```
 pub fn create_stored_file_routes(service: Arc<StoredFileService>) -> Router {
-    BackboneCrudHandler::<StoredFileService, StoredFile, CreateStoredFileDto, UpdateStoredFileDto, StoredFileResponseDto>::routes(
+    BackboneCrudHandler::<StoredFileService, StoredFile, CreateStoredFileDto, UpdateStoredFileDto, StoredFileResponseDto>::routes_guarded(
         service,
         "/stored_files",
+        stored_file_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for StoredFile.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_stored_file_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_stored_file_read_routes(service: Arc<StoredFileService>) -> Router {
-    BackboneCrudHandler::<StoredFileService, StoredFile, CreateStoredFileDto, UpdateStoredFileDto, StoredFileResponseDto>::read_routes(
+    BackboneCrudHandler::<StoredFileService, StoredFile, CreateStoredFileDto, UpdateStoredFileDto, StoredFileResponseDto>::read_routes_guarded(
         service,
         "/stored_files",
+        stored_file_permissions(),
     )
 }
 
@@ -169,9 +178,10 @@ pub fn create_stored_file_read_routes(service: Arc<StoredFileService>) -> Router
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_stored_file_write_routes(service: Arc<StoredFileService>) -> Router {
-    BackboneCrudHandler::<StoredFileService, StoredFile, CreateStoredFileDto, UpdateStoredFileDto, StoredFileResponseDto>::write_routes(
+    BackboneCrudHandler::<StoredFileService, StoredFile, CreateStoredFileDto, UpdateStoredFileDto, StoredFileResponseDto>::write_routes_guarded(
         service,
         "/stored_files",
+        stored_file_permissions(),
     )
 }
 
@@ -228,33 +238,28 @@ pub async fn complete_upload_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<StoredFileResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = StoredFileTransition::CompleteUpload.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("stored_file:complete_upload", &["bucket:complete_upload"])) {
+            return backbone_core::http::permission_refusal::<StoredFileResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = StoredFileTransition::CompleteUpload.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("stored_file:transition:complete_upload");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("complete_upload needs stored_file:transition:complete_upload or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: StoredFileState = match entity.status.to_string().parse() {
@@ -263,7 +268,11 @@ pub async fn complete_upload_transition(
     };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::CompleteUpload) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "complete_upload is not allowed from the current state")
+            .with_param("transition", "complete_upload")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "processing")]);
+        return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
     }
 
     {
@@ -272,7 +281,10 @@ pub async fn complete_upload_transition(
         let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
         // Guard: size_bytes > 0
         if ["uploading"].contains(&state) && !r::holds(&r::gt(r::field(row, "size_bytes"), r::Val::Num(0.0_f64))) {
-            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<StoredFileResponseDto>::error("The complete_upload transition's guard does not hold: size_bytes > 0")));
+            let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_guard_failed", "The complete_upload transition's guard does not hold: size_bytes > 0")
+                .with_param("transition", "complete_upload")
+                .with_param("guard", "size_bytes > 0")]);
+            return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
         }
     }
 
@@ -286,7 +298,7 @@ pub async fn complete_upload_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     }
 }
 
@@ -297,33 +309,28 @@ pub async fn mark_safe_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<StoredFileResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = StoredFileTransition::MarkSafe.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("stored_file:mark_safe", &["bucket:mark_safe"])) {
+            return backbone_core::http::permission_refusal::<StoredFileResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = StoredFileTransition::MarkSafe.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("stored_file:transition:mark_safe");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("mark_safe needs stored_file:transition:mark_safe or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: StoredFileState = match entity.status.to_string().parse() {
@@ -332,7 +339,11 @@ pub async fn mark_safe_transition(
     };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::MarkSafe) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "mark_safe is not allowed from the current state")
+            .with_param("transition", "mark_safe")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "active")]);
+        return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
     }
 
     {
@@ -341,7 +352,10 @@ pub async fn mark_safe_transition(
         let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
         // Guard: is_scanned == true && (threat_level == null || threat_level == 'safe')
         if ["processing"].contains(&state) && !r::holds(&r::and(r::eq(r::field(row, "is_scanned"), r::Val::Bool(true)), r::or(r::is_null(r::field(row, "threat_level")), r::eq(r::field(row, "threat_level"), r::text("safe"))))) {
-            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<StoredFileResponseDto>::error("The mark_safe transition's guard does not hold: is_scanned == true && (threat_level == null || threat_level == 'safe')")));
+            let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_guard_failed", "The mark_safe transition's guard does not hold: is_scanned == true && (threat_level == null || threat_level == 'safe')")
+                .with_param("transition", "mark_safe")
+                .with_param("guard", "is_scanned == true && (threat_level == null || threat_level == 'safe')")]);
+            return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
         }
     }
 
@@ -355,7 +369,7 @@ pub async fn mark_safe_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     }
 }
 
@@ -366,33 +380,28 @@ pub async fn quarantine_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<StoredFileResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = StoredFileTransition::Quarantine.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("stored_file:quarantine", &["bucket:quarantine"])) {
+            return backbone_core::http::permission_refusal::<StoredFileResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = StoredFileTransition::Quarantine.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("stored_file:transition:quarantine");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("quarantine needs stored_file:transition:quarantine or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: StoredFileState = match entity.status.to_string().parse() {
@@ -401,7 +410,11 @@ pub async fn quarantine_transition(
     };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::Quarantine) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "quarantine is not allowed from the current state")
+            .with_param("transition", "quarantine")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "quarantined")]);
+        return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
     }
 
     {
@@ -410,7 +423,10 @@ pub async fn quarantine_transition(
         let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
         // Guard: threat_level != null && threat_level != 'safe'
         if ["processing"].contains(&state) && !r::holds(&r::and(r::is_not_null(r::field(row, "threat_level")), r::ne(r::field(row, "threat_level"), r::text("safe")))) {
-            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<StoredFileResponseDto>::error("The quarantine transition's guard does not hold: threat_level != null && threat_level != 'safe'")));
+            let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_guard_failed", "The quarantine transition's guard does not hold: threat_level != null && threat_level != 'safe'")
+                .with_param("transition", "quarantine")
+                .with_param("guard", "threat_level != null && threat_level != 'safe'")]);
+            return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
         }
     }
 
@@ -424,7 +440,7 @@ pub async fn quarantine_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     }
 }
 
@@ -435,33 +451,28 @@ pub async fn mark_safe_by_admin_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<StoredFileResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = StoredFileTransition::MarkSafeByAdmin.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("stored_file:mark_safe_by_admin", &["bucket:mark_safe_by_admin"])) {
+            return backbone_core::http::permission_refusal::<StoredFileResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = StoredFileTransition::MarkSafeByAdmin.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("stored_file:transition:mark_safe_by_admin");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("mark_safe_by_admin needs stored_file:transition:mark_safe_by_admin or one of the roles admin")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: StoredFileState = match entity.status.to_string().parse() {
@@ -470,7 +481,11 @@ pub async fn mark_safe_by_admin_transition(
     };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::MarkSafeByAdmin) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "mark_safe_by_admin is not allowed from the current state")
+            .with_param("transition", "mark_safe_by_admin")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "active")]);
+        return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
     }
 
     // Apply transition via partial update
@@ -483,7 +498,7 @@ pub async fn mark_safe_by_admin_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     }
 }
 
@@ -494,33 +509,28 @@ pub async fn soft_delete_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<StoredFileResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = StoredFileTransition::SoftDelete.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("stored_file:soft_delete", &["bucket:soft_delete"])) {
+            return backbone_core::http::permission_refusal::<StoredFileResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = StoredFileTransition::SoftDelete.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("stored_file:transition:soft_delete");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("soft_delete needs stored_file:transition:soft_delete or one of the roles admin, owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: StoredFileState = match entity.status.to_string().parse() {
@@ -529,7 +539,11 @@ pub async fn soft_delete_transition(
     };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::SoftDelete) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "soft_delete is not allowed from the current state")
+            .with_param("transition", "soft_delete")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "deleted")]);
+        return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -543,7 +557,7 @@ pub async fn soft_delete_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     }
 }
 
@@ -554,33 +568,28 @@ pub async fn restore_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<StoredFileResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = StoredFileTransition::Restore.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("stored_file:restore", &["bucket:restore"])) {
+            return backbone_core::http::permission_refusal::<StoredFileResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = StoredFileTransition::Restore.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("stored_file:transition:restore");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("restore needs stored_file:transition:restore or one of the roles admin, owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: StoredFileState = match entity.status.to_string().parse() {
@@ -589,7 +598,11 @@ pub async fn restore_transition(
     };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::Restore) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "restore is not allowed from the current state")
+            .with_param("transition", "restore")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "active")]);
+        return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
     }
 
     // Guard `metadata.deleted_at != null && $actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -603,7 +616,7 @@ pub async fn restore_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     }
 }
 
@@ -614,33 +627,28 @@ pub async fn purge_transition(
     axum::extract::State(service): axum::extract::State<Arc<StoredFileService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<StoredFileResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = StoredFileTransition::Purge.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("stored_file:purge", &["bucket:purge"])) {
+            return backbone_core::http::permission_refusal::<StoredFileResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<StoredFileResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = StoredFileTransition::Purge.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("stored_file:transition:purge");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<StoredFileResponseDto>::error("purge needs stored_file:transition:purge or one of the roles admin, system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: StoredFileState = match entity.status.to_string().parse() {
@@ -649,7 +657,11 @@ pub async fn purge_transition(
     };
     let sm = StoredFileStateMachine::from_state(current_state);
     if !sm.can_transition(StoredFileTransition::Purge) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<StoredFileResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "purge is not allowed from the current state")
+            .with_param("transition", "purge")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "purged")]);
+        return backbone_core::http::service_error_response::<StoredFileResponseDto>(&refusal);
     }
 
     // Guard `metadata.deleted_at != null && metadata.deleted_at < now() - 30.days` not compiled (`.days` reads a relation or a duration); the transition is not checked against it.
@@ -663,7 +675,7 @@ pub async fn purge_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<StoredFileResponseDto>::not_found("StoredFile", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<StoredFileResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<StoredFileResponseDto>(&e),
     }
 }
 
@@ -680,5 +692,6 @@ pub fn create_stored_file_transition_routes(service: Arc<StoredFileService>) -> 
         .route("/stored_files/:id/transitions/restore", post(restore_transition))
         .route("/stored_files/:id/transitions/purge", post(purge_transition))
         .with_state(service)
+        .layer(axum::middleware::from_fn(backbone_core::http::correlation_middleware))
 }
 

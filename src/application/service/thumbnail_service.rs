@@ -66,6 +66,14 @@ impl backbone_core::write_guard::WriteGuard<Thumbnail> for ThumbnailRowRules {
         if (create || (update && r::changed(old.as_ref(), row, &["storage_key"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "storage_key")), r::not(r::is_empty(r::trim(r::field(row, "storage_key")))))) {
             refuse.push(Violation::new("storage_key", "required", "storage_key is required"));
         }
+        // `mime_type_required` (@required on Thumbnail.mime_type)
+        if (create || (update && r::changed(old.as_ref(), row, &["mime_type"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "mime_type")), r::not(r::is_empty(r::trim(r::field(row, "mime_type")))))) {
+            refuse.push(Violation::new("mime_type", "required", "mime_type is required"));
+        }
+        // `format_required` (@required on Thumbnail.format)
+        if (create || (update && r::changed(old.as_ref(), row, &["format"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "format")), r::not(r::is_empty(r::trim(r::field(row, "format")))))) {
+            refuse.push(Violation::new("format", "required", "format is required"));
+        }
         GuardOutcome { refuse, shadow }
     }
 }

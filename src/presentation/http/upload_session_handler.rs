@@ -126,6 +126,13 @@ pub mod upload_session_errors {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `upload_session:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn upload_session_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("upload_session")
+        .in_module("bucket")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for UploadSession.
 ///
 /// # Routes
@@ -155,21 +162,23 @@ pub mod upload_session_errors {
 /// let router = create_upload_session_routes(service);
 /// ```
 pub fn create_upload_session_routes(service: Arc<UploadSessionService>) -> Router {
-    BackboneCrudHandler::<UploadSessionService, UploadSession, CreateUploadSessionDto, UpdateUploadSessionDto, UploadSessionResponseDto>::routes(
+    BackboneCrudHandler::<UploadSessionService, UploadSession, CreateUploadSessionDto, UpdateUploadSessionDto, UploadSessionResponseDto>::routes_guarded(
         service,
         "/upload_sessions",
+        upload_session_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for UploadSession.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_upload_session_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_upload_session_read_routes(service: Arc<UploadSessionService>) -> Router {
-    BackboneCrudHandler::<UploadSessionService, UploadSession, CreateUploadSessionDto, UpdateUploadSessionDto, UploadSessionResponseDto>::read_routes(
+    BackboneCrudHandler::<UploadSessionService, UploadSession, CreateUploadSessionDto, UpdateUploadSessionDto, UploadSessionResponseDto>::read_routes_guarded(
         service,
         "/upload_sessions",
+        upload_session_permissions(),
     )
 }
 
@@ -185,9 +194,10 @@ pub fn create_upload_session_read_routes(service: Arc<UploadSessionService>) -> 
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_upload_session_write_routes(service: Arc<UploadSessionService>) -> Router {
-    BackboneCrudHandler::<UploadSessionService, UploadSession, CreateUploadSessionDto, UpdateUploadSessionDto, UploadSessionResponseDto>::write_routes(
+    BackboneCrudHandler::<UploadSessionService, UploadSession, CreateUploadSessionDto, UpdateUploadSessionDto, UploadSessionResponseDto>::write_routes_guarded(
         service,
         "/upload_sessions",
+        upload_session_permissions(),
     )
 }
 
@@ -244,33 +254,28 @@ pub async fn start_upload_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::StartUpload.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:start_upload", &["bucket:start_upload"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::StartUpload.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:start_upload");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("start_upload needs upload_session:transition:start_upload or one of the roles system, user")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -279,7 +284,11 @@ pub async fn start_upload_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::StartUpload) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "start_upload is not allowed from the current state")
+            .with_param("transition", "start_upload")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "uploading")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     // Guard `now() - metadata.created_at <= INTERVAL '1 hour'` not compiled (unexpected `'1 hour'` after a complete expression); the transition is not checked against it.
@@ -293,7 +302,7 @@ pub async fn start_upload_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -304,33 +313,28 @@ pub async fn add_part_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::AddPart.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:add_part", &["bucket:add_part"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::AddPart.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:add_part");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("add_part needs upload_session:transition:add_part or one of the roles system, user")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -339,7 +343,11 @@ pub async fn add_part_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::AddPart) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "add_part is not allowed from the current state")
+            .with_param("transition", "add_part")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "uploading")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     // Guard `$context.part_number >= 1 && $context.part_number <= total_chunks && !completed_parts.contains($context.part_number)` not compiled (reads `$context.part_number`, which a row rule cannot); the transition is not checked against it.
@@ -353,7 +361,7 @@ pub async fn add_part_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -364,33 +372,28 @@ pub async fn complete_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::Complete.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:complete", &["bucket:complete"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::Complete.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:complete");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("complete needs upload_session:transition:complete or one of the roles system, user")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -399,7 +402,11 @@ pub async fn complete_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Complete) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "complete is not allowed from the current state")
+            .with_param("transition", "complete")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "completing")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     {
@@ -408,7 +415,10 @@ pub async fn complete_transition(
         let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
         // Guard: uploaded_chunks == total_chunks
         if ["uploading"].contains(&state) && !r::holds(&r::eq(r::field(row, "uploaded_chunks"), r::field(row, "total_chunks"))) {
-            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<UploadSessionResponseDto>::error("The complete transition's guard does not hold: uploaded_chunks == total_chunks")));
+            let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_guard_failed", "The complete transition's guard does not hold: uploaded_chunks == total_chunks")
+                .with_param("transition", "complete")
+                .with_param("guard", "uploaded_chunks == total_chunks")]);
+            return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
         }
     }
 
@@ -422,7 +432,7 @@ pub async fn complete_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -433,33 +443,28 @@ pub async fn finish_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::Finish.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:finish", &["bucket:finish"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::Finish.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:finish");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("finish needs upload_session:transition:finish or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -468,7 +473,11 @@ pub async fn finish_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Finish) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "finish is not allowed from the current state")
+            .with_param("transition", "finish")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "completed")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     // Apply transition via partial update
@@ -481,7 +490,7 @@ pub async fn finish_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -492,33 +501,28 @@ pub async fn fail_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::Fail.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:fail", &["bucket:fail"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::Fail.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:fail");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("fail needs upload_session:transition:fail or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -527,7 +531,11 @@ pub async fn fail_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Fail) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "fail is not allowed from the current state")
+            .with_param("transition", "fail")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "failed")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     // Apply transition via partial update
@@ -540,7 +548,7 @@ pub async fn fail_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -551,33 +559,28 @@ pub async fn abort_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::Abort.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:abort", &["bucket:abort"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::Abort.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:abort");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("abort needs upload_session:transition:abort or one of the roles user, admin")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -586,7 +589,11 @@ pub async fn abort_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Abort) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "abort is not allowed from the current state")
+            .with_param("transition", "abort")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "failed")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == user_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -600,7 +607,7 @@ pub async fn abort_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -611,33 +618,28 @@ pub async fn expire_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::Expire.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:expire", &["bucket:expire"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::Expire.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:expire");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("expire needs upload_session:transition:expire or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -646,7 +648,11 @@ pub async fn expire_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Expire) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "expire is not allowed from the current state")
+            .with_param("transition", "expire")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "expired")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     // Guard `expires_at < now()` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -660,7 +666,7 @@ pub async fn expire_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -671,33 +677,28 @@ pub async fn retry_transition(
     axum::extract::State(service): axum::extract::State<Arc<UploadSessionService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<UploadSessionResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = UploadSessionTransition::Retry.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("upload_session:retry", &["bucket:retry"])) {
+            return backbone_core::http::permission_refusal::<UploadSessionResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<UploadSessionResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = UploadSessionTransition::Retry.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("upload_session:transition:retry");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<UploadSessionResponseDto>::error("retry needs upload_session:transition:retry or one of the roles user")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: UploadSessionState = match entity.status.to_string().parse() {
@@ -706,7 +707,11 @@ pub async fn retry_transition(
     };
     let sm = UploadSessionStateMachine::from_state(current_state);
     if !sm.can_transition(UploadSessionTransition::Retry) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<UploadSessionResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "retry is not allowed from the current state")
+            .with_param("transition", "retry")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "initiated")]);
+        return backbone_core::http::service_error_response::<UploadSessionResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == user_id` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -720,7 +725,7 @@ pub async fn retry_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<UploadSessionResponseDto>::not_found("UploadSession", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<UploadSessionResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<UploadSessionResponseDto>(&e),
     }
 }
 
@@ -738,5 +743,6 @@ pub fn create_upload_session_transition_routes(service: Arc<UploadSessionService
         .route("/upload_sessions/:id/transitions/expire", post(expire_transition))
         .route("/upload_sessions/:id/transitions/retry", post(retry_transition))
         .with_state(service)
+        .layer(axum::middleware::from_fn(backbone_core::http::correlation_middleware))
 }
 

@@ -41,33 +41,59 @@ pub struct CreateThumbnailDto {
     #[serde(alias = "storage_key")]
     pub storage_key: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(alias = "storage_backend")]
+    #[serde(default = "default_create_thumbnail_storage_backend", alias = "storage_backend")]
     pub storage_backend: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(alias = "mime_type")]
+    #[serde(default = "default_create_thumbnail_mime_type", alias = "mime_type")]
     pub mime_type: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(default = "default_create_thumbnail_format")]
     pub format: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(default = "default_create_thumbnail_quality")]
     pub quality: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(alias = "generated_at")]
+    #[serde(default = "default_create_thumbnail_generated_at", alias = "generated_at")]
     pub generated_at: DateTime<Utc>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "generation_time_ms")]
     pub generation_time_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "source_version")]
+    #[serde(default = "default_create_thumbnail_source_version", alias = "source_version")]
     pub source_version: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "cdn_url")]
     pub cdn_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "cache_expires_at")]
     pub cache_expires_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_stale")]
+    #[serde(default, alias = "is_stale")]
     pub is_stale: bool,
+}
+
+fn default_create_thumbnail_storage_backend() -> String {
+    "local".to_string()
+}
+
+fn default_create_thumbnail_mime_type() -> String {
+    "image/webp".to_string()
+}
+
+fn default_create_thumbnail_format() -> String {
+    "webp".to_string()
+}
+
+fn default_create_thumbnail_quality() -> i32 {
+    80
+}
+
+fn default_create_thumbnail_generated_at() -> DateTime<Utc> {
+    Utc::now()
+}
+
+fn default_create_thumbnail_source_version() -> i32 {
+    1
 }
 
 // =============================================================================
@@ -167,15 +193,15 @@ pub struct PatchThumbnailDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "generated_at")]
     pub generated_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "generation_time_ms")]
-    pub generation_time_ms: Option<i32>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "generation_time_ms")]
+    pub generation_time_ms: Option<Option<i32>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "source_version")]
     pub source_version: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "cdn_url")]
-    pub cdn_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "cache_expires_at")]
-    pub cache_expires_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "cdn_url")]
+    pub cdn_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "cache_expires_at")]
+    pub cache_expires_at: Option<Option<DateTime<Utc>>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "is_stale")]
     pub is_stale: Option<bool>,
@@ -412,12 +438,4 @@ impl backbone_core::ApplyUpdateDto<UpdateThumbnailDto> for Thumbnail {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to Thumbnail here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

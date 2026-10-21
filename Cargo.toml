@@ -12,10 +12,15 @@ path = "src/lib.rs"
 
 [dependencies]
 # Backbone Framework CORE dependencies
-backbone-core = { version = "3.7.0", features = ["postgres"] }
-backbone-orm = { version = "3.2.0" }
+# backbone-core >= 3.14 runs every generic write (and its write hooks, which
+# run the compiled `triggers:` of ADR-0034) inside one backbone_orm::in_write_tx
+# transaction; backbone-outbox's write-tx feature stages outbox rows on that
+# transaction so they commit or roll back with the write that raised them.
+backbone-core = { version = "3.19.0", features = ["postgres"] }
+backbone-orm = { version = "3.19.0" }
 backbone-auth = { version = "3.0.0" }
 backbone-messaging = { version = "3.0.0" }
+backbone-outbox = { version = "3.19.0", features = ["write-tx"] }
 
 # Core dependencies
 tokio = { version = "1.0", features = ["full"] }

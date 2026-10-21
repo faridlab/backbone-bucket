@@ -40,18 +40,18 @@ pub struct CreateBucketDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "owner_id")]
     pub owner_id: Uuid,
-    #[serde(alias = "bucket_type")]
+    #[serde(default = "default_create_bucket_bucket_type", alias = "bucket_type")]
     pub bucket_type: BucketType,
-    #[serde(alias = "storage_backend")]
+    #[serde(default = "default_create_bucket_storage_backend", alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "root_path")]
     pub root_path: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "file_count")]
+    #[serde(default, alias = "file_count")]
     pub file_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "total_size_bytes")]
+    #[serde(default, alias = "total_size_bytes")]
     pub total_size_bytes: i64,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_file_size")]
     pub max_file_size: Option<i64>,
@@ -60,14 +60,30 @@ pub struct CreateBucketDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "auto_delete_after_days")]
     pub auto_delete_after_days: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "enable_cdn")]
+    #[serde(default, alias = "enable_cdn")]
     pub enable_cdn: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "enable_versioning")]
+    #[serde(default = "default_create_bucket_enable_versioning", alias = "enable_versioning")]
     pub enable_versioning: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "enable_deduplication")]
+    #[serde(default = "default_create_bucket_enable_deduplication", alias = "enable_deduplication")]
     pub enable_deduplication: bool,
+}
+
+fn default_create_bucket_bucket_type() -> BucketType {
+    BucketType::User
+}
+
+fn default_create_bucket_storage_backend() -> StorageBackend {
+    StorageBackend::Local
+}
+
+fn default_create_bucket_enable_versioning() -> bool {
+    true
+}
+
+fn default_create_bucket_enable_deduplication() -> bool {
+    true
 }
 
 // =============================================================================
@@ -140,8 +156,8 @@ pub struct PatchBucketDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub description: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "owner_id")]
     pub owner_id: Option<Uuid>,
@@ -160,12 +176,12 @@ pub struct PatchBucketDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "total_size_bytes")]
     pub total_size_bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "max_file_size")]
-    pub max_file_size: Option<i64>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "max_file_size")]
+    pub max_file_size: Option<Option<i64>>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "allowed_mime_types")]
     pub allowed_mime_types: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "auto_delete_after_days")]
-    pub auto_delete_after_days: Option<i32>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "auto_delete_after_days")]
+    pub auto_delete_after_days: Option<Option<i32>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "enable_cdn")]
     pub enable_cdn: Option<bool>,
@@ -405,12 +421,4 @@ impl backbone_core::ApplyUpdateDto<UpdateBucketDto> for Bucket {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to Bucket here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

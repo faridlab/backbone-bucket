@@ -110,6 +110,13 @@ pub mod conversion_job_errors {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `conversion_job:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn conversion_job_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("conversion_job")
+        .in_module("bucket")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for ConversionJob.
 ///
 /// # Routes
@@ -139,21 +146,23 @@ pub mod conversion_job_errors {
 /// let router = create_conversion_job_routes(service);
 /// ```
 pub fn create_conversion_job_routes(service: Arc<ConversionJobService>) -> Router {
-    BackboneCrudHandler::<ConversionJobService, ConversionJob, CreateConversionJobDto, UpdateConversionJobDto, ConversionJobResponseDto>::routes(
+    BackboneCrudHandler::<ConversionJobService, ConversionJob, CreateConversionJobDto, UpdateConversionJobDto, ConversionJobResponseDto>::routes_guarded(
         service,
         "/conversion_jobs",
+        conversion_job_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for ConversionJob.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_conversion_job_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_conversion_job_read_routes(service: Arc<ConversionJobService>) -> Router {
-    BackboneCrudHandler::<ConversionJobService, ConversionJob, CreateConversionJobDto, UpdateConversionJobDto, ConversionJobResponseDto>::read_routes(
+    BackboneCrudHandler::<ConversionJobService, ConversionJob, CreateConversionJobDto, UpdateConversionJobDto, ConversionJobResponseDto>::read_routes_guarded(
         service,
         "/conversion_jobs",
+        conversion_job_permissions(),
     )
 }
 
@@ -169,9 +178,10 @@ pub fn create_conversion_job_read_routes(service: Arc<ConversionJobService>) -> 
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_conversion_job_write_routes(service: Arc<ConversionJobService>) -> Router {
-    BackboneCrudHandler::<ConversionJobService, ConversionJob, CreateConversionJobDto, UpdateConversionJobDto, ConversionJobResponseDto>::write_routes(
+    BackboneCrudHandler::<ConversionJobService, ConversionJob, CreateConversionJobDto, UpdateConversionJobDto, ConversionJobResponseDto>::write_routes_guarded(
         service,
         "/conversion_jobs",
+        conversion_job_permissions(),
     )
 }
 
@@ -228,33 +238,28 @@ pub async fn start_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::Start.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:start", &["bucket:start"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::Start.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:start");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("start needs conversion_job:transition:start or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -263,7 +268,11 @@ pub async fn start_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::Start) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "start is not allowed from the current state")
+            .with_param("transition", "start")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "processing")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Guard `conversion_service.is_available(source_file.mime_type, target_format)` not compiled (`conversion_service` is not a field of ConversionJob); the transition is not checked against it.
@@ -277,7 +286,7 @@ pub async fn start_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -288,33 +297,28 @@ pub async fn update_progress_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::UpdateProgress.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:update_progress", &["bucket:update_progress"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::UpdateProgress.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:update_progress");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("update_progress needs conversion_job:transition:update_progress or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -323,7 +327,11 @@ pub async fn update_progress_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::UpdateProgress) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "update_progress is not allowed from the current state")
+            .with_param("transition", "update_progress")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "processing")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Guard `$context.progress >= 0 && $context.progress <= 100 && $context.progress >= progress` not compiled (reads `$context.progress`, which a row rule cannot); the transition is not checked against it.
@@ -337,7 +345,7 @@ pub async fn update_progress_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -348,33 +356,28 @@ pub async fn complete_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::Complete.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:complete", &["bucket:complete"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::Complete.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:complete");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("complete needs conversion_job:transition:complete or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -383,7 +386,11 @@ pub async fn complete_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::Complete) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "complete is not allowed from the current state")
+            .with_param("transition", "complete")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "completed")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Apply transition via partial update
@@ -396,7 +403,7 @@ pub async fn complete_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -407,33 +414,28 @@ pub async fn fail_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::Fail.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:fail", &["bucket:fail"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::Fail.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:fail");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("fail needs conversion_job:transition:fail or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -442,7 +444,11 @@ pub async fn fail_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::Fail) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "fail is not allowed from the current state")
+            .with_param("transition", "fail")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "failed")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Apply transition via partial update
@@ -455,7 +461,7 @@ pub async fn fail_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -466,33 +472,28 @@ pub async fn cancel_pending_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::CancelPending.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:cancel_pending", &["bucket:cancel_pending"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::CancelPending.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:cancel_pending");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("cancel_pending needs conversion_job:transition:cancel_pending or one of the roles owner, admin")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -501,7 +502,11 @@ pub async fn cancel_pending_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::CancelPending) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "cancel_pending is not allowed from the current state")
+            .with_param("transition", "cancel_pending")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "cancelled")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == source_file.owner_id || $actor.has_role('admin')` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
@@ -515,7 +520,7 @@ pub async fn cancel_pending_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -526,33 +531,28 @@ pub async fn cancel_running_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::CancelRunning.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:cancel_running", &["bucket:cancel_running"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::CancelRunning.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:cancel_running");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("cancel_running needs conversion_job:transition:cancel_running or one of the roles owner, admin")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -561,7 +561,11 @@ pub async fn cancel_running_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::CancelRunning) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "cancel_running is not allowed from the current state")
+            .with_param("transition", "cancel_running")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "cancelled")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == source_file.owner_id || $actor.has_role('admin')` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
@@ -575,7 +579,7 @@ pub async fn cancel_running_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -586,33 +590,28 @@ pub async fn retry_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::Retry.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:retry", &["bucket:retry"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::Retry.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:retry");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("retry needs conversion_job:transition:retry or one of the roles system, owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -621,7 +620,11 @@ pub async fn retry_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::Retry) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "retry is not allowed from the current state")
+            .with_param("transition", "retry")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "pending")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Guard `retry_count < 3` not compiled (`retry_count` is not a field of ConversionJob); the transition is not checked against it.
@@ -635,7 +638,7 @@ pub async fn retry_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -646,33 +649,28 @@ pub async fn reconvert_transition(
     axum::extract::State(service): axum::extract::State<Arc<ConversionJobService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<ConversionJobResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = ConversionJobTransition::Reconvert.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("conversion_job:reconvert", &["bucket:reconvert"])) {
+            return backbone_core::http::permission_refusal::<ConversionJobResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<ConversionJobResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = ConversionJobTransition::Reconvert.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("conversion_job:transition:reconvert");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<ConversionJobResponseDto>::error("reconvert needs conversion_job:transition:reconvert or one of the roles owner, admin")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: ConversionJobState = match entity.status.to_string().parse() {
@@ -681,7 +679,11 @@ pub async fn reconvert_transition(
     };
     let sm = ConversionJobStateMachine::from_state(current_state);
     if !sm.can_transition(ConversionJobTransition::Reconvert) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<ConversionJobResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "reconvert is not allowed from the current state")
+            .with_param("transition", "reconvert")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "pending")]);
+        return backbone_core::http::service_error_response::<ConversionJobResponseDto>(&refusal);
     }
 
     // Apply transition via partial update
@@ -694,7 +696,7 @@ pub async fn reconvert_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<ConversionJobResponseDto>::not_found("ConversionJob", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<ConversionJobResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<ConversionJobResponseDto>(&e),
     }
 }
 
@@ -712,5 +714,6 @@ pub fn create_conversion_job_transition_routes(service: Arc<ConversionJobService
         .route("/conversion_jobs/:id/transitions/retry", post(retry_transition))
         .route("/conversion_jobs/:id/transitions/reconvert", post(reconvert_transition))
         .with_state(service)
+        .layer(axum::middleware::from_fn(backbone_core::http::correlation_middleware))
 }
 

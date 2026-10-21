@@ -43,6 +43,7 @@ pub struct CreateFileCommentDto {
     pub annotation_region: Option<serde_json::Value>,
     pub mentions: Vec<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(default)]
     pub resolved: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "resolved_by")]
     pub resolved_by: Option<Uuid>,
@@ -102,22 +103,22 @@ pub struct PatchFileCommentDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "user_id")]
     pub user_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "parent_id")]
-    pub parent_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "parent_id")]
+    pub parent_id: Option<Option<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "annotation_region")]
-    pub annotation_region: Option<serde_json::Value>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "annotation_region")]
+    pub annotation_region: Option<Option<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mentions: Option<Vec<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "resolved_by")]
-    pub resolved_by: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "resolved_at")]
-    pub resolved_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "resolved_by")]
+    pub resolved_by: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "resolved_at")]
+    pub resolved_at: Option<Option<DateTime<Utc>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<CommentStatus>,
 }
@@ -315,12 +316,4 @@ impl backbone_core::ApplyUpdateDto<UpdateFileCommentDto> for FileComment {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to FileComment here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

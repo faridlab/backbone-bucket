@@ -39,8 +39,9 @@ pub struct CreateFileShareDto {
     pub owner_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub token: String,
-    #[serde(alias = "share_type")]
+    #[serde(default = "default_create_file_share_share_type", alias = "share_type")]
     pub share_type: ShareType,
+    #[serde(default = "default_create_file_share_permission")]
     pub permission: SharePermission,
     #[serde(alias = "shared_with")]
     pub shared_with: Vec<Uuid>,
@@ -49,7 +50,7 @@ pub struct CreateFileShareDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "max_downloads")]
     pub max_downloads: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "download_count")]
+    #[serde(default, alias = "download_count")]
     pub download_count: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
@@ -59,6 +60,14 @@ pub struct CreateFileShareDto {
     pub revoked_by: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+}
+
+fn default_create_file_share_share_type() -> ShareType {
+    ShareType::Link
+}
+
+fn default_create_file_share_permission() -> SharePermission {
+    SharePermission::View
 }
 
 // =============================================================================
@@ -129,21 +138,21 @@ pub struct PatchFileShareDto {
     pub permission: Option<SharePermission>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "shared_with")]
     pub shared_with: Option<Vec<Uuid>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "max_downloads")]
-    pub max_downloads: Option<i32>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "max_downloads")]
+    pub max_downloads: Option<Option<i32>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "download_count")]
     pub download_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
-    pub expires_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "expires_at")]
+    pub expires_at: Option<Option<DateTime<Utc>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ShareStatus>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "revoked_at")]
-    pub revoked_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "revoked_by")]
-    pub revoked_by: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "revoked_at")]
+    pub revoked_at: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "revoked_by")]
+    pub revoked_by: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub message: Option<Option<String>>,
 }
 
 impl PatchFileShareDto {
@@ -358,12 +367,4 @@ impl backbone_core::ApplyUpdateDto<UpdateFileShareDto> for FileShare {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to FileShare here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

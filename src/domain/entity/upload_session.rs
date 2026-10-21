@@ -285,6 +285,16 @@ impl super::Entity for UploadSession {
 }
 
 impl backbone_core::PersistentEntity for UploadSession {
+    fn state_fields() -> &'static [&'static str] {
+        &["status"]
+    }
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("bucket_id", "bucket.buckets", "id"),
+            backbone_core::Reference::new("user_id", "users", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

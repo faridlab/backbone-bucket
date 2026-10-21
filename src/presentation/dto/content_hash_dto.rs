@@ -37,19 +37,35 @@ pub struct CreateContentHashDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "storage_key")]
     pub storage_key: String,
-    #[serde(alias = "storage_backend")]
+    #[serde(default = "default_create_content_hash_storage_backend", alias = "storage_backend")]
     pub storage_backend: StorageBackend,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "reference_count")]
+    #[serde(default = "default_create_content_hash_reference_count", alias = "reference_count")]
     pub reference_count: i32,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(alias = "first_uploaded_at")]
+    #[serde(default = "default_create_content_hash_first_uploaded_at", alias = "first_uploaded_at")]
     pub first_uploaded_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(alias = "last_referenced_at")]
+    #[serde(default = "default_create_content_hash_last_referenced_at", alias = "last_referenced_at")]
     pub last_referenced_at: DateTime<Utc>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
+}
+
+fn default_create_content_hash_storage_backend() -> StorageBackend {
+    StorageBackend::Local
+}
+
+fn default_create_content_hash_reference_count() -> i32 {
+    1
+}
+
+fn default_create_content_hash_first_uploaded_at() -> DateTime<Utc> {
+    Utc::now()
+}
+
+fn default_create_content_hash_last_referenced_at() -> DateTime<Utc> {
+    Utc::now()
 }
 
 // =============================================================================
@@ -119,8 +135,8 @@ pub struct PatchContentHashDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "last_referenced_at")]
     pub last_referenced_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub fingerprint: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub fingerprint: Option<Option<String>>,
 }
 
 impl PatchContentHashDto {
@@ -308,12 +324,4 @@ impl backbone_core::ApplyUpdateDto<UpdateContentHashDto> for ContentHash {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to ContentHash here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

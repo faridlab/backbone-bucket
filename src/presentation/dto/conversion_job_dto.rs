@@ -40,6 +40,7 @@ pub struct CreateConversionJobDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_file_id")]
     pub result_file_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(default)]
     pub progress: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
@@ -102,19 +103,19 @@ pub struct PatchConversionJobDto {
     pub target_format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ConversionStatus>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "conversion_options")]
-    pub conversion_options: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "result_file_id")]
-    pub result_file_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "conversion_options")]
+    pub conversion_options: Option<Option<serde_json::Value>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "result_file_id")]
+    pub result_file_id: Option<Option<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub progress: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "error_message")]
-    pub error_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "started_at")]
-    pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "completed_at")]
-    pub completed_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "error_message")]
+    pub error_message: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "started_at")]
+    pub started_at: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "completed_at")]
+    pub completed_at: Option<Option<DateTime<Utc>>>,
 }
 
 impl PatchConversionJobDto {
@@ -304,12 +305,4 @@ impl backbone_core::ApplyUpdateDto<UpdateConversionJobDto> for ConversionJob {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to ConversionJob here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

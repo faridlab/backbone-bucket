@@ -250,6 +250,12 @@ impl super::Entity for Thumbnail {
 }
 
 impl backbone_core::PersistentEntity for Thumbnail {
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("file_id", "bucket.stored_files", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

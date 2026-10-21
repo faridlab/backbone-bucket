@@ -277,6 +277,16 @@ impl super::Entity for ConversionJob {
 }
 
 impl backbone_core::PersistentEntity for ConversionJob {
+    fn state_fields() -> &'static [&'static str] {
+        &["status"]
+    }
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("source_file_id", "bucket.stored_files", "id"),
+            backbone_core::Reference::new("result_file_id", "bucket.stored_files", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

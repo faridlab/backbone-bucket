@@ -13,6 +13,9 @@
 
 pub mod service;
 pub mod middleware;
+// The compiled half of the schema's `triggers:` (ADR-0034); the hand-written
+// half lives in triggers/<model>_triggers.ext.rs beside each generated trait.
+pub mod triggers;
 
 // Re-exports
 pub use service::*;

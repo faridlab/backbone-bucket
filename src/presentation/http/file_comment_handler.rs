@@ -130,6 +130,13 @@ pub mod file_comment_errors {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `file_comment:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn file_comment_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("file_comment")
+        .in_module("bucket")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for FileComment.
 ///
 /// # Routes
@@ -159,21 +166,23 @@ pub mod file_comment_errors {
 /// let router = create_file_comment_routes(service);
 /// ```
 pub fn create_file_comment_routes(service: Arc<FileCommentService>) -> Router {
-    BackboneCrudHandler::<FileCommentService, FileComment, CreateFileCommentDto, UpdateFileCommentDto, FileCommentResponseDto>::routes(
+    BackboneCrudHandler::<FileCommentService, FileComment, CreateFileCommentDto, UpdateFileCommentDto, FileCommentResponseDto>::routes_guarded(
         service,
         "/file_comments",
+        file_comment_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for FileComment.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_file_comment_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_file_comment_read_routes(service: Arc<FileCommentService>) -> Router {
-    BackboneCrudHandler::<FileCommentService, FileComment, CreateFileCommentDto, UpdateFileCommentDto, FileCommentResponseDto>::read_routes(
+    BackboneCrudHandler::<FileCommentService, FileComment, CreateFileCommentDto, UpdateFileCommentDto, FileCommentResponseDto>::read_routes_guarded(
         service,
         "/file_comments",
+        file_comment_permissions(),
     )
 }
 
@@ -189,9 +198,10 @@ pub fn create_file_comment_read_routes(service: Arc<FileCommentService>) -> Rout
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_file_comment_write_routes(service: Arc<FileCommentService>) -> Router {
-    BackboneCrudHandler::<FileCommentService, FileComment, CreateFileCommentDto, UpdateFileCommentDto, FileCommentResponseDto>::write_routes(
+    BackboneCrudHandler::<FileCommentService, FileComment, CreateFileCommentDto, UpdateFileCommentDto, FileCommentResponseDto>::write_routes_guarded(
         service,
         "/file_comments",
+        file_comment_permissions(),
     )
 }
 
@@ -248,33 +258,28 @@ pub async fn resolve_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<FileCommentResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileCommentTransition::Resolve.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_comment:resolve", &["bucket:resolve"])) {
+            return backbone_core::http::permission_refusal::<FileCommentResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileCommentTransition::Resolve.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_comment:transition:resolve");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("resolve needs file_comment:transition:resolve or one of the roles owner, file_owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileCommentState = match entity.status.to_string().parse() {
@@ -283,7 +288,11 @@ pub async fn resolve_transition(
     };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::Resolve) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "resolve is not allowed from the current state")
+            .with_param("transition", "resolve")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "resolved")]);
+        return backbone_core::http::service_error_response::<FileCommentResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == user_id || $actor.id == file.owner_id` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
@@ -297,7 +306,7 @@ pub async fn resolve_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     }
 }
 
@@ -308,33 +317,28 @@ pub async fn edit_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<FileCommentResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileCommentTransition::Edit.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_comment:edit", &["bucket:edit"])) {
+            return backbone_core::http::permission_refusal::<FileCommentResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileCommentTransition::Edit.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_comment:transition:edit");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("edit needs file_comment:transition:edit or one of the roles owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileCommentState = match entity.status.to_string().parse() {
@@ -343,7 +347,11 @@ pub async fn edit_transition(
     };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::Edit) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "edit is not allowed from the current state")
+            .with_param("transition", "edit")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "active")]);
+        return backbone_core::http::service_error_response::<FileCommentResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == user_id` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -357,7 +365,7 @@ pub async fn edit_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     }
 }
 
@@ -368,33 +376,28 @@ pub async fn delete_active_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<FileCommentResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileCommentTransition::DeleteActive.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_comment:delete_active", &["bucket:delete_active"])) {
+            return backbone_core::http::permission_refusal::<FileCommentResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileCommentTransition::DeleteActive.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_comment:transition:delete_active");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("delete_active needs file_comment:transition:delete_active or one of the roles owner, file_owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileCommentState = match entity.status.to_string().parse() {
@@ -403,7 +406,11 @@ pub async fn delete_active_transition(
     };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::DeleteActive) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "delete_active is not allowed from the current state")
+            .with_param("transition", "delete_active")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "deleted")]);
+        return backbone_core::http::service_error_response::<FileCommentResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == user_id || $actor.id == file.owner_id` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
@@ -417,7 +424,7 @@ pub async fn delete_active_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     }
 }
 
@@ -428,33 +435,28 @@ pub async fn reopen_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<FileCommentResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileCommentTransition::Reopen.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_comment:reopen", &["bucket:reopen"])) {
+            return backbone_core::http::permission_refusal::<FileCommentResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileCommentTransition::Reopen.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_comment:transition:reopen");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("reopen needs file_comment:transition:reopen or one of the roles user")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileCommentState = match entity.status.to_string().parse() {
@@ -463,7 +465,11 @@ pub async fn reopen_transition(
     };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::Reopen) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "reopen is not allowed from the current state")
+            .with_param("transition", "reopen")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "active")]);
+        return backbone_core::http::service_error_response::<FileCommentResponseDto>(&refusal);
     }
 
     // Guard `has_file_access($actor.id, file_id)` not compiled (`has_file_access()` is not a row-rule function); the transition is not checked against it.
@@ -477,7 +483,7 @@ pub async fn reopen_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     }
 }
 
@@ -488,33 +494,28 @@ pub async fn delete_resolved_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileCommentService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<FileCommentResponseDto>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileCommentTransition::DeleteResolved.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_comment:delete_resolved", &["bucket:delete_resolved"])) {
+            return backbone_core::http::permission_refusal::<FileCommentResponseDto>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<FileCommentResponseDto>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileCommentTransition::DeleteResolved.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_comment:transition:delete_resolved");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<FileCommentResponseDto>::error("delete_resolved needs file_comment:transition:delete_resolved or one of the roles owner, file_owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileCommentState = match entity.status.to_string().parse() {
@@ -523,7 +524,11 @@ pub async fn delete_resolved_transition(
     };
     let sm = FileCommentStateMachine::from_state(current_state);
     if !sm.can_transition(FileCommentTransition::DeleteResolved) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<FileCommentResponseDto>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "delete_resolved is not allowed from the current state")
+            .with_param("transition", "delete_resolved")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "deleted")]);
+        return backbone_core::http::service_error_response::<FileCommentResponseDto>(&refusal);
     }
 
     // Guard `$actor.id == user_id || $actor.id == file.owner_id` not compiled (`.owner_id` reads a relation or a duration); the transition is not checked against it.
@@ -537,7 +542,7 @@ pub async fn delete_resolved_transition(
             (StatusCode::OK, Json(ApiResponse::ok(response)))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<FileCommentResponseDto>::not_found("FileComment", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<FileCommentResponseDto>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<FileCommentResponseDto>(&e),
     }
 }
 
@@ -552,5 +557,6 @@ pub fn create_file_comment_transition_routes(service: Arc<FileCommentService>) -
         .route("/file_comments/:id/transitions/reopen", post(reopen_transition))
         .route("/file_comments/:id/transitions/delete_resolved", post(delete_resolved_transition))
         .with_state(service)
+        .layer(axum::middleware::from_fn(backbone_core::http::correlation_middleware))
 }
 

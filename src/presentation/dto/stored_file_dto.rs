@@ -51,29 +51,29 @@ pub struct CreateStoredFileDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_compressed")]
+    #[serde(default, alias = "is_compressed")]
     pub is_compressed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "original_size")]
     pub original_size: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "compression_algorithm")]
     pub compression_algorithm: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_scanned")]
+    #[serde(default, alias = "is_scanned")]
     pub is_scanned: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "scan_result")]
     pub scan_result: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "threat_level")]
     pub threat_level: Option<ThreatLevel>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "has_thumbnail")]
+    #[serde(default, alias = "has_thumbnail")]
     pub has_thumbnail: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "thumbnail_path")]
     pub thumbnail_path: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "has_video_thumbnail")]
+    #[serde(default, alias = "has_video_thumbnail")]
     pub has_video_thumbnail: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "has_document_preview")]
+    #[serde(default, alias = "has_document_preview")]
     pub has_document_preview: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "processing_status")]
     pub processing_status: Option<ProcessingStatus>,
@@ -92,20 +92,25 @@ pub struct CreateStoredFileDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "field_name")]
     pub field_name: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "sort_order")]
+    #[serde(default, alias = "sort_order")]
     pub sort_order: i32,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "storage_key")]
     pub storage_key: String,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
+    #[serde(default = "default_create_stored_file_version")]
     pub version: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "previous_version_id")]
     pub previous_version_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "download_count")]
+    #[serde(default, alias = "download_count")]
     pub download_count: i32,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "last_accessed_at")]
     pub last_accessed_at: Option<DateTime<Utc>>,
+}
+
+fn default_create_stored_file_version() -> i32 {
+    1
 }
 
 // =============================================================================
@@ -228,49 +233,49 @@ pub struct PatchStoredFileDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "mime_type")]
     pub mime_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub checksum: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub checksum: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "is_compressed")]
     pub is_compressed: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "original_size")]
-    pub original_size: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "compression_algorithm")]
-    pub compression_algorithm: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "original_size")]
+    pub original_size: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "compression_algorithm")]
+    pub compression_algorithm: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "is_scanned")]
     pub is_scanned: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "scan_result")]
-    pub scan_result: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "threat_level")]
-    pub threat_level: Option<ThreatLevel>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "scan_result")]
+    pub scan_result: Option<Option<serde_json::Value>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "threat_level")]
+    pub threat_level: Option<Option<ThreatLevel>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "has_thumbnail")]
     pub has_thumbnail: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "thumbnail_path")]
-    pub thumbnail_path: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "thumbnail_path")]
+    pub thumbnail_path: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "has_video_thumbnail")]
     pub has_video_thumbnail: Option<bool>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "has_document_preview")]
     pub has_document_preview: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "processing_status")]
-    pub processing_status: Option<ProcessingStatus>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "content_hash_id")]
-    pub content_hash_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "cdn_url")]
-    pub cdn_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "cdn_url_expires_at")]
-    pub cdn_url_expires_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "owner_module")]
-    pub owner_module: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "owner_entity")]
-    pub owner_entity: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "owner_entity_id")]
-    pub owner_entity_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "field_name")]
-    pub field_name: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "processing_status")]
+    pub processing_status: Option<Option<ProcessingStatus>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "content_hash_id")]
+    pub content_hash_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "cdn_url")]
+    pub cdn_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "cdn_url_expires_at")]
+    pub cdn_url_expires_at: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "owner_module")]
+    pub owner_module: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "owner_entity")]
+    pub owner_entity: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "owner_entity_id")]
+    pub owner_entity_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "field_name")]
+    pub field_name: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "sort_order")]
     pub sort_order: Option<i32>,
@@ -282,13 +287,13 @@ pub struct PatchStoredFileDto {
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "previous_version_id")]
-    pub previous_version_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "previous_version_id")]
+    pub previous_version_id: Option<Option<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "download_count")]
     pub download_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "last_accessed_at")]
-    pub last_accessed_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "last_accessed_at")]
+    pub last_accessed_at: Option<Option<DateTime<Utc>>>,
 }
 
 impl PatchStoredFileDto {
@@ -605,12 +610,4 @@ impl backbone_core::ApplyUpdateDto<UpdateStoredFileDto> for StoredFile {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to StoredFile here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

@@ -10,6 +10,8 @@ pub mod state_machine;
 pub mod event;
 pub mod permission;
 pub mod computed;
+// Hand-written domain helpers (user-owned): share tokens, slugs, storage keys.
+pub mod utils;
 
 // Re-export commonly used types
 pub use repositories::*;

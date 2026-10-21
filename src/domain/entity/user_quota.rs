@@ -281,6 +281,15 @@ impl super::Entity for UserQuota {
 }
 
 impl backbone_core::PersistentEntity for UserQuota {
+    fn state_fields() -> &'static [&'static str] {
+        &["quota_status"]
+    }
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("user_id", "users", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

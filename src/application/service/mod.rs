@@ -48,6 +48,24 @@ pub use stored_file_service::StoredFileRowRules;
 pub use thumbnail_service::ThumbnailRowRules;
 pub use upload_session_service::UploadSessionRowRules;
 pub use user_quota_service::UserQuotaRowRules;
+pub mod bucket_write_hooks;
+pub use bucket_write_hooks::BucketWriteHooks;
+pub mod conversion_job_write_hooks;
+pub use conversion_job_write_hooks::ConversionJobWriteHooks;
+pub mod file_comment_write_hooks;
+pub use file_comment_write_hooks::FileCommentWriteHooks;
+pub mod file_lock_write_hooks;
+pub use file_lock_write_hooks::FileLockWriteHooks;
+pub mod file_share_write_hooks;
+pub use file_share_write_hooks::FileShareWriteHooks;
+pub mod processing_job_write_hooks;
+pub use processing_job_write_hooks::ProcessingJobWriteHooks;
+pub mod stored_file_write_hooks;
+pub use stored_file_write_hooks::StoredFileWriteHooks;
+pub mod upload_session_write_hooks;
+pub use upload_session_write_hooks::UploadSessionWriteHooks;
+pub mod user_quota_write_hooks;
+pub use user_quota_write_hooks::UserQuotaWriteHooks;
 
 /// A `AccessLogService` over `repository` with its write guard attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
@@ -57,12 +75,12 @@ pub fn build_access_log_service(
     AccessLogService::with_repository(repository).with_guard(std::sync::Arc::new(AccessLogRowRules))
 }
 
-/// A `BucketService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `BucketService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_bucket_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::BucketRepository>,
 ) -> BucketService {
-    BucketService::with_repository(repository).with_guard(std::sync::Arc::new(BucketRowRules))
+    BucketService::with_repository(repository).with_guard(std::sync::Arc::new(BucketRowRules)).with_write_hooks(std::sync::Arc::new(BucketWriteHooks::new(std::sync::Arc::new(crate::application::triggers::BucketTriggersImpl::default()))))
 }
 
 /// A `ContentHashService` over `repository` with its write guard attached: the way to build it, so its writes are
@@ -73,36 +91,36 @@ pub fn build_content_hash_service(
     ContentHashService::with_repository(repository).with_guard(std::sync::Arc::new(ContentHashRowRules))
 }
 
-/// A `ConversionJobService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `ConversionJobService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_conversion_job_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::ConversionJobRepository>,
 ) -> ConversionJobService {
-    ConversionJobService::with_repository(repository).with_guard(std::sync::Arc::new(ConversionJobRowRules))
+    ConversionJobService::with_repository(repository).with_guard(std::sync::Arc::new(ConversionJobRowRules)).with_write_hooks(std::sync::Arc::new(ConversionJobWriteHooks::new(std::sync::Arc::new(crate::application::triggers::ConversionJobTriggersImpl::default()))))
 }
 
-/// A `FileCommentService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `FileCommentService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_file_comment_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::FileCommentRepository>,
 ) -> FileCommentService {
-    FileCommentService::with_repository(repository).with_guard(std::sync::Arc::new(FileCommentRowRules))
+    FileCommentService::with_repository(repository).with_guard(std::sync::Arc::new(FileCommentRowRules)).with_write_hooks(std::sync::Arc::new(FileCommentWriteHooks::new(std::sync::Arc::new(crate::application::triggers::FileCommentTriggersImpl::default()))))
 }
 
-/// A `FileLockService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `FileLockService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_file_lock_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::FileLockRepository>,
 ) -> FileLockService {
-    FileLockService::with_repository(repository).with_guard(std::sync::Arc::new(FileLockRowRules))
+    FileLockService::with_repository(repository).with_guard(std::sync::Arc::new(FileLockRowRules)).with_write_hooks(std::sync::Arc::new(FileLockWriteHooks::new(std::sync::Arc::new(crate::application::triggers::FileLockTriggersImpl::default()))))
 }
 
-/// A `FileShareService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `FileShareService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_file_share_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::FileShareRepository>,
 ) -> FileShareService {
-    FileShareService::with_repository(repository).with_guard(std::sync::Arc::new(FileShareRowRules))
+    FileShareService::with_repository(repository).with_guard(std::sync::Arc::new(FileShareRowRules)).with_write_hooks(std::sync::Arc::new(FileShareWriteHooks::new(std::sync::Arc::new(crate::application::triggers::FileShareTriggersImpl::default()))))
 }
 
 /// A `FileVersionService` over `repository` with its write guard attached: the way to build it, so its writes are
@@ -113,20 +131,20 @@ pub fn build_file_version_service(
     FileVersionService::with_repository(repository).with_guard(std::sync::Arc::new(FileVersionRowRules))
 }
 
-/// A `ProcessingJobService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `ProcessingJobService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_processing_job_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::ProcessingJobRepository>,
 ) -> ProcessingJobService {
-    ProcessingJobService::with_repository(repository).with_guard(std::sync::Arc::new(ProcessingJobRowRules))
+    ProcessingJobService::with_repository(repository).with_guard(std::sync::Arc::new(ProcessingJobRowRules)).with_write_hooks(std::sync::Arc::new(ProcessingJobWriteHooks::new(std::sync::Arc::new(crate::application::triggers::ProcessingJobTriggersImpl::default()))))
 }
 
-/// A `StoredFileService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `StoredFileService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_stored_file_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::StoredFileRepository>,
 ) -> StoredFileService {
-    StoredFileService::with_repository(repository).with_guard(std::sync::Arc::new(StoredFileRowRules))
+    StoredFileService::with_repository(repository).with_guard(std::sync::Arc::new(StoredFileRowRules)).with_write_hooks(std::sync::Arc::new(StoredFileWriteHooks::new(std::sync::Arc::new(crate::application::triggers::StoredFileTriggersImpl::default()))))
 }
 
 /// A `ThumbnailService` over `repository` with its write guard attached: the way to build it, so its writes are
@@ -137,20 +155,20 @@ pub fn build_thumbnail_service(
     ThumbnailService::with_repository(repository).with_guard(std::sync::Arc::new(ThumbnailRowRules))
 }
 
-/// A `UploadSessionService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `UploadSessionService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_upload_session_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::UploadSessionRepository>,
 ) -> UploadSessionService {
-    UploadSessionService::with_repository(repository).with_guard(std::sync::Arc::new(UploadSessionRowRules))
+    UploadSessionService::with_repository(repository).with_guard(std::sync::Arc::new(UploadSessionRowRules)).with_write_hooks(std::sync::Arc::new(UploadSessionWriteHooks::new(std::sync::Arc::new(crate::application::triggers::UploadSessionTriggersImpl::default()))))
 }
 
-/// A `UserQuotaService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// A `UserQuotaService` over `repository` with its write guard and write hooks attached: the way to build it, so its writes are
 /// served only with the rules the schema declares.
 pub fn build_user_quota_service(
     repository: std::sync::Arc<crate::infrastructure::persistence::UserQuotaRepository>,
 ) -> UserQuotaService {
-    UserQuotaService::with_repository(repository).with_guard(std::sync::Arc::new(UserQuotaRowRules))
+    UserQuotaService::with_repository(repository).with_guard(std::sync::Arc::new(UserQuotaRowRules)).with_write_hooks(std::sync::Arc::new(UserQuotaWriteHooks::new(std::sync::Arc::new(crate::application::triggers::UserQuotaTriggersImpl::default()))))
 }
 
 // This directory's extension (hand-written; ADR-0031).

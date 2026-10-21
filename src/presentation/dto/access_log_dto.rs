@@ -40,13 +40,13 @@ pub struct CreateAccessLogDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "share_id")]
     pub share_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_owner")]
+    #[serde(default, alias = "is_owner")]
     pub is_owner: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_shared")]
+    #[serde(default, alias = "is_shared")]
     pub is_shared: bool,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_public")]
+    #[serde(default, alias = "is_public")]
     pub is_public: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "ip_address")]
     pub ip_address: Option<String>,
@@ -63,12 +63,21 @@ pub struct CreateAccessLogDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "duration_ms")]
     pub duration_ms: Option<i32>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
+    #[serde(default = "default_create_access_log_success")]
     pub success: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "error_message")]
     pub error_message: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(alias = "accessed_at")]
+    #[serde(default = "default_create_access_log_accessed_at", alias = "accessed_at")]
     pub accessed_at: DateTime<Utc>,
+}
+
+fn default_create_access_log_success() -> bool {
+    true
+}
+
+fn default_create_access_log_accessed_at() -> DateTime<Utc> {
+    Utc::now()
 }
 
 // =============================================================================
@@ -140,14 +149,14 @@ pub struct PatchAccessLogDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "file_id")]
     pub file_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "bucket_id")]
-    pub bucket_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "bucket_id")]
+    pub bucket_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<AccessAction>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "user_id")]
-    pub user_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "share_id")]
-    pub share_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "user_id")]
+    pub user_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "share_id")]
+    pub share_id: Option<Option<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "is_owner")]
     pub is_owner: Option<bool>,
@@ -157,25 +166,25 @@ pub struct PatchAccessLogDto {
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "is_public")]
     pub is_public: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "ip_address")]
-    pub ip_address: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "user_agent")]
-    pub user_agent: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub referer: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "country_code")]
-    pub country_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "bytes_transferred")]
-    pub bytes_transferred: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "duration_ms")]
-    pub duration_ms: Option<i32>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "ip_address")]
+    pub ip_address: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "user_agent")]
+    pub user_agent: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub referer: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "country_code")]
+    pub country_code: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub city: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "bytes_transferred")]
+    pub bytes_transferred: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "duration_ms")]
+    pub duration_ms: Option<Option<i32>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub success: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "error_message")]
-    pub error_message: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "error_message")]
+    pub error_message: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "accessed_at")]
     pub accessed_at: Option<DateTime<Utc>>,
@@ -416,12 +425,4 @@ impl backbone_core::ApplyUpdateDto<UpdateAccessLogDto> for AccessLog {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to AccessLog here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

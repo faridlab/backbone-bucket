@@ -56,3 +56,5 @@ pub use upload_session_event_handlers::UploadSessionEventHandler;
 pub use user_quota_events::{UserQuotaEvent, UserQuotaEventPublisher, NoopUserQuotaEventPublisher};
 pub use user_quota_event_handlers::UserQuotaEventHandler;
 
+pub mod declared;
+

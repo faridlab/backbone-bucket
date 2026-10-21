@@ -273,6 +273,14 @@ impl backbone_core::PersistentEntity for FileVersion {
     fn write_protected_fields() -> &'static [&'static str] {
         &["deleted_at"]
     }
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("file_id", "bucket.stored_files", "id"),
+            backbone_core::Reference::new("restored_from_id", "bucket.file_versions", "id"),
+            backbone_core::Reference::new("created_by_id", "users", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

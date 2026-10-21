@@ -42,7 +42,7 @@ pub struct CreateFileVersionDto {
     #[serde(alias = "storage_key")]
     pub storage_key: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(alias = "storage_backend")]
+    #[serde(default = "default_create_file_version_storage_backend", alias = "storage_backend")]
     pub storage_backend: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub name: String,
@@ -59,16 +59,25 @@ pub struct CreateFileVersionDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "change_summary")]
     pub change_summary: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_current")]
+    #[serde(default, alias = "is_current")]
     pub is_current: bool,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "restored_from_id")]
     pub restored_from_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
+    #[serde(default = "default_create_file_version_status")]
     pub status: FileVersionStatus,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "size_bytes")]
     pub size_bytes: i64,
+}
+
+fn default_create_file_version_storage_backend() -> String {
+    "local".to_string()
+}
+
+fn default_create_file_version_status() -> FileVersionStatus {
+    FileVersionStatus::Active
 }
 
 // =============================================================================
@@ -156,22 +165,22 @@ pub struct PatchFileVersionDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "mime_type")]
     pub mime_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "checksum_md5")]
-    pub checksum_md5: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "checksum_sha256")]
-    pub checksum_sha256: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "checksum_md5")]
+    pub checksum_md5: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "checksum_sha256")]
+    pub checksum_sha256: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "created_by_id")]
     pub created_by_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "change_summary")]
-    pub change_summary: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "change_summary")]
+    pub change_summary: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "is_current")]
     pub is_current: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "restored_from_id")]
-    pub restored_from_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
-    pub expires_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "restored_from_id")]
+    pub restored_from_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "expires_at")]
+    pub expires_at: Option<Option<DateTime<Utc>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<FileVersionStatus>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
@@ -411,12 +420,4 @@ impl backbone_core::ApplyUpdateDto<UpdateFileVersionDto> for FileVersion {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to FileVersion here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

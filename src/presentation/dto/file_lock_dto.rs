@@ -36,13 +36,17 @@ pub struct CreateFileLockDto {
     #[serde(alias = "user_id")]
     pub user_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(alias = "locked_at")]
+    #[serde(default = "default_create_file_lock_locked_at", alias = "locked_at")]
     pub locked_at: DateTime<Utc>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     #[serde(alias = "expires_at")]
     pub expires_at: DateTime<Utc>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "refreshed_at")]
     pub refreshed_at: Option<DateTime<Utc>>,
+}
+
+fn default_create_file_lock_locked_at() -> DateTime<Utc> {
+    Utc::now()
 }
 
 // =============================================================================
@@ -98,8 +102,8 @@ pub struct PatchFileLockDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "expires_at")]
     pub expires_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "refreshed_at")]
-    pub refreshed_at: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "refreshed_at")]
+    pub refreshed_at: Option<Option<DateTime<Utc>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<LockStatus>,
 }
@@ -277,12 +281,4 @@ impl backbone_core::ApplyUpdateDto<UpdateFileLockDto> for FileLock {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to FileLock here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

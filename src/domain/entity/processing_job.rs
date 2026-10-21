@@ -288,6 +288,15 @@ impl super::Entity for ProcessingJob {
 }
 
 impl backbone_core::PersistentEntity for ProcessingJob {
+    fn state_fields() -> &'static [&'static str] {
+        &["status"]
+    }
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("file_id", "bucket.stored_files", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

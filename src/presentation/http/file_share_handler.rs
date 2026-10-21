@@ -118,6 +118,13 @@ pub mod file_share_errors {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `file_share:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn file_share_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("file_share")
+        .in_module("bucket")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for FileShare.
 ///
 /// # Routes
@@ -147,21 +154,23 @@ pub mod file_share_errors {
 /// let router = create_file_share_routes(service);
 /// ```
 pub fn create_file_share_routes(service: Arc<FileShareService>) -> Router {
-    BackboneCrudHandler::<FileShareService, FileShare, CreateFileShareDto, UpdateFileShareDto, FileShareResponseDto>::routes(
+    BackboneCrudHandler::<FileShareService, FileShare, CreateFileShareDto, UpdateFileShareDto, FileShareResponseDto>::routes_guarded(
         service,
         "/file_shares",
+        file_share_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for FileShare.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_file_share_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_file_share_read_routes(service: Arc<FileShareService>) -> Router {
-    BackboneCrudHandler::<FileShareService, FileShare, CreateFileShareDto, UpdateFileShareDto, FileShareResponseDto>::read_routes(
+    BackboneCrudHandler::<FileShareService, FileShare, CreateFileShareDto, UpdateFileShareDto, FileShareResponseDto>::read_routes_guarded(
         service,
         "/file_shares",
+        file_share_permissions(),
     )
 }
 
@@ -177,9 +186,10 @@ pub fn create_file_share_read_routes(service: Arc<FileShareService>) -> Router {
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_file_share_write_routes(service: Arc<FileShareService>) -> Router {
-    BackboneCrudHandler::<FileShareService, FileShare, CreateFileShareDto, UpdateFileShareDto, FileShareResponseDto>::write_routes(
+    BackboneCrudHandler::<FileShareService, FileShare, CreateFileShareDto, UpdateFileShareDto, FileShareResponseDto>::write_routes_guarded(
         service,
         "/file_shares",
+        file_share_permissions(),
     )
 }
 
@@ -236,33 +246,28 @@ pub async fn expire_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<serde_json::Value>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileShareTransition::Expire.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_share:expire", &["bucket:expire"])) {
+            return backbone_core::http::permission_refusal::<serde_json::Value>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<serde_json::Value>::not_found("FileShare", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<serde_json::Value>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<serde_json::Value>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileShareTransition::Expire.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_share:transition:expire");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("expire needs file_share:transition:expire or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileShareState = match entity.status.to_string().parse() {
@@ -271,7 +276,11 @@ pub async fn expire_transition(
     };
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Expire) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<serde_json::Value>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "expire is not allowed from the current state")
+            .with_param("transition", "expire")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "expired")]);
+        return backbone_core::http::service_error_response::<serde_json::Value>(&refusal);
     }
 
     // Guard `expires_at != null && expires_at <= now()` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -285,7 +294,7 @@ pub async fn expire_transition(
             (StatusCode::OK, Json(ApiResponse::ok(backbone_core::http::without_secrets::<FileShare, _>(response))))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<serde_json::Value>::not_found("FileShare", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<serde_json::Value>(&e),
     }
 }
 
@@ -296,33 +305,28 @@ pub async fn exhaust_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<serde_json::Value>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileShareTransition::Exhaust.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_share:exhaust", &["bucket:exhaust"])) {
+            return backbone_core::http::permission_refusal::<serde_json::Value>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<serde_json::Value>::not_found("FileShare", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<serde_json::Value>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<serde_json::Value>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileShareTransition::Exhaust.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_share:transition:exhaust");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("exhaust needs file_share:transition:exhaust or one of the roles system")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileShareState = match entity.status.to_string().parse() {
@@ -331,7 +335,11 @@ pub async fn exhaust_transition(
     };
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Exhaust) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<serde_json::Value>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "exhaust is not allowed from the current state")
+            .with_param("transition", "exhaust")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "exhausted")]);
+        return backbone_core::http::service_error_response::<serde_json::Value>(&refusal);
     }
 
     {
@@ -340,7 +348,10 @@ pub async fn exhaust_transition(
         let state = row.get("status").and_then(|v| v.as_str()).unwrap_or_default();
         // Guard: max_downloads != null && download_count >= max_downloads
         if ["active"].contains(&state) && !r::holds(&r::and(r::is_not_null(r::field(row, "max_downloads")), r::ge(r::field(row, "download_count"), r::field(row, "max_downloads")))) {
-            return (StatusCode::UNPROCESSABLE_ENTITY, Json(ApiResponse::<serde_json::Value>::error("The exhaust transition's guard does not hold: max_downloads != null && download_count >= max_downloads")));
+            let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_guard_failed", "The exhaust transition's guard does not hold: max_downloads != null && download_count >= max_downloads")
+                .with_param("transition", "exhaust")
+                .with_param("guard", "max_downloads != null && download_count >= max_downloads")]);
+            return backbone_core::http::service_error_response::<serde_json::Value>(&refusal);
         }
     }
 
@@ -354,7 +365,7 @@ pub async fn exhaust_transition(
             (StatusCode::OK, Json(ApiResponse::ok(backbone_core::http::without_secrets::<FileShare, _>(response))))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<serde_json::Value>::not_found("FileShare", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<serde_json::Value>(&e),
     }
 }
 
@@ -365,33 +376,28 @@ pub async fn revoke_transition(
     axum::extract::State(service): axum::extract::State<Arc<FileShareService>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     auth: Option<axum::Extension<AuthContext>>,
+    waiver: Option<axum::Extension<backbone_auth::PermissionWaiver>>,
 ) -> impl axum::response::IntoResponse {
     use axum::{http::StatusCode, Json};
+
+    // Check permission
+    let Some(axum::Extension(auth)) = auth else {
+        return backbone_core::http::unauthenticated_refusal::<serde_json::Value>();
+    };
+    if waiver.is_none() {
+        let allowed_roles = FileShareTransition::Revoke.allowed_roles();
+        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
+        if let (false, Err(refused)) = (has_role, auth.require_with("file_share:revoke", &["bucket:revoke"])) {
+            return backbone_core::http::permission_refusal::<serde_json::Value>(&refused);
+        }
+    }
 
     // Get current entity
     let entity = match service.get_by_id(&id).await {
         Ok(Some(e)) => e,
         Ok(None) => return (StatusCode::NOT_FOUND, Json(ApiResponse::<serde_json::Value>::not_found("FileShare", &id))),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
+        Err(e) => return backbone_core::http::service_error_response::<serde_json::Value>(&e),
     };
-
-    // Check permission
-    let Some(axum::Extension(auth)) = auth else {
-        return (StatusCode::UNAUTHORIZED, Json(ApiResponse::<serde_json::Value>::error("A transition needs an authenticated caller")));
-    };
-    {
-        let allowed_roles = FileShareTransition::Revoke.allowed_roles();
-        let granted = |required: &str| auth.permissions.iter().any(|p| {
-            let (have, want): (Vec<&str>, Vec<&str>) = (p.split(':').collect(), required.split(':').collect());
-            have.iter().enumerate().all(|(i, h)| *h == "*" || want.get(i) == Some(h))
-                && (have.len() == want.len() || (have.len() < want.len() && have.last() == Some(&"*")))
-        });
-        let has_specific_perm = granted("file_share:transition:revoke");
-        let has_role = auth.roles.iter().any(|r| allowed_roles.contains(&r.as_str()));
-        if !has_specific_perm && !has_role {
-            return (StatusCode::FORBIDDEN, Json(ApiResponse::<serde_json::Value>::error("revoke needs file_share:transition:revoke or one of the roles admin, owner")));
-        }
-    }
 
     // Create state machine from entity's actual status and validate transition
     let current_state: FileShareState = match entity.status.to_string().parse() {
@@ -400,7 +406,11 @@ pub async fn revoke_transition(
     };
     let sm = FileShareStateMachine::from_state(current_state);
     if !sm.can_transition(FileShareTransition::Revoke) {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse::<serde_json::Value>::error("Transition not allowed from current state")));
+        let refusal = backbone_core::service::ServiceError::Violations(vec![backbone_core::Violation::new("status", "transition_not_allowed", "revoke is not allowed from the current state")
+            .with_param("transition", "revoke")
+            .with_param("from", serde_json::to_value(&entity.status).unwrap_or_default())
+            .with_param("to", "revoked")]);
+        return backbone_core::http::service_error_response::<serde_json::Value>(&refusal);
     }
 
     // Guard `$actor.id == owner_id || $actor.has_role('admin')` not compiled (reads the writer, the time or the row before the write); the transition is not checked against it.
@@ -414,7 +424,7 @@ pub async fn revoke_transition(
             (StatusCode::OK, Json(ApiResponse::ok(backbone_core::http::without_secrets::<FileShare, _>(response))))
         }
         Ok(None) => (StatusCode::NOT_FOUND, Json(ApiResponse::<serde_json::Value>::not_found("FileShare", &id))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiResponse::<serde_json::Value>::error(e.to_string()))),
+        Err(e) => backbone_core::http::service_error_response::<serde_json::Value>(&e),
     }
 }
 
@@ -427,5 +437,6 @@ pub fn create_file_share_transition_routes(service: Arc<FileShareService>) -> Ro
         .route("/file_shares/:id/transitions/exhaust", post(exhaust_transition))
         .route("/file_shares/:id/transitions/revoke", post(revoke_transition))
         .with_state(service)
+        .layer(axum::middleware::from_fn(backbone_core::http::correlation_middleware))
 }
 

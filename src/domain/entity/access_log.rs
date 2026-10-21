@@ -308,6 +308,15 @@ impl super::Entity for AccessLog {
 }
 
 impl backbone_core::PersistentEntity for AccessLog {
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("file_id", "bucket.stored_files", "id"),
+            backbone_core::Reference::new("bucket_id", "bucket.buckets", "id"),
+            backbone_core::Reference::new("share_id", "bucket.file_shares", "id"),
+            backbone_core::Reference::new("user_id", "users", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }
