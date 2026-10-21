@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The module's hook triggers now run (ADR-0034): `legacy_triggers` is dropped, the schema's
+  `triggers:` and state `on_enter` lists compile into the models' generated write hooks, and
+  what the rule language cannot say is a required method of a generated `<Model>Triggers`
+  trait, implemented in `src/application/triggers/<model>_triggers.ext.rs` (76 methods; the
+  slug, share-token and quota-accounting behaviours are ported from the module's own hand
+  code, the rest were declarations nothing performed and are documented no-ops). Every event
+  a trigger emits is declared under `events:` and staged on the write's transaction; the
+  scheduled entries joined the module's job list. Two SQL-spelled trigger conditions were
+  rewritten in the rule language, and the UserQuota trigger keys now name the model's real
+  fields (`used_bytes`). A generic create now also enforces the declared `set:` of
+  `before_create` (a quota is born with `file_count` 0 even when the caller sends otherwise).
+  Requires backbone-core and backbone-orm 3.19.0 with backbone-outbox's `write-tx`.
+
 ### Added
 
 - **`provision`** (feature `s3`): the object-storage bootstrap a service runs once per deploy as
