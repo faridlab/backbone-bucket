@@ -1,5 +1,19 @@
 # File Upload Workflow V2.0
 # Complete file upload process with validation, scanning, deduplication, and processing
+#
+# Runs on the engine (ADR-0035). No hand orchestration runs this flow: the hand
+# FileService stores bytes and one row, and the single-shot HTTP path checks
+# capacity before it. This workflow is the event-started pipeline (quota gate,
+# deduplication, mime sniffing, scanning, CDN, activation); nothing stages
+# FileUploadRequestedEvent today, so the engine runs it only once a composing
+# service stages that event and wires the relay's sink to the engine.
+#
+# The user-quota accounting on activation is NOT a step here: the compiled
+# stored-file trigger on_enter active__update_user_quota already books
+# used_bytes/file_count in the write's transaction (released 0.13.0), and a
+# second booking in this workflow would count every file twice. The bucket
+# counters below have no trigger (the adoption kept them unmaintained), so the
+# workflow remains what maintains them.
 
 name: FileUpload
 description: |
@@ -27,6 +41,7 @@ trigger:
     owner_id: "event.owner_id"
 
 config:
+  executor: engine
   timeout: 10m
   persistence: true
   retry:
@@ -334,18 +349,9 @@ steps:
       scan_result: "{{ context.scan_result }}"
       processing_status: complete
     on_success:
-      next: update_quota
-
-  - name: update_quota
-    type: action
-    action: update
-    entity: UserQuota
-    params:
-      id: "{{ context.quota.id }}"
-      used_bytes: "{{ context.is_duplicate ? context.quota.used_bytes : context.quota.used_bytes + context.file.size_bytes }}"
-      file_count: "{{ context.quota.file_count + 1 }}"
-    on_success:
       next: update_bucket_stats
+    # No quota step: the compiled trigger on_enter active__update_user_quota
+    # books used_bytes and file_count in this write's transaction.
 
   - name: update_bucket_stats
     type: action
@@ -461,9 +467,8 @@ steps:
       event: QuotaExceededEvent
       data:
         user_id: "{{ context.owner_id }}"
-        limit_bytes: "{{ context.quota.limit_bytes }}"
-        used_bytes: "{{ context.quota.used_bytes }}"
-        attempted_bytes: "{{ context.content.length }}"
+        max_storage_bytes: "{{ context.quota.limit_bytes }}"
+        used_storage_bytes: "{{ context.quota.used_bytes }}"
     on_success:
       next: quota_exceeded_terminal
 

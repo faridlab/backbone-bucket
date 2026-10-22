@@ -1,5 +1,17 @@
 # File Processing Workflow V2.0
 # Async media processing pipeline for thumbnails, video processing, and document previews
+#
+# Runs on the engine (ADR-0035). No hand code drives a ProcessingJob today: the
+# hand services (video_thumbnail_service, document_preview_service) enqueue jobs
+# and record their results, and the compiled write hooks stage
+# ProcessingJobCreatedEvent when the row is created — this workflow is the worker
+# that was missing. It processes one job per instance, one step per transaction.
+#
+# Mapping notes (engine statuses): the old `retry_terminal` ended `pending`; the
+# engine has four terminal statuses, so a scheduled retry ends `completed` — the
+# scheduling itself succeeded and the job row carries the pending state, the
+# retry counter and the retry_after timestamp. `exponential_backoff` is a
+# declared function (below) returning the full retry_after timestamp.
 
 name: FileProcessing
 description: |
@@ -22,11 +34,17 @@ trigger:
     job_type: "event.job_type"
 
 config:
+  executor: engine
   timeout: 30m
   persistence: true
   retry:
     max_attempts: 3
     backoff: exponential
+
+functions:
+  # now() plus an exponential backoff (2^retry_count minutes, capped at 30m):
+  # the retry_after timestamp schedule_retry stores on the job row.
+  - exponential_backoff
 
 context:
   job: null
@@ -55,7 +73,6 @@ steps:
     params:
       id: "{{ context.job.id }}"
       status: running
-      started_at: "{{ now() }}"
     on_success:
       next: load_file
     on_failure:
@@ -216,7 +233,7 @@ steps:
     params:
       id: "{{ context.file.id }}"
       has_document_preview: true
-      preview_path: "{{ context.file.storage_key }}_preview"
+      thumbnail_path: "{{ context.file.storage_key }}_preview"
     on_success:
       next: mark_complete
 
@@ -265,7 +282,7 @@ steps:
     entity: Bucket
     params:
       id: "{{ context.bucket.id }}"
-      total_size_bytes: "{{ context.bucket.total_size_bytes - (context.file.original_size - context.result.compressed_size) }}"
+      total_size_bytes: "{{ context.bucket.total_size_bytes - (context.file.size_bytes - context.result.compressed_size) }}"
     on_success:
       next: mark_complete
 
@@ -288,7 +305,7 @@ steps:
     conditions:
       - if: "context.result.threat_level == 'safe' || context.result.threat_level == null"
         next: update_scan_safe
-      - if: "context.result.threat_level IN ['low', 'medium']"
+      - if: "context.result.threat_level in ['low', 'medium']"
         next: update_scan_warning
       - else: true
         next: update_scan_threat
@@ -420,7 +437,10 @@ steps:
         content_hash: "{{ result }}"
       next: link_file_hash
 
-  # Completion and Error Handling
+  # Completion and Error Handling.
+  # Entering the completed / failed state is what stages JobCompletedEvent /
+  # JobFailedEvent (the processing_job write hooks), so the workflow needs no
+  # explicit emit steps.
   - name: mark_complete
     type: action
     action: update
@@ -428,22 +448,7 @@ steps:
     params:
       id: "{{ context.job.id }}"
       status: completed
-      completed_at: "{{ now() }}"
-      progress: 100
-      result: "{{ context.result }}"
-    on_success:
-      next: emit_complete_event
-
-  - name: emit_complete_event
-    type: action
-    action: emit_event
-    params:
-      event: ProcessingJobCompletedEvent
-      data:
-        job_id: "{{ context.job.id }}"
-        file_id: "{{ context.file.id }}"
-        job_type: "{{ context.job.job_type }}"
-        result: "{{ context.result }}"
+      result_data: "{{ context.result }}"
     on_success:
       next: complete
 
@@ -471,15 +476,19 @@ steps:
       id: "{{ context.job.id }}"
       status: pending
       retry_count: "{{ context.job.retry_count + 1 }}"
-      retry_after: "{{ now() + exponential_backoff(context.job.retry_count) }}"
+      retry_after: "{{ exponential_backoff(context.job.retry_count) }}"
       error_message: "{{ context.error }}"
     on_success:
       next: retry_terminal
 
+  # The job row is back to pending with a retry_after timestamp; a later
+  # instance picks it up. The engine has no `pending` terminal: completed means
+  # the scheduling succeeded, not that the job is done.
   - name: retry_terminal
     type: terminal
-    status: pending
+    status: completed
     result:
+      retried: true
       retry_after: "{{ context.job.retry_after }}"
 
   - name: mark_failed
@@ -489,21 +498,7 @@ steps:
     params:
       id: "{{ context.job.id }}"
       status: failed
-      completed_at: "{{ now() }}"
       error_message: "{{ context.error }}"
-    on_success:
-      next: emit_failed_event
-
-  - name: emit_failed_event
-    type: action
-    action: emit_event
-    params:
-      event: ProcessingJobFailedEvent
-      data:
-        job_id: "{{ context.job.id }}"
-        file_id: "{{ context.job.file_id }}"
-        job_type: "{{ context.job.job_type }}"
-        error: "{{ context.error }}"
     on_success:
       next: failed_terminal
 

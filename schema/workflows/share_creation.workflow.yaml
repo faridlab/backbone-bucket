@@ -1,5 +1,21 @@
 # Share Creation Workflow - File sharing orchestration
 # Handles share creation, notifications, and access setup
+#
+# Runs on the engine (ADR-0035). No hand orchestration runs this flow: shares
+# are created today through the generic CRUD route (and the share-password
+# verb for protected links); this workflow is the event-started pipeline that
+# also generates the token, hashes the password and notifies the recipient.
+# Nothing stages ShareCreationRequestedEvent yet, so the engine runs it only
+# once a composing service stages that event.
+#
+# The recipient lookups the original file declared against `User` cannot run
+# here: bucket has no User entity (users belong to sapiens), so
+# `find_share_recipient` is a bespoke verb that resolves what this module can
+# know — the share is stored with the recipient id or email exactly as the
+# event named them, and the invitation e-mail reaches an address that need not
+# have an account. Likewise `check_permission` can only decide with in-module
+# facts: the file's owner may share; anyone else is denied (the module holds no
+# delegation data).
 
 name: ShareCreation
 description: |
@@ -28,6 +44,7 @@ trigger:
     notify_on_access: "event.notify_on_access"
 
 config:
+  executor: engine
   timeout: 5m
   persistence: true
 
@@ -36,6 +53,7 @@ context:
   file: null
   recipient_user: null
   share_url: null
+  existing_share: null
 
 steps:
   # Step 1: Validate file exists and user can share
@@ -56,12 +74,13 @@ steps:
   - name: check_share_permission
     type: condition
     conditions:
-      - if: "file.owner_id == shared_by_id"
+      - if: "context.file.owner_id == context.shared_by_id"
         next: check_share_type
       - else:
         next: check_manage_permission
 
-  # Step 2b: Check if user has manage permission
+  # Step 2b: Check if user has manage permission (in-module facts only: the
+  # owner may share; the module holds no delegation data for anyone else).
   - name: check_manage_permission
     type: action
     action: check_permission
@@ -78,11 +97,11 @@ steps:
   - name: check_share_type
     type: condition
     conditions:
-      - if: "permission == 'public'"
+      - if: "context.permission == 'public'"
         next: validate_public_share
-      - if: "shared_with_user_id != null"
+      - if: "context.shared_with_user_id != null"
         next: validate_user_share
-      - if: "shared_with_email != null"
+      - if: "context.shared_with_email != null"
         next: validate_email_share
       - else:
         next: invalid_config
@@ -98,35 +117,30 @@ steps:
     on_failure:
       next: public_sharing_disabled
 
-  # Step 4b: Validate user share
+  # Step 4b/4c: Resolve the recipient from what this module can know (no User
+  # entity here): a named user id passes through as the recipient; an e-mail
+  # share resolves no in-module user and the invitation branch handles it.
   - name: validate_user_share
     type: action
-    action: find_by_id
-    entity: User
+    action: find_share_recipient
     params:
-      id: "{{ context.shared_with_user_id }}"
+      user_id: "{{ context.shared_with_user_id }}"
     on_success:
       set:
         recipient_user: "{{ result }}"
       next: check_existing_share
-    on_failure:
-      next: user_not_found
 
-  # Step 4c: Validate email share
   - name: validate_email_share
     type: action
-    action: find_by_email
-    entity: User
+    action: find_share_recipient
     params:
       email: "{{ context.shared_with_email }}"
     on_success:
       set:
         recipient_user: "{{ result }}"
       next: check_existing_share
-    on_failure:
-      next: create_share_record  # User doesn't exist, will send invitation
 
-  # Step 5: Check for existing share
+  # Step 5: Check for existing share (an active share of this file with this recipient)
   - name: check_existing_share
     type: action
     action: find_existing_share
@@ -134,6 +148,8 @@ steps:
       file_id: "{{ context.file_id }}"
       user_id: "{{ context.recipient_user.id }}"
     on_success:
+      set:
+        existing_share: "{{ result }}"
       next: update_existing_share
     on_failure:
       next: create_share_record
@@ -144,36 +160,33 @@ steps:
     action: update
     entity: FileShare
     params:
-      id: "{{ result.id }}"
-      access_level: "{{ context.access_level }}"
+      id: "{{ context.existing_share.id }}"
+      permission: "{{ context.permission }}"
       expires_at: "{{ context.expires_at }}"
       max_downloads: "{{ context.max_downloads }}"
       status: active
       revoked_at: null
-      revoked_by_id: null
+      revoked_by: null
     on_success:
       set:
         share: "{{ result }}"
       next: generate_share_url
 
-  # Step 6b: Create new share record
+  # Step 6b: Create new share record (bespoke: the token is minted and the
+  # password argon2-hashed here, exactly as the share-password verb stores it)
   - name: create_share_record
     type: action
-    action: create
-    entity: FileShare
+    action: create_share
     params:
       file_id: "{{ context.file_id }}"
       shared_by_id: "{{ context.shared_by_id }}"
       permission: "{{ context.permission }}"
-      access_level: "{{ context.access_level }}"
-      shared_with_user_id: "{{ context.recipient_user.id ?? null }}"
+      shared_with_user_id: "{{ context.recipient_user != null ? context.recipient_user.id : null }}"
       shared_with_email: "{{ context.shared_with_email }}"
       expires_at: "{{ context.expires_at }}"
       max_downloads: "{{ context.max_downloads }}"
-      password_hash: "{{ context.password }}"
-      requires_login: "{{ context.requires_login }}"
+      password: "{{ context.password }}"
       message: "{{ context.message }}"
-      notify_on_access: "{{ context.notify_on_access }}"
     on_success:
       set:
         share: "{{ result }}"
@@ -195,9 +208,9 @@ steps:
   - name: determine_notification
     type: condition
     conditions:
-      - if: "recipient_user != null"
+      - if: "context.recipient_user != null"
         next: notify_user
-      - if: "shared_with_email != null"
+      - if: "context.shared_with_email != null"
         next: send_email_invitation
       - else:
         next: log_share
@@ -210,12 +223,11 @@ steps:
       user_id: "{{ context.recipient_user.id }}"
       type: file_shared
       title: "File shared with you"
-      body: "{{ context.file.name }} was shared with you"
+      body: "{{ context.file.original_name }} was shared with you"
       data:
         share_id: "{{ context.share.id }}"
         file_id: "{{ context.file_id }}"
         shared_by_id: "{{ context.shared_by_id }}"
-        access_level: "{{ context.access_level }}"
         share_url: "{{ context.share_url }}"
         message: "{{ context.message }}"
     on_success:
@@ -232,11 +244,10 @@ steps:
       to: "{{ context.shared_with_email }}"
       subject: "A file was shared with you"
       data:
-        file_name: "{{ context.file.name }}"
+        file_name: "{{ context.file.original_name }}"
         share_url: "{{ context.share_url }}"
         message: "{{ context.message }}"
         expires_at: "{{ context.expires_at }}"
-        access_level: "{{ context.access_level }}"
     on_success:
       next: log_share
     on_failure:
@@ -253,6 +264,7 @@ steps:
       user_id: "{{ context.shared_by_id }}"
       action: share
       is_owner: "{{ context.file.owner_id == context.shared_by_id }}"
+      is_shared: true
       success: true
     on_success:
       next: complete
@@ -288,11 +300,6 @@ steps:
     type: terminal
     status: failed
     reason: "Public sharing is disabled for this user"
-
-  - name: user_not_found
-    type: terminal
-    status: failed
-    reason: "Target user not found"
 
   - name: invalid_config
     type: terminal

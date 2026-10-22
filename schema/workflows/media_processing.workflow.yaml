@@ -3,6 +3,11 @@
 #
 # Extracted from file_upload.workflow.yaml (Phase 10 decomposition).
 # Triggered by FileUploadedEvent — reusable by both FileUpload and MultipartUpload flows.
+#
+# Runs on the engine (ADR-0035); every step writes through a generated service,
+# so it needs no hand code. The ProcessingJob rows it creates are picked up by
+# file_processing.workflow.yaml through the ProcessingJobCreatedEvent the write
+# hooks stage.
 
 name: MediaProcessing
 description: |
@@ -21,6 +26,7 @@ trigger:
     mime_type: "event.mime_type"
 
 config:
+  executor: engine
   timeout: 15m
   persistence: true
   retry:

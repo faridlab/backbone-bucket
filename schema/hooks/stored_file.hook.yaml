@@ -268,6 +268,30 @@ events:
       size_bytes: int64
       mime_type: string
 
+  FileUploadedEvent:
+    description: "An uploaded file finished the upload workflow and is active or quarantined (staged by the file_upload workflow)"
+    aggregate: StoredFile
+    version: 1
+    fields:
+      file_id: uuid
+      bucket_id: uuid
+      owner_id: uuid
+      path: string
+      size_bytes: int64
+      mime_type: string
+      is_duplicate: bool
+      cdn_url: "string?"
+
+  ThreatDetectedEvent:
+    description: "A stored file's threat scan found something and the file was quarantined (staged by the file_upload workflow)"
+    aggregate: StoredFile
+    version: 1
+    fields:
+      file_id: uuid
+      owner_id: uuid
+      threat_level: string
+      threats: "string[]"
+
   FileActivatedEvent:
     description: "A file reached its active state"
     aggregate: StoredFile

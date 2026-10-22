@@ -1,5 +1,15 @@
 # Multipart Upload Workflow V2.0
 # Large file upload with chunking and progress tracking
+#
+# Runs on the engine (ADR-0035). The hand MultipartUploadService::initiate is
+# the live HTTP path and stays; nothing stages MultipartUploadRequestedEvent,
+# so the engine runs this event-started twin only once a composing service
+# stages that event and wires the relay's sink — the two produce the same
+# session row (chunk sizing, 24h expiry) by different doors.
+#
+# No quota-reservation step: UserQuota has no reserved_bytes column and nothing
+# in the module reserves one (the hand path checks capacity per part and books
+# usage at completion), so this workflow checks capacity the same way instead.
 
 name: MultipartUpload
 description: |
@@ -23,6 +33,7 @@ trigger:
     owner_id: "event.owner_id"
 
 config:
+  executor: engine
   timeout: 24h
   persistence: true
   retry:
@@ -149,17 +160,9 @@ steps:
     on_success:
       set:
         session: "{{ result }}"
-      next: reserve_quota
-
-  - name: reserve_quota
-    type: action
-    action: update
-    entity: UserQuota
-    params:
-      id: "{{ context.quota.id }}"
-      reserved_bytes: "{{ context.quota.reserved_bytes + context.file_size }}"
-    on_success:
       next: emit_session_created
+    # No reservation: UserQuota has no reserved_bytes column; capacity was
+    # checked above and usage is booked when the assembled file activates.
 
   - name: emit_session_created
     type: action
@@ -170,9 +173,7 @@ steps:
         session_id: "{{ context.session.id }}"
         bucket_id: "{{ context.bucket_id }}"
         file_size: "{{ context.file_size }}"
-        chunk_size: "{{ context.chunk_size }}"
         total_chunks: "{{ context.total_chunks }}"
-        expires_at: "{{ context.session.expires_at }}"
     on_success:
       next: complete
 
