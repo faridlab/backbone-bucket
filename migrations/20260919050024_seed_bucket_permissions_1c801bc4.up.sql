@@ -304,14 +304,14 @@ BEGIN
     ON CONFLICT DO NOTHING;
 
     INSERT INTO public.roles (name, description)
-    SELECT v.name, v.description
+    SELECT upper(v.name), v.description
       FROM (VALUES
             ('super_admin'::text, NULL::text),
             ('admin'::text, NULL::text),
             ('user'::text, NULL::text),
             ('guest'::text, NULL::text)
       ) AS v(name, description)
-     WHERE NOT EXISTS (SELECT 1 FROM public.roles r WHERE r.name = v.name AND (r.metadata->>'deleted_at') IS NULL)
+     WHERE NOT EXISTS (SELECT 1 FROM public.roles r WHERE r.name = upper(v.name) AND (r.metadata->>'deleted_at') IS NULL)
     ON CONFLICT DO NOTHING;
 
     INSERT INTO public.role_permissions (role_id, permission_id)
@@ -349,7 +349,7 @@ BEGIN
             ('guest'::text, 'file:download'::text),
             ('guest'::text, 'file:read'::text)
       ) AS g(role, permission)
-      JOIN public.roles r ON r.name = g.role AND (r.metadata->>'deleted_at') IS NULL
+      JOIN public.roles r ON r.name = upper(g.role) AND (r.metadata->>'deleted_at') IS NULL
       JOIN public.permissions p ON p.name = g.permission AND (p.metadata->>'deleted_at') IS NULL
      WHERE NOT EXISTS (SELECT 1 FROM public.role_permissions rp WHERE rp.role_id = r.id AND rp.permission_id = p.id)
     ON CONFLICT DO NOTHING;
