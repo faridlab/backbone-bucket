@@ -5,6 +5,38 @@ All notable changes to `backbone-bucket` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-10-22
+
+### Changed
+
+- All five of the module's workflows now run on the engine (ADR-0035): `config.executor: engine`
+  generates each workflow's spec, its `<Name>Actions` trait and the engine tables
+  (`bb_workflow_instances`, `bb_workflow_steps`), and the module's builder exposes
+  `background_tasks()` for the composing service to wire as the relay's sink and the
+  `workflow_timer_sweep` job. What the schema cannot say is implemented in
+  `src/application/workflows/<name>_workflow.ext.rs` (23 methods over the bound object storage
+  and the generated services; `media_processing` needs none). Declarations were aligned to what
+  the module really has: the emitted `FileUploadedEvent` and `ThreatDetectedEvent` are declared,
+  `QuotaExceededEvent` carries its declared fields, the job events come from the state's own
+  write hooks (no duplicate emit steps), the file-quota accounting stays with the compiled
+  trigger (no double booking), UserQuota has no `reserved_bytes` to write, and share recipients
+  resolve from what this module can know (bucket holds no User entity). A scheduled retry ends
+  `completed` — the scheduling succeeded; the job row carries the pending state.
+- State moves go through the machines' verbs: `status` writes as plain updates are refused by the
+  row guard, so the upload and processing flows run `complete_upload`, `mark_safe`, `quarantine`,
+  `start`, `complete`, `fail` and `retry` through the generated services as transitions.
+- The `cannot_modify_completed` / `cannot_modify_deleted` / `cannot_modify_expired` rules read the
+  OLD row (`$old.status`), and the CHECK constraints they had generated — which forbade reaching
+  the terminal state at all on a fresh database — are dropped by migration
+  `20260919050027_fix_terminal_state_checks`: no guarded write could ever complete a job, delete
+  a bucket or expire a lock before.
+
+### Added
+
+- `BucketModule::background_tasks()` and `WorkflowServices`, with `bind_workflow_runtime`
+  handing the Actions impls the storage backend and the generated services.
+- `FileUploadedEvent` and `ThreatDetectedEvent` declared on StoredFile (staged by the workflows).
+
 ## [Unreleased]
 
 ### Changed
