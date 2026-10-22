@@ -839,6 +839,7 @@ dependencies = [
  "aws-sigv4",
  "axum",
  "backbone-auth",
+ "backbone-bucket",
  "backbone-core",
  "backbone-messaging",
  "backbone-orm",

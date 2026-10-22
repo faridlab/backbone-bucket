@@ -56,6 +56,7 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let old_row = old.as_ref().unwrap_or(&serde_json::Value::Null);
         let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
@@ -119,7 +120,7 @@ impl backbone_core::write_guard::WriteGuard<Bucket> for BucketRowRules {
             refuse.push(Violation::new("root_path", "path_traversal", "Path traversal not allowed in root path"));
         }
         // `cannot_modify_deleted` (bucket.hook.yaml:105)
-        if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("deleted"))) {
+        if (update) && !r::holds(&r::ne(r::field(old_row, "status"), r::text("deleted"))) {
             refuse.push(Violation::new("status", "bucket_deleted", "Cannot modify deleted buckets"));
         }
         GuardOutcome { refuse, shadow }

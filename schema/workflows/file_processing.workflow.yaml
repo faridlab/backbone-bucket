@@ -66,13 +66,15 @@ steps:
     on_failure:
       next: job_not_found
 
+  # Status moves only through the machine's verbs (the row guard refuses a
+  # plain update of `status`), so every state change is a bespoke verb that
+  # runs the transition through the generated service — the machine's checks
+  # and its on_enter sets and events all apply.
   - name: mark_running
     type: action
-    action: update
-    entity: ProcessingJob
+    action: start_job
     params:
       id: "{{ context.job.id }}"
-      status: running
     on_success:
       next: load_file
     on_failure:
@@ -349,16 +351,18 @@ steps:
 
   - name: update_scan_threat
     type: action
-    action: update
-    entity: StoredFile
+    action: quarantine_file
     params:
       id: "{{ context.file.id }}"
       is_scanned: true
       scan_result: "{{ context.result.details }}"
       threat_level: "{{ context.result.threat_level }}"
-      status: quarantined
       processing_status: failed
     on_success:
+      next: notify_threat_detected
+    # The machine quarantines a file only out of `processing`; an already
+    # activated file stays put and the notification still goes out.
+    on_failure:
       next: notify_threat_detected
 
   - name: notify_threat_detected
@@ -443,11 +447,9 @@ steps:
   # explicit emit steps.
   - name: mark_complete
     type: action
-    action: update
-    entity: ProcessingJob
+    action: complete_job
     params:
       id: "{{ context.job.id }}"
-      status: completed
       result_data: "{{ context.result }}"
     on_success:
       next: complete
@@ -468,13 +470,14 @@ steps:
       - else: true
         next: mark_failed
 
+  # Running has no verb back to pending, so the requeue runs the machine's own
+  # two moves: `fail`, then `retry` (failed -> pending, its guard bounded by
+  # max_retries) carrying the retry bookkeeping.
   - name: schedule_retry
     type: action
-    action: update
-    entity: ProcessingJob
+    action: requeue_job
     params:
       id: "{{ context.job.id }}"
-      status: pending
       retry_count: "{{ context.job.retry_count + 1 }}"
       retry_after: "{{ exponential_backoff(context.job.retry_count) }}"
       error_message: "{{ context.error }}"
@@ -493,11 +496,9 @@ steps:
 
   - name: mark_failed
     type: action
-    action: update
-    entity: ProcessingJob
+    action: fail_job
     params:
       id: "{{ context.job.id }}"
-      status: failed
       error_message: "{{ context.error }}"
     on_success:
       next: failed_terminal

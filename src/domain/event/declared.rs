@@ -388,6 +388,42 @@ impl DeclaredEvent for FileCreatedEvent {
     const AGGREGATE: &'static str = "StoredFile";
 }
 
+/// An uploaded file finished the upload workflow and is active or quarantined (staged by the file_upload workflow)
+/// Declared in `stored_file.hook.yaml`; staged by hand code.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FileUploadedEvent {
+    pub file_id: uuid::Uuid,
+    pub bucket_id: uuid::Uuid,
+    pub owner_id: uuid::Uuid,
+    pub path: String,
+    pub size_bytes: i64,
+    pub mime_type: String,
+    pub is_duplicate: bool,
+    pub cdn_url: Option<String>,
+}
+
+impl DeclaredEvent for FileUploadedEvent {
+    const NAME: &'static str = "FileUploadedEvent";
+    const VERSION: i32 = 1;
+    const AGGREGATE: &'static str = "StoredFile";
+}
+
+/// A stored file's threat scan found something and the file was quarantined (staged by the file_upload workflow)
+/// Declared in `stored_file.hook.yaml`; staged by hand code.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ThreatDetectedEvent {
+    pub file_id: uuid::Uuid,
+    pub owner_id: uuid::Uuid,
+    pub threat_level: String,
+    pub threats: Vec<String>,
+}
+
+impl DeclaredEvent for ThreatDetectedEvent {
+    const NAME: &'static str = "ThreatDetectedEvent";
+    const VERSION: i32 = 1;
+    const AGGREGATE: &'static str = "StoredFile";
+}
+
 /// A file reached its active state
 /// Declared in `stored_file.hook.yaml`; staged by hand code.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

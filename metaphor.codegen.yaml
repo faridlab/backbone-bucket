@@ -86,6 +86,14 @@ user_owned:
   - "src/application/triggers/stored_file_triggers.ext.rs"
   - "src/application/triggers/upload_session_triggers.ext.rs"
   - "src/application/triggers/user_quota_triggers.ext.rs"
+  # Hand-written halves of the engine workflows (ADR-0035): one
+  # `<Name>ActionsImpl` beside each generated trait, and the shared runtime
+  # bindings the Actions impls read.
+  - "src/application/workflows/mod.ext.rs"
+  - "src/application/workflows/file_processing_workflow.ext.rs"
+  - "src/application/workflows/file_upload_workflow.ext.rs"
+  - "src/application/workflows/multipart_upload_workflow.ext.rs"
+  - "src/application/workflows/share_creation_workflow.ext.rs"
   - "src/application/service/cdn_service.rs"
   - "src/application/service/conversion_service.rs"
   - "src/application/service/document_preview_service.rs"

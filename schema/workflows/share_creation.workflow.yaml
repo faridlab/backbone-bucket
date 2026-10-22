@@ -164,7 +164,6 @@ steps:
       permission: "{{ context.permission }}"
       expires_at: "{{ context.expires_at }}"
       max_downloads: "{{ context.max_downloads }}"
-      status: active
       revoked_at: null
       revoked_by: null
     on_success:

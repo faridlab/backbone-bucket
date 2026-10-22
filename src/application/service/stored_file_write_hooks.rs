@@ -54,7 +54,7 @@ impl WriteHooks<StoredFile> for StoredFileWriteHooks {
             let _ = (&ctx, &old_row, &aggregate_id, company);
             {
                 let row = &serde_json::to_value(change.subject()).unwrap_or(serde_json::Value::Null);
-                // `before_delete`: before_delete (stored_file.hook.yaml:326)
+                // `before_delete`: before_delete (stored_file.hook.yaml:350)
                 if matches!(change, Change::Deleted { hard: false, .. }) {
                     tracing::info!(target: "backbone::trigger", trigger = "StoredFile.before_delete", correlation_id = %write.correlation_id, log_event = "file.deleting", file_id = %r::to_json(&r::field(row, "id")));
                 }
@@ -80,7 +80,7 @@ impl WriteHooks<StoredFile> for StoredFileWriteHooks {
         let _ = &ctx;
 
         backbone_core::write_hooks::in_trigger(async {
-            // `after_create`: after_create (stored_file.hook.yaml:311)
+            // `after_create`: after_create (stored_file.hook.yaml:335)
             if matches!(change, Change::Created { .. }) {
                 self.triggers.after_create__create_file_access_log(write, subject).await?;
                 tracing::info!(target: "backbone::trigger", trigger = "StoredFile.after_create", correlation_id = %write.correlation_id, log_event = "file.created", file_id = %r::to_json(&r::field(row, "id")), owner_id = %r::to_json(&r::field(row, "owner_id")), size = %r::to_json(&r::field(row, "size_bytes")));
@@ -97,16 +97,16 @@ impl WriteHooks<StoredFile> for StoredFileWriteHooks {
                     write.stage(event.record_for(&aggregate_id, company, write)).await?;
                 }
             }
-            // `after_update_status`: after_update status (stored_file.hook.yaml:317)
+            // `after_update_status`: after_update status (stored_file.hook.yaml:341)
             if matches!(change, Change::Updated { .. } | Change::Transitioned { .. }) && change.field_changed("status") {
                 tracing::info!(target: "backbone::trigger", trigger = "StoredFile.after_update_status", correlation_id = %write.correlation_id, log_event = "file.status_changed", file_id = %r::to_json(&r::field(row, "id")), old_status = %r::to_json(&r::field(old_row, "status")), new_status = %r::to_json(&r::field(row, "status")));
             }
-            // `after_update_download_count`: after_update download_count (stored_file.hook.yaml:321)
+            // `after_update_download_count`: after_update download_count (stored_file.hook.yaml:345)
             if matches!(change, Change::Updated { .. } | Change::Transitioned { .. }) && change.field_changed("download_count") {
                 self.triggers.after_update_download_count__set_last_accessed_at(write, change.before().unwrap_or(subject), subject).await?;
                 self.triggers.after_update_download_count__emit_file_downloaded_event(write, change.before().unwrap_or(subject), subject).await?;
             }
-            // `after_delete`: after_delete (stored_file.hook.yaml:330)
+            // `after_delete`: after_delete (stored_file.hook.yaml:354)
             if matches!(change, Change::Deleted { hard: false, .. }) {
                 self.triggers.after_delete__delete_file_share(write, subject).await?;
                 self.triggers.after_delete__delete_file_access_log(write, subject).await?;

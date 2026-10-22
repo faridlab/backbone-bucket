@@ -119,6 +119,9 @@ test-utils = ["dep:dashmap"]
 tonic-build = "0.12"
 
 [dev-dependencies]
+# Self dev-dependency so the integration tests can build the in-process
+# storage double (feature `test-utils`) the workflow Actions read.
+backbone-bucket = { path = ".", features = ["test-utils"] }
 tower = { version = "0.4", features = ["util"] }
 tempfile = "3.0"
 tokio-test = "0.4"

@@ -147,7 +147,7 @@ rules:
 
   cannot_modify_completed:
     when: [update]
-    condition: "status != 'completed'"
+    condition: "$old.status != 'completed'"
     message: "Cannot modify completed jobs"
     code: JOB_COMPLETED
 

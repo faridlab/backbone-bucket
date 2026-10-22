@@ -253,13 +253,15 @@ steps:
     on_success:
       next: update_file_processing
 
+  # The file's own machine moves its status (the row guard refuses a plain
+  # update of `status`): `begin_processing` runs the machine's
+  # complete_upload verb (uploading -> processing) through the generated
+  # service, so the on_enter effects of the new state apply.
   - name: update_file_processing
     type: action
-    action: update
-    entity: StoredFile
+    action: begin_processing
     params:
       id: "{{ context.file.id }}"
-      status: processing
       processing_status: processing
     on_success:
       next: scan_file
@@ -340,11 +342,9 @@ steps:
 
   - name: mark_file_active
     type: action
-    action: update
-    entity: StoredFile
+    action: activate_file
     params:
       id: "{{ context.file.id }}"
-      status: active
       is_scanned: "{{ context.scan_result.is_safe ?? false }}"
       scan_result: "{{ context.scan_result }}"
       processing_status: complete
@@ -352,6 +352,13 @@ steps:
       next: update_bucket_stats
     # No quota step: the compiled trigger on_enter active__update_user_quota
     # books used_bytes and file_count in this write's transaction.
+    #
+    # The activation is the machine's mark_safe verb, whose guard demands a
+    # clean scan; with the scan still pending the guard refuses and the flow
+    # ends here holding the file in processing (the documented hold, not a
+    # failure — the upload itself succeeded).
+    on_failure:
+      next: scan_pending
 
   - name: update_bucket_stats
     type: action
@@ -392,11 +399,9 @@ steps:
   # Quarantine branch
   - name: quarantine_file
     type: action
-    action: update
-    entity: StoredFile
+    action: quarantine_file
     params:
       id: "{{ context.file.id }}"
-      status: quarantined
       is_scanned: true
       scan_result: "{{ context.scan_result }}"
       threat_level: "{{ context.scan_result.threat_level }}"
@@ -476,6 +481,13 @@ steps:
     type: terminal
     status: failed
     reason: "Storage quota exceeded"
+
+  # The scan never answered and the machine will not activate an unscanned
+  # file: the upload is done, the file waits in processing for the scan.
+  - name: scan_pending
+    type: terminal
+    status: completed
+    reason: "Upload stored; activation waits on the pending threat scan"
 
   - name: rollback_file_record
     type: action

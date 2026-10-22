@@ -59,19 +59,19 @@ use crate::domain::entity::StoredFile;
 #[allow(non_snake_case)]
 #[async_trait]
 pub trait StoredFileTriggers: Send + Sync {
-    /// `after_create` (stored_file.hook.yaml:311): `create: FileAccessLog(file_id: id, user_id: owner_id, action: 'upload', accessed_at: now())`
+    /// `after_create` (stored_file.hook.yaml:335): `create: FileAccessLog(file_id: id, user_id: owner_id, action: 'upload', accessed_at: now())`
     async fn after_create__create_file_access_log(&self, ctx: &WriteCtx, e: &StoredFile) -> ServiceResult<()>;
 
-    /// `after_update_download_count` (stored_file.hook.yaml:321): `set: last_accessed_at = now()`
+    /// `after_update_download_count` (stored_file.hook.yaml:345): `set: last_accessed_at = now()`
     async fn after_update_download_count__set_last_accessed_at(&self, ctx: &WriteCtx, old: &StoredFile, e: &StoredFile) -> ServiceResult<()>;
 
-    /// `after_update_download_count` (stored_file.hook.yaml:321): `emit: FileDownloadedEvent(file_id: id, user_id: $context.user_id, share_id: $context.share_id, ip_address: $context.ip_address)`
+    /// `after_update_download_count` (stored_file.hook.yaml:345): `emit: FileDownloadedEvent(file_id: id, user_id: $context.user_id, share_id: $context.share_id, ip_address: $context.ip_address)`
     async fn after_update_download_count__emit_file_downloaded_event(&self, ctx: &WriteCtx, old: &StoredFile, e: &StoredFile) -> ServiceResult<()>;
 
-    /// `after_delete` (stored_file.hook.yaml:330): `delete: FileShare(file_id: id)`
+    /// `after_delete` (stored_file.hook.yaml:354): `delete: FileShare(file_id: id)`
     async fn after_delete__delete_file_share(&self, ctx: &WriteCtx, e: &StoredFile) -> ServiceResult<()>;
 
-    /// `after_delete` (stored_file.hook.yaml:330): `delete: FileAccessLog(file_id: id)`
+    /// `after_delete` (stored_file.hook.yaml:354): `delete: FileAccessLog(file_id: id)`
     async fn after_delete__delete_file_access_log(&self, ctx: &WriteCtx, e: &StoredFile) -> ServiceResult<()>;
 
     /// `on_enter uploading` (stored_file.hook.yaml:16): `set: processing_status = 'pending'`

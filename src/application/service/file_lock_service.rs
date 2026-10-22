@@ -56,6 +56,7 @@ impl backbone_core::write_guard::WriteGuard<FileLock> for FileLockRowRules {
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let old_row = old.as_ref().unwrap_or(&serde_json::Value::Null);
         let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
@@ -75,7 +76,7 @@ impl backbone_core::write_guard::WriteGuard<FileLock> for FileLockRowRules {
             refuse.push(Violation::new("user_id", "not_lock_owner", "Only lock owner can modify"));
         }
         // `cannot_modify_expired` (file_lock.hook.yaml:90)
-        if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("expired"))) {
+        if (update) && !r::holds(&r::ne(r::field(old_row, "status"), r::text("expired"))) {
             refuse.push(Violation::new("status", "lock_expired", "Cannot modify expired lock"));
         }
         GuardOutcome { refuse, shadow }

@@ -93,6 +93,22 @@ impl ModuleBuilderExt {
             ))),
             _ => None,
         };
+        // The workflow Actions impls hold nothing (they are built with
+        // `Default`); hand them the storage backend and the same generated
+        // services the engine writes through (ADR-0035 hand half).
+        crate::application::workflows::bind_workflow_runtime(
+            storage.clone(),
+            Arc::new(crate::application::workflows::WorkflowServices {
+                access_log: parts.access_log_service.clone(),
+                bucket: parts.bucket_service.clone(),
+                content_hash: parts.content_hash_service.clone(),
+                file_share: parts.file_share_service.clone(),
+                processing_job: parts.processing_job_service.clone(),
+                stored_file: parts.stored_file_service.clone(),
+                upload_session: parts.upload_session_service.clone(),
+                user_quota: parts.user_quota_service.clone(),
+            }),
+        );
         Ok(ModuleExt {
             locking_service,
             multipart_upload_service,

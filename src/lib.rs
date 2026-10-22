@@ -98,6 +98,8 @@ pub struct BucketModule {
     pub(crate) thumbnail_service: Arc<ThumbnailService>,
     pub(crate) upload_session_service: Arc<UploadSessionService>,
     pub(crate) user_quota_service: Arc<UserQuotaService>,
+    /// The engine of the module's workflows; see [`Self::background_tasks`].
+    pub(crate) workflow_tasks: backbone_core::workflow::BackgroundTasks,
     /// The module's extension state (`lib.ext.rs`); its fields read through `Deref`.
     pub(crate) ext: ModuleExt,
 }
@@ -151,6 +153,15 @@ impl BucketModule {
     /// Create a new module builder
     pub fn builder() -> BucketModuleBuilder {
         BucketModuleBuilder::new()
+    }
+
+    /// The background tasks of the module's workflows with `config.executor: engine`: the engine,
+    /// whose [`deliver`](backbone_core::workflow::BackgroundTasks::deliver) is the outbox relay's sink for
+    /// the events it subscribes to, and whose [`timer_sweep`](backbone_core::workflow::BackgroundTasks::timer_sweep)
+    /// is the job `workflow_timer_sweep`, every minute. The composing service registers both; the module
+    /// only hands them over.
+    pub fn background_tasks(&self) -> &backbone_core::workflow::BackgroundTasks {
+        &self.workflow_tasks
     }
 
     /// Mount ALL generated CRUD endpoints (12 per entity) with NO domain
@@ -322,6 +333,21 @@ impl BucketModuleBuilder {
         let user_quota_repository = Arc::new(UserQuotaRepository::new(db_pool.clone()));
         let user_quota_service = Arc::new(crate::application::service::build_user_quota_service(user_quota_repository.clone()));
 
+        // The engine of the module's workflows, writing through the services above.
+        let workflow_tasks = crate::application::workflows::build_background_tasks(
+            db_pool.clone(),
+            crate::application::workflows::WorkflowServices {
+                access_log: access_log_service.clone(),
+                bucket: bucket_service.clone(),
+                content_hash: content_hash_service.clone(),
+                file_share: file_share_service.clone(),
+                processing_job: processing_job_service.clone(),
+                stored_file: stored_file_service.clone(),
+                upload_session: upload_session_service.clone(),
+                user_quota: user_quota_service.clone(),
+            },
+        );
+
 
         // The extension builds its own state from what the generated build made.
         let ext = self.ext.build(&ModuleParts {
@@ -368,6 +394,7 @@ impl BucketModuleBuilder {
             thumbnail_service,
             upload_session_service,
             user_quota_service,
+            workflow_tasks,
             ext,
         })
     }

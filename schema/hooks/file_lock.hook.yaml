@@ -89,7 +89,7 @@ rules:
 
   cannot_modify_expired:
     when: [update]
-    condition: "status != 'expired'"
+    condition: "$old.status != 'expired'"
     message: "Cannot modify expired lock"
     code: LOCK_EXPIRED
 

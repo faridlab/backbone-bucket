@@ -104,7 +104,7 @@ rules:
 
   cannot_modify_deleted:
     when: [update]
-    condition: "status != 'deleted'"
+    condition: "$old.status != 'deleted'"
     message: "Cannot modify deleted buckets"
     code: BUCKET_DELETED
 

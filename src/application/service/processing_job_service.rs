@@ -56,6 +56,7 @@ impl backbone_core::write_guard::WriteGuard<ProcessingJob> for ProcessingJobRowR
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let old_row = old.as_ref().unwrap_or(&serde_json::Value::Null);
         let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `status` belongs to a state machine: only its verbs move it
@@ -83,7 +84,7 @@ impl backbone_core::write_guard::WriteGuard<ProcessingJob> for ProcessingJobRowR
             refuse.push(Violation::new("priority", "invalid_priority", "Priority must be 0-10"));
         }
         // `cannot_modify_completed` (processing_job.hook.yaml:148)
-        if (update) && !r::holds(&r::ne(r::field(row, "status"), r::text("completed"))) {
+        if (update) && !r::holds(&r::ne(r::field(old_row, "status"), r::text("completed"))) {
             refuse.push(Violation::new("status", "job_completed", "Cannot modify completed jobs"));
         }
         GuardOutcome { refuse, shadow }
